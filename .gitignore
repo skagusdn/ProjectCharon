@@ -1,0 +1,63 @@
+﻿# 기본적인 UE 프로젝트 폴더 무시
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+Content/
+.starterproject
+.vscode/
+.idea/
+ 
+ 
+# 언리얼 관련 파일 무시
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.ipch
+*.aps
+*.ncb
+*.user
+*.suo
+*.sln.cache
+*.VC.db
+*.VC.opendb
+*.xcodeproj/
+*.xcworkspace/
+
+# 언리얼 빌드 파일 무시
+*.obj
+*.pdb
+*.pch
+*.idb
+*.res
+*.tlh
+*.tli
+*.tlb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.so
+*.dylib
+*.exp
+*.app
+*.ipa
+*.ds_store
+
+# Rider 관련 파일 무시
+.idea/
+*.iml
+*.ipr
+*.iws
+*.rider/
+
+# 플러그인 빌드 관련 폴더 무시 (필요 시 추가)
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# 🔥 중요한 파일만 포함
+!Source/    # C++ 코드 폴더 포함
+!Config/    # 프로젝트 설정 포함
+
