@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/CharacterAbilityConfig.h"
+#include "Data/NewInputFunctionSet.h"
 #include "RiderComponent.generated.h"
 
-class ANewInputFunctionSet;
+//class ANewInputFunctionSet;
 struct FVehicleInfo;
 class AVehicle;
 
@@ -30,7 +31,7 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable)
 	void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, ANewInputFunctionSet* InputFunctions);
-	
+		
 	UFUNCTION(BlueprintCallable)
 	void HandleUnride();
 	

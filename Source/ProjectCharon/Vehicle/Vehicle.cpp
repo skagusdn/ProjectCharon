@@ -5,12 +5,14 @@
 
 #include "AbilitySystemComponent.h"
 #include "Data/NewInputFunctionSet.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AVehicle::AVehicle()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicateUsingRegisteredSubObjectList = true;
 	
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("VehicleASC"));
 	AbilitySystemComponent->SetIsReplicated(true);
@@ -38,9 +40,27 @@ void AVehicle::PostInitializeComponents()
 
 		// 되나 시도중.
 		AbilityConfigsForRiders.Add(nullptr);
-		InputFunctionSets.Add(GetWorld()->SpawnActor<ANewInputFunctionSet>());
+		
+		if(HasAuthority())
+		{
+			InputFunctionSets.Add(NewObject<ANewInputFunctionSet>());
+			
+			//AddReplicatedSubObject(InputFunctionSets[i]);
+		}
+		/////////////////////
 	}
+
+	InitInputFunctions();
 }
+
+void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	//DOREPLIFETIME(AVehicle, InputFunctionSets);
+}
+
+
 
 // Called every frame
 void AVehicle::Tick(float DeltaTime)

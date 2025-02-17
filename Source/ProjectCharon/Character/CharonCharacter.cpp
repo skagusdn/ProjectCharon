@@ -17,10 +17,8 @@ ACharonCharacter::ACharonCharacter()
 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
 	InteractionComponent = CreateDefaultSubobject<UInteractionComponent>(TEXT("InteractionComponent"));
 	
-	DefaultInputFunctions = CreateDefaultSubobject<ANewInputFunctionSet>(TEXT("DefaultInputFunctions"));
-
-	
-	
+	//DefaultInputFunctions = CreateDefaultSubobject<ANewInputFunctionSet>(TEXT("DefaultInputFunctions"));
+	DefaultInputFunctions = nullptr;
 }
 
 void ACharonCharacter::OnRep_Controller()
@@ -82,6 +80,11 @@ void ACharonCharacter::ResetAbilityConfig()
 	InputAssistComponent->ResetToDefaultInputConfig();
 }
 
+bool ACharonCharacter::TestIsEqual(UObject* Object1, UObject* Object2)
+{
+	return Object1 == Object2;
+}
+
 void ACharonCharacter::InitCharonCharacter()
 {
 	// 주의 : 초기화는 다양한 타이밍에 진행되니 여러 번 호출되어도 이상이 없게 디자인하기. ex) 초기화 안하고 능력 부여 여러번되서 이상해졌음. 
@@ -123,7 +126,10 @@ void ACharonCharacter::PostInitializeComponents()
 	Super::PostInitializeComponents();
 	
 	// InputFunctionSet에 함수 등록.
-	InitInputFunctions();
+	//InitInputFunctions();
+
+	//일단 얘는 리플리케이션 꺼둘거니까 서버랑 클라이언트 각자 생성하는걸로.
+	DefaultInputFunctions = GetWorld()->SpawnActor<ANewInputFunctionSet>(DefaultInputFunctionClass);	
 }
 
 // Called every frame

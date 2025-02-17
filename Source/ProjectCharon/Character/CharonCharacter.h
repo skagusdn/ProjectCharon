@@ -33,8 +33,8 @@ protected:
 	virtual void PostInitializeComponents() override;
 	
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void InitInputFunctions();
+	// UFUNCTION(BlueprintImplementableEvent)
+	// void InitInputFunctions();
 
 	virtual void PossessedBy(AController* NewController) override;
 	//virtual void PawnClientRestart() override;
@@ -58,6 +58,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ANewInputFunctionSet> DefaultInputFunctions;
 
+		//테스트중
+	UPROPERTY(EditAnywhere, Meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<ANewInputFunctionSet> DefaultInputFunctionClass;
+	//
 	
 public:
 
@@ -81,4 +85,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	void ResetAbilityConfig();
+
+
+	//Test용
+	UFUNCTION(BlueprintCallable)
+	static bool TestIsEqual(UObject* Object1, UObject* Object2);
 };
