@@ -4,7 +4,7 @@
 #include "Vehicle.h"
 
 #include "AbilitySystemComponent.h"
-#include "Data/NewInputFunctionSet.h"
+#include "Data/InputFunctionSet.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values
@@ -41,16 +41,16 @@ void AVehicle::PostInitializeComponents()
 		// 되나 시도중.
 		AbilityConfigsForRiders.Add(nullptr);
 		
-		if(HasAuthority())
+		if(InputFunctionSetClasses.Num() > i)
 		{
-			InputFunctionSets.Add(NewObject<ANewInputFunctionSet>());
-			
-			//AddReplicatedSubObject(InputFunctionSets[i]);
+			InputFunctionSets.Add(GetWorld()->SpawnActor<AInputFunctionSet>(InputFunctionSetClasses[i]));
+		} else
+		{
+			InputFunctionSets.Add(nullptr);
 		}
+		
 		/////////////////////
 	}
-
-	InitInputFunctions();
 }
 
 void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -60,9 +60,27 @@ void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLi
 	//DOREPLIFETIME(AVehicle, InputFunctionSets);
 }
 
+#if WITH_EDITOR
+void AVehicle::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if(PropertyChangedEvent.Property)
+	{
+		FName PropertyName = PropertyChangedEvent.Property->GetFName();
+		//InputFunctionSetClasses는 라이더 최대 수까지만.
+		//TODO : MaxRiderNum이 변할때도 비슷하게 해줘야 하는데 뭔가 고려할게 많으니 일단 나중에
+		if(PropertyName == GET_MEMBER_NAME_CHECKED(AVehicle, InputFunctionSetClasses))
+		{
+			while(InputFunctionSetClasses.Num() > MaxRiderNum)
+			{
+				InputFunctionSetClasses.RemoveAt(InputFunctionSetClasses.Num() - 1);
+			}
+		}
+		
+	}
+}
+#endif
 
-
-// Called every frame
 void AVehicle::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -86,10 +104,10 @@ UAbilitySystemComponent* AVehicle::GetAbilitySystemComponent() const
 }
 
 
-int32 AVehicle::GetCurrentRiderNum()
-{
-	return CurrentRiderNum;
-}
+// int32 AVehicle::GetCurrentRiderNum()
+// {
+// 	return CurrentRiderNum;
+// }
 
 int32 AVehicle::Ride(ACharacter* Rider)
 {
@@ -112,9 +130,9 @@ int32 AVehicle::Ride(ACharacter* Rider)
 	return -1;
 }
 
-bool AVehicle::UnRide(ACharacter* character)
+bool AVehicle::UnRide(ACharacter* Rider)
 {
-	int32 idx = FindRiderIdx(character);
+	int32 idx = FindRiderIdx(Rider);
 	if (idx == -1) {
 		return false;
 	}
@@ -123,5 +141,7 @@ bool AVehicle::UnRide(ACharacter* character)
 
 	return true;
 }
+
+
 
 

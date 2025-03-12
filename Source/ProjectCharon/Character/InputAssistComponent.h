@@ -11,9 +11,8 @@
 #include "InputAssistComponent.generated.h"
 
 
+class AInputFunctionSet;
 struct FGameplayAbilitySpecHandle;
-
-
 
 
 /**
@@ -37,7 +36,8 @@ protected:
 	TObjectPtr<const UCharonInputConfig> DefaultInputConfig = nullptr;
 	TObjectPtr<const UCharonInputConfig> PresentInputConfig = nullptr;
 
-	TObjectPtr<ANewInputFunctionSet> DefaultInputFunctions = nullptr;
+	UPROPERTY()
+	TObjectPtr<AInputFunctionSet> DefaultInputFunctions = nullptr;
 	
 	// //보조 InputConfig 넣을 곳. 설정창 불러오기라던가, 뭔가 추가기능이라던가. 
 	//TSet<UCharonInputConfig> SubInputConfigs;
@@ -60,15 +60,15 @@ protected:
 public:
 	//컴포넌트 초기화.
 	UFUNCTION(BlueprintCallable)
-	void InitInputAssist(const UCharonInputConfig* InputConfig, ANewInputFunctionSet* InInputFunctions);
+	void InitInputAssist(const UCharonInputConfig* InputConfig, AInputFunctionSet* InInputFunctions);
 	
 	// InputConfig를 등록. 인풋액션-어빌리티, 인풋액션-함수 쌍을 CharonInputComponent를 통해 Bind.
 	UFUNCTION(Client, Reliable, Category="Charon|Input")
-	void SwitchInputConfig(const UCharonInputConfig* InputConfig, ANewInputFunctionSet* InputFunctions);
+	void SwitchInputConfig(const UCharonInputConfig* InputConfig, AInputFunctionSet* InputFunctions);
 	void UnregisterInputConfig();
 
 	//디폴트 입력으로 되돌아가기.
-	UFUNCTION(BlueprintCallable, Category="Charon|Input")
+	UFUNCTION(BlueprintCallable, Client, Reliable, Category="Charon|Input")
 	void ResetToDefaultInputConfig();
 	
 

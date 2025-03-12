@@ -6,7 +6,7 @@
 #include "CharonInputConfig.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Data/NewInputFunctionSet.h"
+#include "Data/InputFunctionSet.h"
 //#include "Data/InputFunctionSet.h"
 #include "CharonInputComponent.generated.h"
 
@@ -31,7 +31,7 @@ public :
 	void BindAbilityActions(const UCharonInputConfig* InputConfig, UserClass* Object, PressedFuncType PressedFunc, ReleasedFuncType ReleasedFunc, TArray<uint32>& BindHandles);
 
 	//template<class UserClass, typename FuncType>
-	void BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, ANewInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles);
+	void BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles);
 	
 	void RemoveBinds(TArray<uint32>& BindHandles);
 };

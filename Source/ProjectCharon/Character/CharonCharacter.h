@@ -14,7 +14,7 @@
 #include "CharonCharacter.generated.h"
 
 
-class ANewInputFunctionSet;
+class AInputFunctionSet;
 class UCharacterAbilityConfig;
 
 UCLASS()
@@ -56,11 +56,11 @@ protected:
 	
 	//InputAction과 매핑할 InputFunction
 	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<ANewInputFunctionSet> DefaultInputFunctions;
+	TObjectPtr<AInputFunctionSet> DefaultInputFunctions;
 
 		//테스트중
 	UPROPERTY(EditAnywhere, Meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<ANewInputFunctionSet> DefaultInputFunctionClass;
+	TSubclassOf<AInputFunctionSet> DefaultInputFunctionClass;
 	//
 	
 public:
@@ -81,7 +81,7 @@ public:
 	//~ IAbilitySystemInterface 끝
 
 	UFUNCTION(BlueprintCallable)
-	void SwitchAbilityConfig(const UCharacterAbilityConfig* AbilityConfig, ANewInputFunctionSet* InputFunctions );
+	void SwitchAbilityConfig(const UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions );
 	
 	UFUNCTION(BlueprintCallable)
 	void ResetAbilityConfig();

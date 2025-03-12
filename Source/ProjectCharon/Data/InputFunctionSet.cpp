@@ -1,16 +1,16 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "NewInputFunctionSet.h"
+#include "InputFunctionSet.h"
 
 
-ANewInputFunctionSet::ANewInputFunctionSet()
+AInputFunctionSet::AInputFunctionSet()
 {
 	bReplicates = true;
 	bAlwaysRelevant = true;
 }
 
-void ANewInputFunctionSet::AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent)
+void AInputFunctionSet::AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent)
 {
 	InputFunctionDelegateMap.Add(Tag, {Delegate, TriggerEvent});
 }

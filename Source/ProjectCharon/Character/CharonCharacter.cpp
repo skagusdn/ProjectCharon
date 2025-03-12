@@ -3,7 +3,7 @@
 
 #include "CharonCharacter.h"
 
-#include "Data/NewInputFunctionSet.h"
+#include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 
 
@@ -54,13 +54,13 @@ UAbilitySystemComponent* ACharonCharacter::GetAbilitySystemComponent() const
 }
 
 void ACharonCharacter::SwitchAbilityConfig(const UCharacterAbilityConfig* AbilityConfig,
-	ANewInputFunctionSet* InputFunctions)
+	AInputFunctionSet* InputFunctions)
 {
 	check(AbilityConfig);
 	
 	if(AbilityAssistComponent)
 	{
-		if(AbilityConfig->Abilities.Num() > 0)
+		if(AbilityConfig->Abilities.Num() > 0 && HasAuthority())
 		{
 			AbilityAssistComponent->SwitchAbilitySet(AbilityConfig->Abilities);
 		}
@@ -76,8 +76,12 @@ void ACharonCharacter::SwitchAbilityConfig(const UCharacterAbilityConfig* Abilit
 
 void ACharonCharacter::ResetAbilityConfig()
 {
-	AbilityAssistComponent->ResetToDefaultAbilitySet();
-	InputAssistComponent->ResetToDefaultInputConfig();
+	if(HasAuthority())
+	{
+		AbilityAssistComponent->ResetToDefaultAbilitySet();
+		InputAssistComponent->ResetToDefaultInputConfig();
+	}
+	
 }
 
 bool ACharonCharacter::TestIsEqual(UObject* Object1, UObject* Object2)
@@ -129,7 +133,7 @@ void ACharonCharacter::PostInitializeComponents()
 	//InitInputFunctions();
 
 	//일단 얘는 리플리케이션 꺼둘거니까 서버랑 클라이언트 각자 생성하는걸로.
-	DefaultInputFunctions = GetWorld()->SpawnActor<ANewInputFunctionSet>(DefaultInputFunctionClass);	
+	DefaultInputFunctions = GetWorld()->SpawnActor<AInputFunctionSet>(DefaultInputFunctionClass);	
 }
 
 // Called every frame

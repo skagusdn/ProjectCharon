@@ -35,7 +35,7 @@ void UInputAssistComponent::ClearAbilityConfig()
 }
 
 
-void UInputAssistComponent::InitInputAssist(const UCharonInputConfig* InputConfig, ANewInputFunctionSet* InInputFunctions)
+void UInputAssistComponent::InitInputAssist(const UCharonInputConfig* InputConfig, AInputFunctionSet* InInputFunctions)
 {
 
 	if(InputConfig)
@@ -47,7 +47,7 @@ void UInputAssistComponent::InitInputAssist(const UCharonInputConfig* InputConfi
 	}
 }
 
-void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputConfig* InputConfig, ANewInputFunctionSet* InInputFunctions)
+void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputConfig* InputConfig, AInputFunctionSet* InInputFunctions)
 {
 	const AActor* OwnerActor = GetOwner();
 	const APawn* OwnerPawn = Cast<APawn>(OwnerActor);
@@ -133,7 +133,7 @@ void UInputAssistComponent::UnregisterInputConfig()
 	
 }
 
-void UInputAssistComponent::ResetToDefaultInputConfig()
+void UInputAssistComponent::ResetToDefaultInputConfig_Implementation()
 {
 	if(PresentInputConfig)
 	{

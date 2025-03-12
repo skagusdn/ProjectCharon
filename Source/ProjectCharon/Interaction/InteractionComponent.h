@@ -23,11 +23,16 @@ protected:
 	
 	virtual void BeginPlay() override;
 	virtual void OnRegister() override;
+
+	UFUNCTION()
+	void OnRep_IsInteracting();
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	TObjectPtr<ACharacter> OwnerCharacter;
 
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing="OnRep_IsInteracting")
 	bool bIsInteracting = false;
-
+	
 	TScriptInterface<IInteractiveInterface> InteractingTarget = nullptr;
 	
 public:
@@ -37,7 +42,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Charon|Interaction")
 	bool IsInteracting() {return bIsInteracting;};
-
-	UFUNCTION(BlueprintCallable, Category="Charon|Interaction")
+	
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category="Charon|Interaction")
 	void TryCancelInteraction();
 };

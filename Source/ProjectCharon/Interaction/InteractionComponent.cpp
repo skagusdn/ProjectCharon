@@ -3,12 +3,13 @@
 
 #include "InteractionComponent.h"
 #include "GameFramework/Character.h"
+#include "Net/UnrealNetwork.h"
 
 
 // Sets default values for this component's properties
 UInteractionComponent::UInteractionComponent()
 {
-	
+	SetIsReplicatedByDefault(true);
 }
 
 
@@ -28,6 +29,18 @@ void UInteractionComponent::OnRegister()
 		InteractingTarget->CancelInteraction(OwnerCharacter);
 	}
 	OwnerCharacter = Cast<ACharacter>(GetOwner());
+}
+
+void UInteractionComponent::OnRep_IsInteracting()
+{
+	UE_LOG(LogTemp, Display, TEXT("bIsInteracting changed"));
+}
+
+void UInteractionComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UInteractionComponent, bIsInteracting);
 }
 
 void UInteractionComponent::TryInteraction(TScriptInterface<IInteractiveInterface> Target)
@@ -58,15 +71,14 @@ void UInteractionComponent::TryInteraction(TScriptInterface<IInteractiveInterfac
 	}
 }
 
-void UInteractionComponent::TryCancelInteraction()
+void UInteractionComponent::TryCancelInteraction_Implementation()
 {
-	if(!bIsInteracting || InteractingTarget == nullptr)
+	bIsInteracting = false;
+	if(InteractingTarget != nullptr)
 	{
-		bIsInteracting = false;
-		return;
+		InteractingTarget->Execute_CancelInteraction(InteractingTarget.GetObject(), OwnerCharacter);
+		InteractingTarget = nullptr;
 	}
-	
-	InteractingTarget->Execute_CancelInteraction(InteractingTarget.GetObject(), OwnerCharacter);
 }
 
 

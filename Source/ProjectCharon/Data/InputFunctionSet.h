@@ -6,7 +6,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/Info.h"
-#include "NewInputFunctionSet.generated.h"
+#include "InputFunctionSet.generated.h"
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FInputActionDelegate, const FInputActionValue&, InputActionValue, ACharacter*, Initiator);
 
@@ -21,13 +21,13 @@ struct FInputActionDelegateWithTriggerEvent
 
 
 UCLASS(BlueprintType, Blueprintable)
-class PROJECTCHARON_API ANewInputFunctionSet : public AInfo
+class PROJECTCHARON_API AInputFunctionSet : public AInfo
 {
 	GENERATED_BODY()
 
 public:
 	
-	ANewInputFunctionSet();
+	AInputFunctionSet();
 
 	UPROPERTY(BlueprintReadWrite)
 	TMap<FGameplayTag, FInputActionDelegateWithTriggerEvent> InputFunctionDelegateMap;

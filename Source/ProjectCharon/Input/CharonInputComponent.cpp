@@ -33,7 +33,7 @@ void UCharonInputComponent::RemoveInputMappings(const UCharonInputConfig* InputC
 }
 
 //template <class UserClass, typename FuncType>
-void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, ANewInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
+void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
 {
 	check(InputConfig);
 

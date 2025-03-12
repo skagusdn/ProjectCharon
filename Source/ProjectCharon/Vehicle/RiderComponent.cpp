@@ -36,7 +36,7 @@ void URiderComponent::OnRegister()
 }
 
 void URiderComponent::HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-	ANewInputFunctionSet* InputFunctions)
+	AInputFunctionSet* InputFunctions)
 {
 	check(Vehicle);
 
@@ -63,6 +63,7 @@ void URiderComponent::HandleUnride()
 
 URiderComponent* URiderComponent::FindRiderComponent(ACharacter* Character)
 {
+	check(Character);
 	return Character->FindComponentByClass<URiderComponent>();
 }
 

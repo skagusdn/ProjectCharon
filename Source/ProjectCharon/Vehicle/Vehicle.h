@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 //#include "InteractiveInterface.h"
 #include "AbilitySystemInterface.h"
-#include "Data/NewInputFunctionSet.h"
+#include "Data/InputFunctionSet.h"
 #include "Interaction/InteractiveInterface.h"
 #include "Vehicle.generated.h"
 
@@ -21,7 +21,7 @@ struct FTestStruct
 {
 	GENERATED_BODY()
 public :
-	TArray<TObjectPtr<ANewInputFunctionSet>> TestFunctions;
+	TArray<TObjectPtr<AInputFunctionSet>> TestFunctions;
 };
 //////////
 
@@ -40,8 +40,8 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	TArray<TObjectPtr<ACharacter>> Riders;
 
-	UFUNCTION(BlueprintCallable)
-	int32 GetCurrentRiderNum();
+	// UFUNCTION(BlueprintCallable)
+	// int32 GetCurrentRiderNum();
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TObjectPtr<USceneComponent>> Seats;
@@ -50,7 +50,7 @@ public:
 	int32 Ride(ACharacter* Rider);
 
 	UFUNCTION(BlueprintCallable)
-	bool UnRide(ACharacter* character);
+	bool UnRide(ACharacter* Rider);
 
 	UFUNCTION(BlueprintCallable)
 	int32 FindRiderIdx(ACharacter* Rider);
@@ -66,14 +66,18 @@ public:
 	
 protected:
 
-	UFUNCTION(BlueprintImplementableEvent)
-	void InitInputFunctions();
+	// UFUNCTION(BlueprintImplementableEvent)
+	// void InitInputFunctions();
 	
 	virtual void BeginPlay() override;
 	virtual void PostInitializeComponents() override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-	
+
+	//에디터에서 프로퍼티 바꿀때 호출.
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	UPROPERTY(BlueprintReadOnly)
 	int32 CurrentRiderNum = 0;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
@@ -86,8 +90,9 @@ protected:
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
 
 	UPROPERTY(BlueprintReadOnly)
-	TArray<TObjectPtr<ANewInputFunctionSet>> InputFunctionSets;
+	TArray<TObjectPtr<AInputFunctionSet>> InputFunctionSets;
 
-
+	UPROPERTY(EditAnywhere, Category = "Charon|Input")
+	TArray<TSubclassOf<AInputFunctionSet>> InputFunctionSetClasses;
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 };
