@@ -4,6 +4,7 @@
 #include "Vehicle.h"
 
 #include "AbilitySystemComponent.h"
+#include "RiderComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Net/UnrealNetwork.h"
 
@@ -87,6 +88,34 @@ void AVehicle::Tick(float DeltaTime)
 
 }
 
+bool AVehicle::RideVehicle(ACharacter* Rider)
+{
+	check(Rider);
+	
+	if(RegisterRider(Rider) < 0)
+	{
+		return false;
+	}
+
+	MountVehicle(Rider);
+	NotifyVehicleChanged(Rider, true);
+	
+	return true;
+}
+
+bool AVehicle::UnrideVehicle(ACharacter* Rider)
+{
+	check(Rider);
+	bool Ret = UnregisterRider(Rider);
+	if(Ret)
+	{
+		UnmountVehicle(Rider);
+		NotifyVehicleChanged(Rider, false);
+	}
+	
+	return Ret;
+}
+
 int32 AVehicle::FindRiderIdx (ACharacter* Rider)
 {
 	for (int32 i = 0; i < Riders.Num(); i++) 
@@ -103,13 +132,32 @@ UAbilitySystemComponent* AVehicle::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
+{
+	check(Rider);
+	
+	if(URiderComponent* RiderComponent = URiderComponent::FindRiderComponent(Rider))
+	{
+		if(IsRidingOn)
+		{
+			int RiderIdx = FindRiderIdx(Rider);
+			if(RiderIdx < 0)
+			{
+				return;
+			}
+			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx]);
+		}
+		else
+		{
+			RiderComponent->ServerHandleUnride();
+		}
+	}
+}
 
-// int32 AVehicle::GetCurrentRiderNum()
-// {
-// 	return CurrentRiderNum;
-// }
 
-int32 AVehicle::Ride(ACharacter* Rider)
+
+
+int32 AVehicle::RegisterRider(ACharacter* Rider)
 {
 	if (CurrentRiderNum >= MaxRiderNum)
 	{
@@ -130,7 +178,7 @@ int32 AVehicle::Ride(ACharacter* Rider)
 	return -1;
 }
 
-bool AVehicle::UnRide(ACharacter* Rider)
+bool AVehicle::UnregisterRider(ACharacter* Rider)
 {
 	int32 idx = FindRiderIdx(Rider);
 	if (idx == -1) {

@@ -50,6 +50,38 @@ void URiderComponent::HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* Abi
 	}
 }
 
+void URiderComponent::ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
+	AInputFunctionSet* InputFunctions)
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	HandleRide(Vehicle, AbilityConfig, InputFunctions);
+	ClientHandleRide(Vehicle, AbilityConfig, InputFunctions);
+}
+
+void URiderComponent::ServerHandleUnride()
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	HandleUnride();
+	ClientHandleUnride();
+}
+
+void URiderComponent::ClientHandleUnride_Implementation()
+{
+	HandleUnride();
+}
+
+void URiderComponent::ClientHandleRide_Implementation(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
+                                                      AInputFunctionSet* InputFunctions)
+{
+	HandleRide(Vehicle, AbilityConfig, InputFunctions);
+}
+
 void URiderComponent::HandleUnride()
 {
 	if(ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(OwnerCharacter))

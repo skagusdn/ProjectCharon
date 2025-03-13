@@ -29,16 +29,30 @@ protected:
 	virtual void OnRegister() override;
 	
 public:
-	UFUNCTION(BlueprintCallable)
-	void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
-		
-	UFUNCTION(BlueprintCallable)
-	void HandleUnride();
+	
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+	void ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+
+	UFUNCTION(Client, Reliable, BlueprintCallable)
+	void ClientHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+	
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+	void ServerHandleUnride();
+
+	UFUNCTION(Client, Reliable, BlueprintCallable)
+	void ClientHandleUnride();
 	
 	UFUNCTION(BlueprintPure)
 	static URiderComponent* FindRiderComponent(ACharacter* Character);
 
 protected:
+	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	UFUNCTION(BlueprintCallable)
+	void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+
+	UFUNCTION(BlueprintCallable)
+	void HandleUnride();
+	
 	UPROPERTY(BlueprintReadWrite, meta=(AllowPrivateAccess=true))
 	TObjectPtr<AVehicle> RidingVehicle;
 	
