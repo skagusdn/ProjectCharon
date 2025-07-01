@@ -91,7 +91,7 @@ bool ACharonCharacter::TestIsEqual(UObject* Object1, UObject* Object2)
 
 void ACharonCharacter::InitCharonCharacter()
 {
-	// 주의 : 초기화는 다양한 타이밍에 진행되니 여러 번 호출되어도 이상이 없게 디자인하기. ex) 초기화 안하고 능력 부여 여러번되서 이상해졌음. 
+	// 주의 : 초기화는 다양한 타이밍에 진행되니 여러 번 호출되어도 이상이 없게 디자인하기. ex) 부여한 능력 회수 안하고 능력 부여 여러번 되는 경우. 
 	if(ACharonPlayerState* PS = Cast<ACharonPlayerState>(GetPlayerState()))
 	{
 		AbilityAssistComponent->InitAbilityAssist(PS->GetCharonAbilitySystemComponent(), PS, DefaultAbilityConfig);

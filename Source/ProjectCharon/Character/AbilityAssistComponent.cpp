@@ -53,13 +53,13 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 		UninitializeAbilitySystem();
 	}
 
-	APawn* Pawn = Cast<APawn>(GetOwner());
+	AActor* OwnerActor = GetOwner();
 	AActor* ExistingAvatar = InASC->GetAvatarActor();
 
-	UE_LOG(LogTemp, Verbose, TEXT("Setting up ASC [%s] on pawn [%s] owner [%s], existing [%s] "), *GetNameSafe(InASC), *GetNameSafe(Pawn), *GetNameSafe(InOwnerActor), *GetNameSafe(ExistingAvatar));
+	UE_LOG(LogTemp, Verbose, TEXT("Setting up ASC [%s] on actor [%s] owner [%s], existing [%s] "), *GetNameSafe(InASC), *GetNameSafe(OwnerActor), *GetNameSafe(InOwnerActor), *GetNameSafe(ExistingAvatar));
 	
 		
-	if ((ExistingAvatar != nullptr) && (ExistingAvatar != Pawn))
+	if ((ExistingAvatar != nullptr) && (ExistingAvatar != OwnerActor))
 	{
 		UE_LOG(LogTemp, Log, TEXT("Existing avatar (authority=%d)"), ExistingAvatar->HasAuthority() ? 1 : 0);
 

@@ -17,8 +17,7 @@ class PROJECTCHARON_API UCharonAbilitySystemComponent : public UAbilitySystemCom
 public :
 	UCharonAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 		
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta = (DevelopmentOnly))
-	void TestGiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, FGameplayTag InputTag);
+	
 
 	
 	
