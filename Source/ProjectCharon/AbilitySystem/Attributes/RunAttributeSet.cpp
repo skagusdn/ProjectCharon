@@ -17,8 +17,9 @@ void URunAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, RunSpeed, COND_OwnerOnly, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, Stamina, COND_OwnerOnly, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, MaxStamina, COND_OwnerOnly, REPNOTIFY_Always);
+	//DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, Stamina, COND_OwnerOnly, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, Stamina, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(URunAttributeSet, MaxStamina, COND_None, REPNOTIFY_Always);
 
 }
 
