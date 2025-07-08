@@ -7,6 +7,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharonCharacter.h"
 #include "GameFramework/Character.h"
+#include "UI/AttributeBoundWidget.h"
 #include "Vehicle/Vehicle.h"
 
 // Sets default values for this component's properties
@@ -36,13 +37,14 @@ void URiderComponent::OnRegister()
 }
 
 void URiderComponent::HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-	AInputFunctionSet* InputFunctions)
+	AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
 {
 	check(Vehicle);
 
 	RidingVehicle = Vehicle;
 	if(ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(OwnerCharacter))
 	{
+		// Ability 및 입력 등록
 		if(AbilityConfig)
 		{
 			CharonCharacter->SwitchAbilityConfig(AbilityConfig, InputFunctions);	
@@ -51,14 +53,14 @@ void URiderComponent::HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* Abi
 }
 
 void URiderComponent::ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-	AInputFunctionSet* InputFunctions)
+	AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
 {
 	if(!GetOwner()->HasAuthority())
 	{
 		return;
 	}
-	HandleRide(Vehicle, AbilityConfig, InputFunctions);
-	ClientHandleRide(Vehicle, AbilityConfig, InputFunctions);
+	HandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
+	ClientHandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
 }
 
 void URiderComponent::ServerHandleUnride()
@@ -71,15 +73,41 @@ void URiderComponent::ServerHandleUnride()
 	ClientHandleUnride();
 }
 
+
+void URiderComponent::ClientHandleRide_Implementation(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
+                                                      AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
+{
+	HandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
+
+	// Vehicle UI 적용.
+	if(VehicleUISet.WidgetClassList.Num() > 0)
+	{
+		APawn* Owner = Cast<APawn>(GetOwner());
+		UCharonAbilitySystemComponent* VehicleASC = Cast<UCharonAbilitySystemComponent>(Vehicle->GetAbilitySystemComponent());
+		for(TSubclassOf<UAttributeBoundWidget> WidgetClass : VehicleUISet.WidgetClassList)
+		{
+			UAttributeBoundWidget* Widget = CreateWidget<UAttributeBoundWidget>(Cast<APlayerController>(Owner->Controller), WidgetClass);
+			if(Widget)
+			{
+				Widget->InitAttributeBoundWidget(VehicleASC);
+				Widget->AddToViewport();
+				VehicleWidgets.Add(Widget);
+			}
+		}
+	}
+}
+
 void URiderComponent::ClientHandleUnride_Implementation()
 {
 	HandleUnride();
-}
 
-void URiderComponent::ClientHandleRide_Implementation(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-                                                      AInputFunctionSet* InputFunctions)
-{
-	HandleRide(Vehicle, AbilityConfig, InputFunctions);
+	// Vehicle UI 해제
+	for(UAttributeBoundWidget* Widget : VehicleWidgets)
+	{
+		Widget->RemoveFromParent();
+	}
+	VehicleWidgets.Empty();
+	
 }
 
 void URiderComponent::HandleUnride()

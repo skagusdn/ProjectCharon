@@ -64,7 +64,7 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 	{
 		return;
 	}
-
+		
 	if(PresentInputConfig)
 	{
 		UnregisterInputConfig();

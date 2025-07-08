@@ -51,9 +51,11 @@ public:
 	void InitAbilityAssist(UCharonAbilitySystemComponent* InAsc, AActor* InOwnerActor, const TObjectPtr<UCharacterAbilityConfig>& InAbilityConfig);
 	void InitializeAbilitySystem(UCharonAbilitySystemComponent* InAsc, AActor* InOwnerActor);
 	void UninitializeAbilitySystem();
+
+	/* DEPRECATED
 	void InitializeAttributes();
 	void UninitializeAttributes();
-	
+	*/
 	UAbilitySystemComponent* GetAbilitySystemComponent() const { return AbilitySystemComponent; }
 
 	UFUNCTION(BlueprintPure, Category="Charon|Ability")
@@ -62,13 +64,14 @@ public:
 	UFUNCTION(BlueprintPure, Category= "Charon|Character")
 	static UAbilityAssistComponent* FindAbilityAssistComponent(const AActor* Actor){return Actor? Actor->FindComponentByClass<UAbilityAssistComponent>() : nullptr;};
 
+	/*DEPRECATED
 	//Attribute Changed 델리게이트에 바인드 하기.
 	UFUNCTION(BlueprintCallable)
 	bool BindEventOnAttributeChanged(FGameplayAttribute InAttribute, FCharonSingleAttributeChanged Event);
 	
 	UFUNCTION(BlueprintCallable)
 	void UnbindEventOnAttributeChanged(const FCharonSingleAttributeChanged Event);
-	
+	*/
 	//Ability Set을 등록
 	void SwitchAbilitySet(TSet<UCharonAbilitySet*> Abilities);
 	// Ability 디폴트 값으로 초기화. 
@@ -84,15 +87,16 @@ protected:
 	// AbilitySet 해제.
 	void ClearAbilitySet();
 
-	//Attribute값 변화시 호출되는 함수. 
-	UFUNCTION(Server, Reliable)
-	void Server_HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
-	
-	UFUNCTION(Client, Reliable)
-	void Client_HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
-
-	void HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
-
+	/* DEPRECATED
+	// //Attribute값 변화시 호출되는 함수. 
+	// UFUNCTION(Server, Reliable)
+	// void Server_HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
+	//
+	// UFUNCTION(Client, Reliable)
+	// void Client_HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
+	//
+	// void HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp, FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator);
+	*/
 protected:
 	
 	UPROPERTY(Replicated)
@@ -105,8 +109,9 @@ protected:
 
 	//Attribute 값 바뀌면 broadcast될 델리게이트 모음. (replicated)
 	TMap<FGameplayAttribute, FCharonAttributeChanged> AttributeChangedDelegates;
-	
-	// Attribute Changed 델리게이트 바인드 Handles
-	TMap<FCharonSingleAttributeChanged, TPair<FGameplayAttribute,FDelegateHandle>> AttributeChangedBindHandles;
-	
+
+	/* DEPRECATED
+	// // Attribute Changed 델리게이트 바인드 Handles
+	// TMap<FCharonSingleAttributeChanged, TPair<FGameplayAttribute,FDelegateHandle>> AttributeChangedBindHandles;
+	*/
 };

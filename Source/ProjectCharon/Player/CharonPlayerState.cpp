@@ -15,6 +15,8 @@ ACharonPlayerState::ACharonPlayerState(const FObjectInitializer& ObjectInitializ
 		(this, TEXT("CharonAbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	
 	
 }
 

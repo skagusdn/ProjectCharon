@@ -8,6 +8,8 @@
 #include "Data/InputFunctionSet.h"
 #include "RiderComponent.generated.h"
 
+class UAttributeBoundWidget;
+struct FVehicleUISet;
 //class ANewInputFunctionSet;
 struct FVehicleInfo;
 class AVehicle;
@@ -31,10 +33,10 @@ protected:
 public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	void ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+	void ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
 
 	UFUNCTION(Client, Reliable, BlueprintCallable)
-	void ClientHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+	void ClientHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
 	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	void ServerHandleUnride();
@@ -48,7 +50,7 @@ public:
 protected:
 	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	UFUNCTION(BlueprintCallable)
-	void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions);
+	void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
 
 	UFUNCTION(BlueprintCallable)
 	void HandleUnride();
@@ -57,4 +59,6 @@ protected:
 	TObjectPtr<AVehicle> RidingVehicle;
 	
 	TObjectPtr<ACharacter> OwnerCharacter;
+
+	TArray<UAttributeBoundWidget*> VehicleWidgets;
 };

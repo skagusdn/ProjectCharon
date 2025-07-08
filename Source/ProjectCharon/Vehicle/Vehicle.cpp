@@ -15,9 +15,9 @@ AVehicle::AVehicle()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicateUsingRegisteredSubObjectList = true;
 	
-	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("VehicleASC"));
+	AbilitySystemComponent = CreateDefaultSubobject<UCharonAbilitySystemComponent>(TEXT("VehicleASC"));
 	AbilitySystemComponent->SetIsReplicated(true);
-	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	
 }
@@ -145,7 +145,14 @@ void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
 			{
 				return;
 			}
-			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx]);
+
+			check(AbilityConfigsForRiders.Num() > RiderIdx);
+			check(InputFunctionSets.Num() > RiderIdx);
+			check(VehicleUISets.Num() > RiderIdx);
+			
+			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx], VehicleUISets[RiderIdx]);
+
+			
 		}
 		else
 		{

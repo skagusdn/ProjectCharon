@@ -36,13 +36,15 @@ void UCharonInputComponent::RemoveInputMappings(const UCharonInputConfig* InputC
 void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
 {
 	check(InputConfig);
-
+	
 	for(auto& Element : InputFunctions->InputFunctionDelegateMap)
 	{
 		if(const UInputAction* InputAction = InputConfig->FindNativeInputActionForTag(Element.Key, false))
 		{
 			FInputActionDelegate Delegate = Element.Value.Delegate;
 			const ETriggerEvent TriggerEvent = Element.Value.TriggerEvent;
+
+			BindAction(InputAction, TriggerEvent, InputFunctions, )
 			
 			BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [Delegate, Initiator](const FInputActionValue& Value) -> void
 			{

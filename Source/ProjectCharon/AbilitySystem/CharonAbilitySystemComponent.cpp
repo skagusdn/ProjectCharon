@@ -6,6 +6,7 @@
 #include "Abilities/CharonGameplayAbility.h"
 #include "Engine/SpecularProfile.h"
 #include "ProjectCharon.h"
+#include "Animation/AnimTrace.h"
 
 UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -14,7 +15,7 @@ UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitia
 }
 
 
-void UCharonAbilitySystemComponent::K2_BindEventOnAttributeChange(UObject* EventSource, FGameplayAttribute AttributeToBind,
+FDelegateHandleWrapper UCharonAbilitySystemComponent::K2_BindEventOnAttributeChange(UObject* EventSource, FGameplayAttribute AttributeToBind,
                                                                FOnCharonAttributeChanged_Dynamic Event)
 {
 	FGameplayAttribute FoundAttribute = FindAttribute(AttributeToBind).Get(nullptr);
@@ -22,70 +23,124 @@ void UCharonAbilitySystemComponent::K2_BindEventOnAttributeChange(UObject* Event
 	if(FoundAttribute == nullptr)
 	{
 		UE_LOG(LogCharon, Error, TEXT("Attribute not found"));
-		return;
+		return FDelegateHandleWrapper();
 	}
-	
+
+	// 원하는 어트리뷰트 값 변화 델리게이트에 이벤트 실행 함수 바인드. EventSoruce가 Valid하지 않으면 관련 함수 언바인드.
+	TObjectPtr<UObject> EventSourcePtr = EventSource; 
 	FDelegateHandle Handle = GetGameplayAttributeValueChangeDelegate(FoundAttribute).
-	AddWeakLambda(EventSource, [Event](const FOnAttributeChangeData& Data) ->
+	AddWeakLambda(EventSource, [This=this, Event, EventSourcePtr](const FOnAttributeChangeData& Data) ->
 	void{
-		Event.Execute(Data.OldValue, Data.NewValue); 
+		if(IsValid(EventSourcePtr))
+		{
+			Event.Execute(Data.OldValue, Data.NewValue);	
+		}
+		else
+		{
+			if(This->AttributeBindHandlesOfSource.Contains(EventSourcePtr))
+			{
+				for(const FDelegateHandleWrapper BindHandle : This->AttributeBindHandlesOfSource[EventSourcePtr])
+				{
+					This->UnBindEventOnAttributeChange(BindHandle);
+				}
+				This->AttributeBindHandlesOfSource.Remove(EventSourcePtr);
+			}			
+		}		
 	});
 	
 	if(!Handle.IsValid())
 	{
 		UE_LOG(LogCharon, Error, TEXT("Delegate Binding Failed"));
-		return;
+		return FDelegateHandleWrapper();
 	}
-	
-	AttributeChangeBindHandles_Dynamic.Add(Event, {Handle, FoundAttribute});
-}
 
-void UCharonAbilitySystemComponent::K2_UnBindEventOnAttributeChange(FOnCharonAttributeChanged_Dynamic Event)
-{
-	if(AttributeChangeBindHandles_Dynamic.Contains(Event))
+
+	if(!AttributeBindHandlesOfSource.Contains(EventSourcePtr))
 	{
-		const FGameplayAttribute Attribute = AttributeChangeBindHandles_Dynamic.Find(Event)->Value;
-		const FDelegateHandle Handle = AttributeChangeBindHandles_Dynamic.Find(Event)->Key;
-		
-		GetGameplayAttributeValueChangeDelegate(Attribute).Remove(Handle);
-		AttributeChangeBindHandles_Dynamic.Remove(Event);
+		AttributeBindHandlesOfSource.Add({EventSourcePtr, TArray<FDelegateHandleWrapper>()});
 	}
+	AttributeBindHandlesOfSource[EventSourcePtr].Add({Handle, EventSourcePtr});
+	AttributeBindHandles.Add({Handle, FoundAttribute});
+
+	return FDelegateHandleWrapper(Handle, EventSourcePtr);
 }
 
-void UCharonAbilitySystemComponent::BindEventOnAttributeChange(FGameplayAttribute AttributeToBind,
-	FOnCharonAttributeChanged Event)
+FDelegateHandleWrapper UCharonAbilitySystemComponent::BindEventOnAttributeChange(UObject* EventSource,
+	FGameplayAttribute AttributeToBind, FOnCharonAttributeChanged Event)
 {
 	FGameplayAttribute FoundAttribute = FindAttribute(AttributeToBind).Get(nullptr);
 	
 	if(FoundAttribute == nullptr)
 	{
 		UE_LOG(LogCharon, Error, TEXT("Attribute not found"));
-		return;
+		return FDelegateHandleWrapper();
 	}
-	
+
+	// 원하는 어트리뷰트 값 변화 델리게이트에 이벤트 실행 함수 바인드. EventSoruce가 Valid하지 않으면 관련 함수 언바인드.
+	TObjectPtr<UObject> EventSourcePtr = EventSource; 
 	FDelegateHandle Handle = GetGameplayAttributeValueChangeDelegate(FoundAttribute).
-	AddLambda([Event](const FOnAttributeChangeData& Data) ->
+	AddWeakLambda(EventSource, [This=this, Event, EventSourcePtr](const FOnAttributeChangeData& Data) ->
 	void{
-		Event.Broadcast(Data.OldValue, Data.NewValue); 
+		if(IsValid(EventSourcePtr))
+		{
+			Event.Broadcast(Data.OldValue, Data.NewValue);	
+		}
+		else
+		{
+			if(This->AttributeBindHandlesOfSource.Contains(EventSourcePtr))
+			{
+				for(const FDelegateHandleWrapper BindHandle : This->AttributeBindHandlesOfSource[EventSourcePtr])
+				{
+					This->UnBindEventOnAttributeChange(BindHandle);
+				}
+				This->AttributeBindHandlesOfSource.Remove(EventSourcePtr);
+			}			
+		}		
 	});
 	
 	if(!Handle.IsValid())
 	{
 		UE_LOG(LogCharon, Error, TEXT("Delegate Binding Failed"));
-		return;
+		return FDelegateHandleWrapper();
 	}
-	
-	AttributeChangeBindHandles.Add({Handle, FoundAttribute});
+
+
+	if(!AttributeBindHandlesOfSource.Contains(EventSourcePtr))
+	{
+		AttributeBindHandlesOfSource.Add({EventSourcePtr, TArray<FDelegateHandleWrapper>()});
+	}
+	AttributeBindHandlesOfSource[EventSourcePtr].Add({Handle, EventSourcePtr});
+	AttributeBindHandles.Add({Handle, FoundAttribute});
+
+	return FDelegateHandleWrapper(Handle, EventSourcePtr);
 }
 
-void UCharonAbilitySystemComponent::UnBindEventOnAttributeChange(FDelegateHandle EventHandle)
+void UCharonAbilitySystemComponent::K2_UnBindEventOnAttributeChange(const FDelegateHandleWrapper EventHandle)
 {
-	if(AttributeChangeBindHandles.Contains(EventHandle))
-	{
-		const FGameplayAttribute * Attribute = AttributeChangeBindHandles.Find(EventHandle);
-		GetGameplayAttributeValueChangeDelegate(*Attribute).Remove(EventHandle);
+	UnBindEventOnAttributeChange(EventHandle);
+}
 
-		AttributeChangeBindHandles.Remove(EventHandle);
+void UCharonAbilitySystemComponent::UnBindEventOnAttributeChange(const FDelegateHandleWrapper EventHandle)
+{
+	if(AttributeBindHandles.Contains(EventHandle.Handle))
+	{
+		if(AttributeBindHandlesOfSource.Contains(EventHandle.EventSourcePtr))
+		{
+			AttributeBindHandlesOfSource[EventHandle.EventSourcePtr].Remove(EventHandle);
+		}
+		
+		const FGameplayAttribute Attribute = AttributeBindHandles[EventHandle.Handle];
+		
+		GetGameplayAttributeValueChangeDelegate(Attribute).Remove(EventHandle.Handle);
+		AttributeBindHandles.Remove(EventHandle.Handle);
+	}
+}
+
+void UCharonAbilitySystemComponent::CheckAttributeBinds()
+{
+	for(TTuple<FDelegateHandle, FGameplayAttribute> Tuple : AttributeBindHandles)
+	{
+		UE_LOG(LogCharon, Warning, TEXT("Attribute Binds With %s"),*Tuple.Value.GetName() );
 	}
 }
 
@@ -116,6 +171,7 @@ void UCharonAbilitySystemComponent::AbilityLocalInputTagPressed(FGameplayTag Inp
 				{
 					// Ability is not active, so try to activate it
 					TryActivateAbility(Spec.Handle);
+					
 				}
 			}
 		}

@@ -6,24 +6,26 @@
 #include "GameFramework/Actor.h"
 //#include "InteractiveInterface.h"
 #include "AbilitySystemInterface.h"
+#include "AbilitySystem/CharonAbilitySystemComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Interaction/InteractiveInterface.h"
 #include "Vehicle.generated.h"
 
+class UAttributeBoundWidget;
 class UCharacterAbilityConfig;
 class UCharonInputConfig;
 class UCharonAbilitySet;
 class UGameplayAbility;
 
-//////////////
 USTRUCT(BlueprintType)
-struct FTestStruct
+struct FVehicleUISet
 {
 	GENERATED_BODY()
-public :
-	TArray<TObjectPtr<AInputFunctionSet>> TestFunctions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
 };
-//////////
+
 
 UCLASS()
 class PROJECTCHARON_API AVehicle : public AActor, public IInteractiveInterface, public IAbilitySystemInterface
@@ -92,8 +94,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 MaxRiderNum = 1;
-	
-	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 
 	//라이더에게 부여할 입력/어빌리티 목록, Test중~~~~~~~~~~~~~~~~~~~~~~~~~~
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
@@ -104,5 +107,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Charon|Input")
 	TArray<TSubclassOf<AInputFunctionSet>> InputFunctionSetClasses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVehicleUISet> VehicleUISets;
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 };

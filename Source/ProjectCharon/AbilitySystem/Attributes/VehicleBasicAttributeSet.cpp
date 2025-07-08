@@ -10,9 +10,9 @@ void UVehicleBasicAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleHP, COND_OwnerOnly, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleMaxHP, COND_OwnerOnly, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleSpeed, COND_OwnerOnly, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleHP, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleMaxHP, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UVehicleBasicAttributeSet, VehicleSpeed, COND_None, REPNOTIFY_Always);
 }
 
 void UVehicleBasicAttributeSet::OnRep_VehicleHP(const FGameplayAttributeData& OldValue)

@@ -28,7 +28,7 @@ void UAbilityAssistComponent::InitAbilityAssist(UCharonAbilitySystemComponent* I
 	DefaultAbilityConfig = InAbilityConfig;
 	InitializeAbilitySystem(InAsc, InOwnerActor);
 
-	InitializeAttributes();
+	//InitializeAttributes();
 	if(GetOwner() && GetOwner()->HasAuthority())
 	{
 		//TODO : 등록 하는 로직이 아직 애매함. 일부만 Ability를 등록 해제 한다거나 그런거 없음. 여기 명확하게 하기. 
@@ -58,13 +58,16 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 
 	UE_LOG(LogTemp, Verbose, TEXT("Setting up ASC [%s] on actor [%s] owner [%s], existing [%s] "), *GetNameSafe(InASC), *GetNameSafe(OwnerActor), *GetNameSafe(InOwnerActor), *GetNameSafe(ExistingAvatar));
 	
-		
+
+	//Avatar Actor가 기본적으로 Owner,그러니까 PlayerState로 설정되어 있어서 여기는 그냥 들어오게 됨.
+	//아직 폰 교체 로직이 없어서 어떻게 될지 모르겠네. 
 	if ((ExistingAvatar != nullptr) && (ExistingAvatar != OwnerActor))
 	{
 		UE_LOG(LogTemp, Log, TEXT("Existing avatar (authority=%d)"), ExistingAvatar->HasAuthority() ? 1 : 0);
 
 		// There is already a pawn acting as the ASC's avatar, so we need to kick it out
 		// This can happen on clients if they're lagged: their new pawn is spawned + possessed before the dead one is removed
+
 		ensure(!ExistingAvatar->HasAuthority());
 			
 		if (UAbilityAssistComponent* OtherAssistComp = FindAbilityAssistComponent(ExistingAvatar))
@@ -110,130 +113,130 @@ void UAbilityAssistComponent::UninitializeAbilitySystem()
 		ClearAbilitySet();
 	}
 
-	UninitializeAttributes();
+	//UninitializeAttributes();
 	AbilitySystemComponent = nullptr;
 
 
 }
 
-void UAbilityAssistComponent::InitializeAttributes()
-{
-	if(!AbilitySystemComponent)
-	{
-		return;
-	}
-	
-	//모든 Attribute 값은 PlayerState 블루프린트에서-> AbilitySystemComponent를 DataTable을 통해 초기화함. 
-
-	TArray<FGameplayAttribute> AllAttributes;
-	AbilitySystemComponent->GetAllAttributes(AllAttributes);
-	
-	for(FGameplayAttribute Attribute : AllAttributes)
-	{
-		//혹시나 BindEventOnAttributeChanged가 먼저 호출됐을 경우 이미 생성돼있을것.
-		if(!AttributeChangedDelegates.Contains(Attribute))
-		{
-			FCharonAttributeChanged Delegate;
-			AttributeChangedDelegates.Add(Attribute, Delegate);
-		}
-
-		//서버일 경우, Attribute Value Changed 델리게이트에 내 델리게이트 호출하는 함수를 바인드함. 
-		if(GetOwner() && GetOwner()->HasAuthority())
-		{
-			AbilitySystemComponent-> GetGameplayAttributeValueChangeDelegate(Attribute)
-			.AddLambda([this, Attribute](const FOnAttributeChangeData& Data)-> void
-			{
-				Server_HandleAttributeChange(this, Attribute, Data.OldValue, Data.NewValue, nullptr);
-			});
-		}
-	}
-
-	for(FGameplayAttribute Attribute : AllAttributes)
-	{
-		const float Value = AbilitySystemComponent->GetNumericAttribute(Attribute);
-		AttributeChangedDelegates[Attribute].Broadcast(this, Value, Value, nullptr);
-	}
-
-}
-
-void UAbilityAssistComponent::UninitializeAttributes()
-{
-	// if(RunSet)
-	// {
-	// 	OnRunSpeedChanged.RemoveAll(this);
-	// 	OnStaminaChanged.RemoveAll(this);
-	// }
-	//
-	// RunSet = nullptr;
-}
-
-
-bool UAbilityAssistComponent::BindEventOnAttributeChanged(FGameplayAttribute InAttribute,
-	FCharonSingleAttributeChanged Event)
-{
-	
-	if(!InAttribute.IsValid())
-	{
-		return false;
-	}
-
-	TArray<FGameplayAttribute> AllAttributes;
-	AbilitySystemComponent->GetAllAttributes(AllAttributes);
-	bool bFoundAttribute = false;
+// void UAbilityAssistComponent::InitializeAttributes()
+// {
+// 	if(!AbilitySystemComponent)
+// 	{
+// 		return;
+// 	}
+// 	
+// 	//모든 Attribute 값은 PlayerState 블루프린트에서-> AbilitySystemComponent를 DataTable을 통해 초기화함. 
+//
+// 	TArray<FGameplayAttribute> AllAttributes;
+// 	AbilitySystemComponent->GetAllAttributes(AllAttributes);
+// 	
+// 	for(FGameplayAttribute Attribute : AllAttributes)
+// 	{
+// 		//혹시나 BindEventOnAttributeChanged가 먼저 호출됐을 경우 이미 생성돼있을것.
+// 		if(!AttributeChangedDelegates.Contains(Attribute))
+// 		{
+// 			FCharonAttributeChanged Delegate;
+// 			AttributeChangedDelegates.Add(Attribute, Delegate);
+// 		}
+//
+// 		//서버일 경우, Attribute Value Changed 델리게이트에 내 델리게이트 호출하는 함수를 바인드함. 
+// 		if(GetOwner() && GetOwner()->HasAuthority())
+// 		{
+// 			AbilitySystemComponent-> GetGameplayAttributeValueChangeDelegate(Attribute)
+// 			.AddLambda([this, Attribute](const FOnAttributeChangeData& Data)-> void
+// 			{
+// 				Server_HandleAttributeChange(this, Attribute, Data.OldValue, Data.NewValue, nullptr);
+// 			});
+// 		}
+// 	}
+//
+// 	for(FGameplayAttribute Attribute : AllAttributes)
+// 	{
+// 		const float Value = AbilitySystemComponent->GetNumericAttribute(Attribute);
+// 		AttributeChangedDelegates[Attribute].Broadcast(this, Value, Value, nullptr);
+// 	}
+//
+// }
+//
+// void UAbilityAssistComponent::UninitializeAttributes()
+// {
+// 	// if(RunSet)
+// 	// {
+// 	// 	OnRunSpeedChanged.RemoveAll(this);
+// 	// 	OnStaminaChanged.RemoveAll(this);
+// 	// }
+// 	//
+// 	// RunSet = nullptr;
+// }
 
 
-	//!!! 체크중~~~~~
-	
-	for(FGameplayAttribute Attribute : AllAttributes)
-	{
-		if(Attribute.GetAttributeSetClass() == InAttribute.GetAttributeSetClass() &&
-			Attribute.AttributeName.Equals(InAttribute.AttributeName))
-		{
-			InAttribute = Attribute;
-			bFoundAttribute = true;
-			break;
-		}
-	}
-
-	if(!bFoundAttribute)
-	{
-		return false;
-	}
-	
-	if(!AttributeChangedDelegates.Contains(InAttribute))
-	{
-		AttributeChangedDelegates.Add(InAttribute, FCharonAttributeChanged());
-	}
-
-	FDelegateHandle Handle =  AttributeChangedDelegates[InAttribute].AddLambda([this, Event, InAttribute]
-			(UAbilityAssistComponent* AbilityAssistComp, float OldValue, float NewValue, AActor* Instigator) ->
-		void
-			{
-				Event.Execute(AbilityAssistComp, OldValue, NewValue, Instigator);
-			});
-
-	AttributeChangedBindHandles.Add(Event, {InAttribute, Handle});
-
-	if(Handle.IsValid())
-	{
-		return true;
-	}
-	
-	return false;
-}
-
-void UAbilityAssistComponent::UnbindEventOnAttributeChanged(const FCharonSingleAttributeChanged Event)
-{
-	if(AttributeChangedBindHandles.Contains(Event))
-	{
-		const FGameplayAttribute Attribute = AttributeChangedBindHandles[Event].Key;
-		const FDelegateHandle Handle = AttributeChangedBindHandles[Event].Value;
-		
-		//AbilitySystemComponent -> GetGameplayAttributeValueChangeDelegate(Attribute).Remove(Handle);
-		AttributeChangedDelegates[Attribute].Remove(Handle);
-		AttributeChangedBindHandles.Remove(Event);
-	}
-}
+// bool UAbilityAssistComponent::BindEventOnAttributeChanged(FGameplayAttribute InAttribute,
+// 	FCharonSingleAttributeChanged Event)
+// {
+// 	
+// 	if(!InAttribute.IsValid())
+// 	{
+// 		return false;
+// 	}
+//
+// 	TArray<FGameplayAttribute> AllAttributes;
+// 	AbilitySystemComponent->GetAllAttributes(AllAttributes);
+// 	bool bFoundAttribute = false;
+//
+//
+// 	//!!! 체크중~~~~~
+// 	
+// 	for(FGameplayAttribute Attribute : AllAttributes)
+// 	{
+// 		if(Attribute.GetAttributeSetClass() == InAttribute.GetAttributeSetClass() &&
+// 			Attribute.AttributeName.Equals(InAttribute.AttributeName))
+// 		{
+// 			InAttribute = Attribute;
+// 			bFoundAttribute = true;
+// 			break;
+// 		}
+// 	}
+//
+// 	if(!bFoundAttribute)
+// 	{
+// 		return false;
+// 	}
+// 	
+// 	if(!AttributeChangedDelegates.Contains(InAttribute))
+// 	{
+// 		AttributeChangedDelegates.Add(InAttribute, FCharonAttributeChanged());
+// 	}
+//
+// 	FDelegateHandle Handle =  AttributeChangedDelegates[InAttribute].AddLambda([this, Event, InAttribute]
+// 			(UAbilityAssistComponent* AbilityAssistComp, float OldValue, float NewValue, AActor* Instigator) ->
+// 		void
+// 			{
+// 				Event.Execute(AbilityAssistComp, OldValue, NewValue, Instigator);
+// 			});
+//
+// 	AttributeChangedBindHandles.Add(Event, {InAttribute, Handle});
+//
+// 	if(Handle.IsValid())
+// 	{
+// 		return true;
+// 	}
+// 	
+// 	return false;
+// }
+//
+// void UAbilityAssistComponent::UnbindEventOnAttributeChanged(const FCharonSingleAttributeChanged Event)
+// {
+// 	if(AttributeChangedBindHandles.Contains(Event))
+// 	{
+// 		const FGameplayAttribute Attribute = AttributeChangedBindHandles[Event].Key;
+// 		const FDelegateHandle Handle = AttributeChangedBindHandles[Event].Value;
+// 		
+// 		//AbilitySystemComponent -> GetGameplayAttributeValueChangeDelegate(Attribute).Remove(Handle);
+// 		AttributeChangedDelegates[Attribute].Remove(Handle);
+// 		AttributeChangedBindHandles.Remove(Event);
+// 	}
+// }
 
 
 
@@ -284,29 +287,29 @@ void UAbilityAssistComponent::ResetToDefaultAbilitySet()
 	SwitchAbilitySet(DefaultAbilityConfig->Abilities);
 }
 
-void UAbilityAssistComponent::HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp,
-                                                    FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
-{
-	if(AttributeChangedDelegates.Contains(Attribute))
-	{
-		AttributeChangedDelegates[Attribute].Broadcast(this, OldValue, NewValue, Instigator);	
-	}
-	
-}
-
-void UAbilityAssistComponent::Server_HandleAttributeChange_Implementation(UAbilityAssistComponent* AbilityAssistComp,
-                                                                          FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
-{
-	HandleAttributeChange(AbilityAssistComp,Attribute, OldValue, NewValue, Instigator);
-
-	Client_HandleAttributeChange(AbilityAssistComp,Attribute, OldValue, NewValue, Instigator);
-}
-
-void UAbilityAssistComponent::Client_HandleAttributeChange_Implementation(UAbilityAssistComponent* AbilityAssistComp,
-	FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
-{
-	HandleAttributeChange(AbilityAssistComp, Attribute, OldValue, NewValue, Instigator);
-}
+// void UAbilityAssistComponent::HandleAttributeChange(UAbilityAssistComponent* AbilityAssistComp,
+//                                                     FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
+// {
+// 	if(AttributeChangedDelegates.Contains(Attribute))
+// 	{
+// 		AttributeChangedDelegates[Attribute].Broadcast(this, OldValue, NewValue, Instigator);	
+// 	}
+// 	
+// }
+//
+// void UAbilityAssistComponent::Server_HandleAttributeChange_Implementation(UAbilityAssistComponent* AbilityAssistComp,
+//                                                                           FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
+// {
+// 	HandleAttributeChange(AbilityAssistComp,Attribute, OldValue, NewValue, Instigator);
+//
+// 	Client_HandleAttributeChange(AbilityAssistComp,Attribute, OldValue, NewValue, Instigator);
+// }
+//
+// void UAbilityAssistComponent::Client_HandleAttributeChange_Implementation(UAbilityAssistComponent* AbilityAssistComp,
+// 	FGameplayAttribute Attribute, float OldValue, float NewValue, AActor* Instigator)
+// {
+// 	HandleAttributeChange(AbilityAssistComp, Attribute, OldValue, NewValue, Instigator);
+// }
 
 
 
