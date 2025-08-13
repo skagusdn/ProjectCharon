@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 //#include "InteractiveInterface.h"
 #include "AbilitySystemInterface.h"
+#include "NativeGameplayTags.h"
 #include "AbilitySystem/CharonAbilitySystemComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Interaction/InteractiveInterface.h"
@@ -26,6 +27,8 @@ struct FVehicleUISet
 	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
+	float, DamageMagnitude, FGameplayTagContainer, DamageType);
 
 UCLASS()
 class PROJECTCHARON_API AVehicle : public AActor, public IInteractiveInterface, public IAbilitySystemInterface
@@ -60,7 +63,9 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	//~ IAbilitySystemInterface 끝
 
-
+	// 탈것에 데미지 적용시 호출됨.
+	UPROPERTY(BlueprintAssignable)
+	FVehicleAttributeChangedDelegate OnVehicleDamageApplied;
 	
 protected:
 
@@ -84,10 +89,8 @@ protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//에디터에서 프로퍼티 바꿀때 호출.
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-
-	
+	// //에디터에서 프로퍼티 바꿀때 호출.
+	// virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 	UPROPERTY(BlueprintReadOnly)
 	int32 CurrentRiderNum = 0;
@@ -98,15 +101,16 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 
+	UPROPERTY()
+	TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
+	void HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue);
+
 	//라이더에게 부여할 입력/어빌리티 목록, Test중~~~~~~~~~~~~~~~~~~~~~~~~~~
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<TObjectPtr<AInputFunctionSet>> InputFunctionSets;
-
-	UPROPERTY(EditAnywhere, Category = "Charon|Input")
-	TArray<TSubclassOf<AInputFunctionSet>> InputFunctionSetClasses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FVehicleUISet> VehicleUISets;

@@ -5,6 +5,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "RiderComponent.h"
+#include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
 #include "Data/InputFunctionSet.h"
 #include "Net/UnrealNetwork.h"
 
@@ -19,7 +20,7 @@ AVehicle::AVehicle()
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	
+	VehicleBasicAttributeSet = nullptr;
 }
 
 
@@ -41,10 +42,10 @@ void AVehicle::PostInitializeComponents()
 
 		// 되나 시도중.
 		AbilityConfigsForRiders.Add(nullptr);
-		
-		if(InputFunctionSetClasses.Num() > i)
+
+		if(AbilityConfigsForRiders.Num() > i && AbilityConfigsForRiders[i]->InputFunctionSetClass != nullptr)
 		{
-			InputFunctionSets.Add(GetWorld()->SpawnActor<AInputFunctionSet>(InputFunctionSetClasses[i]));
+			InputFunctionSets.Add(GetWorld()->SpawnActor<AInputFunctionSet>(AbilityConfigsForRiders[i]->InputFunctionSetClass));
 		} else
 		{
 			InputFunctionSets.Add(nullptr);
@@ -52,6 +53,13 @@ void AVehicle::PostInitializeComponents()
 		
 		/////////////////////
 	}
+
+	VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
+	if(VehicleBasicAttributeSet)
+	{
+		VehicleBasicAttributeSet->OnVehicleDamageApplied.AddUObject(this, &ThisClass::HandleVehicleDamageApplied);
+	}
+	
 }
 
 void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -61,26 +69,32 @@ void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLi
 	//DOREPLIFETIME(AVehicle, InputFunctionSets);
 }
 
-#if WITH_EDITOR
-void AVehicle::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void AVehicle::HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser,
+	const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if(PropertyChangedEvent.Property)
-	{
-		FName PropertyName = PropertyChangedEvent.Property->GetFName();
-		//InputFunctionSetClasses는 라이더 최대 수까지만.
-		//TODO : MaxRiderNum이 변할때도 비슷하게 해줘야 하는데 뭔가 고려할게 많으니 일단 나중에
-		if(PropertyName == GET_MEMBER_NAME_CHECKED(AVehicle, InputFunctionSetClasses))
-		{
-			while(InputFunctionSetClasses.Num() > MaxRiderNum)
-			{
-				InputFunctionSetClasses.RemoveAt(InputFunctionSetClasses.Num() - 1);
-			}
-		}
-		
-	}
+	OnVehicleDamageApplied.Broadcast(DamageInstigator, DamageCauser, DamageMagnitude, DamageEffectSpec->GetDynamicAssetTags());
 }
-#endif
+
+// #if WITH_EDITOR
+// void AVehicle::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+// {
+// 	Super::PostEditChangeProperty(PropertyChangedEvent);
+// 	if(PropertyChangedEvent.Property)
+// 	{
+// 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
+// 		//InputFunctionSetClasses는 라이더 최대 수까지만.
+// 		//TODO : MaxRiderNum이 변할때도 비슷하게 해줘야 하는데 뭔가 고려할게 많으니 일단 나중에
+// 		if(PropertyName == GET_MEMBER_NAME_CHECKED(AVehicle, InputFunctionSetClasses))
+// 		{
+// 			while(InputFunctionSetClasses.Num() > MaxRiderNum)
+// 			{
+// 				InputFunctionSetClasses.RemoveAt(InputFunctionSetClasses.Num() - 1);
+// 			}
+// 		}
+// 		
+// 	}
+// }
+// #endif
 
 void AVehicle::Tick(float DeltaTime)
 {

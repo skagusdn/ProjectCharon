@@ -8,7 +8,7 @@
 
 class UCharonInputConfig;
 class UCharonAbilitySet;
-
+class AInputFunctionSet;
 
 
 /**
@@ -27,4 +27,7 @@ public :
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<const UCharonInputConfig> InputConfig;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<AInputFunctionSet> InputFunctionSetClass;
 };

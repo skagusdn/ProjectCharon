@@ -47,6 +47,9 @@ public:
 	UFUNCTION(BlueprintPure)
 	static URiderComponent* FindRiderComponent(ACharacter* Character);
 
+	UFUNCTION(BlueprintCallable)
+	AVehicle* GetRidingVehicle() const {return RidingVehicle;};
+	
 protected:
 	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	UFUNCTION(BlueprintCallable)

@@ -17,6 +17,7 @@ struct FInputActionDelegateWithTriggerEvent
 	
 	FInputActionDelegate Delegate;
 	ETriggerEvent TriggerEvent = ETriggerEvent::Triggered;
+	bool bNeedServerRPC = false;	
 };
 
 
@@ -28,10 +29,13 @@ class PROJECTCHARON_API AInputFunctionSet : public AInfo
 public:
 	
 	AInputFunctionSet();
-
-	UPROPERTY(BlueprintReadWrite)
-	TMap<FGameplayTag, FInputActionDelegateWithTriggerEvent> InputFunctionDelegateMap;
 	
 	UFUNCTION(BlueprintCallable)
-	void AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent = ETriggerEvent::Triggered);
+	void AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent = ETriggerEvent::Triggered, const bool bNeedServerRPC = false );
+
+	UFUNCTION(BlueprintCallable)
+	void ExecuteInputFunctionByTag(const FInputActionValue& Value, FGameplayTag Tag, ACharacter* Executor);
+	
+	UPROPERTY(BlueprintReadWrite)
+	TMap<FGameplayTag, FInputActionDelegateWithTriggerEvent> InputFunctionDelegateMap;
 };

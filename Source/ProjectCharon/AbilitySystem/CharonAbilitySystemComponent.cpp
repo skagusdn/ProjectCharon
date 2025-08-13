@@ -18,6 +18,12 @@ UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitia
 FDelegateHandleWrapper UCharonAbilitySystemComponent::K2_BindEventOnAttributeChange(UObject* EventSource, FGameplayAttribute AttributeToBind,
                                                                FOnCharonAttributeChanged_Dynamic Event)
 {
+	if(!IsValid(EventSource))
+	{
+		UE_LOG(LogCharon, Error, TEXT("K2_BindEventOnAttributeChange Failed : EventSource is Not VALID"));
+		return FDelegateHandleWrapper();
+	}
+	
 	FGameplayAttribute FoundAttribute = FindAttribute(AttributeToBind).Get(nullptr);
 	
 	if(FoundAttribute == nullptr)
@@ -25,7 +31,7 @@ FDelegateHandleWrapper UCharonAbilitySystemComponent::K2_BindEventOnAttributeCha
 		UE_LOG(LogCharon, Error, TEXT("Attribute not found"));
 		return FDelegateHandleWrapper();
 	}
-
+	
 	// 원하는 어트리뷰트 값 변화 델리게이트에 이벤트 실행 함수 바인드. EventSoruce가 Valid하지 않으면 관련 함수 언바인드.
 	TObjectPtr<UObject> EventSourcePtr = EventSource; 
 	FDelegateHandle Handle = GetGameplayAttributeValueChangeDelegate(FoundAttribute).

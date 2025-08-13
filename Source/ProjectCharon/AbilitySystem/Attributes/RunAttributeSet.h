@@ -55,8 +55,8 @@ public:
 	void SetStamina(float NewVal);
 
 	//ATTRIBUTE_ACCESORS(URunAttributeSet, Stamina);
-	ATTRIBUTE_ACCESORS(URunAttributeSet, MaxStamina);
-	ATTRIBUTE_ACCESORS(URunAttributeSet, RunSpeed);
+	ATTRIBUTE_ACCESSORS(URunAttributeSet, MaxStamina);
+	ATTRIBUTE_ACCESSORS(URunAttributeSet, RunSpeed);
 
 	//UPROPERTY(BlueprintAssignable)
 	mutable FCharonAttributeEvent OnRunSpeedChanged;

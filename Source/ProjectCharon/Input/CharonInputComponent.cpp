@@ -4,6 +4,7 @@
 #include "Input/CharonInputComponent.h"
 
 #include "EnhancedInputSubsystems.h"
+#include "Character/CharonCharacter.h"
 
 
 void UCharonInputComponent::AddInputMappings(const UCharonInputConfig* InputConfig,
@@ -41,18 +42,13 @@ void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputC
 	{
 		if(const UInputAction* InputAction = InputConfig->FindNativeInputActionForTag(Element.Key, false))
 		{
-			FInputActionDelegate Delegate = Element.Value.Delegate;
 			const ETriggerEvent TriggerEvent = Element.Value.TriggerEvent;
 
-			BindAction(InputAction, TriggerEvent, InputFunctions, )
-			
-			BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [Delegate, Initiator](const FInputActionValue& Value) -> void
+			ACharonCharacter* CharonCharacter =  Cast<ACharonCharacter>(Initiator);
+			BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, CharonCharacter, Element](const FInputActionValue& Value)
 			{
-				if(Delegate.IsBound())
-				{
-					Delegate.Execute(Value, Initiator);
-				}
-			} ).GetHandle() );
+				CharonCharacter->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
+			}).GetHandle() );
 		}
 	}
 	

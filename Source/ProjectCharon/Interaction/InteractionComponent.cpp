@@ -45,7 +45,7 @@ void UInteractionComponent::GetLifetimeReplicatedProps(TArray<class FLifetimePro
 
 void UInteractionComponent::TryInteraction(TScriptInterface<IInteractiveInterface> Target)
 {
-	if(Target == nullptr || !OwnerCharacter)
+	if(!Target.GetObject() || !(Target.GetObject())->Implements<UInteractiveInterface>() || !OwnerCharacter)
 	{
 		return;
 	}

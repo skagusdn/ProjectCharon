@@ -3,6 +3,7 @@
 
 #include "CharonCharacter.h"
 
+#include "AnimationEditorViewportClient.h"
 #include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 
@@ -84,10 +85,49 @@ void ACharonCharacter::ResetAbilityConfig()
 	
 }
 
-bool ACharonCharacter::TestIsEqual(UObject* Object1, UObject* Object2)
+void ACharonCharacter::RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet,
+	const FGameplayTag Tag, bool IsServerRPC)
 {
-	return Object1 == Object2;
+	if(IsServerRPC)
+	{
+		//FVector Value = InputActionValue.Get<FVector>();
+		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+			InputActionValue.GetValueType(), InputFunctionSet, Tag, false);
+	}
+
+	InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, this);
+	
 }
+
+void ACharonCharacter::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
+	EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+{
+	FInputActionValue InputActionValue;
+	switch(ValueType)
+	{
+	case EInputActionValueType::Boolean :
+		InputActionValue = FInputActionValue(ValueX > 0);
+		break;
+	case EInputActionValueType::Axis1D :
+		InputActionValue = FInputActionValue(ValueX);
+		break;
+	case EInputActionValueType::Axis2D :
+		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
+		break;
+	case EInputActionValueType::Axis3D :
+		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
+		break;
+	}
+	
+	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, IsServerRPC);
+}
+
+// void ACharonCharacter::Server_RequestExecuteInputFunction_Implementation(FInputActionValue InputActionValue,
+//                                                                          AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+// {
+// 	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, IsServerRPC);
+// }
+
 
 void ACharonCharacter::InitCharonCharacter()
 {
@@ -133,7 +173,7 @@ void ACharonCharacter::PostInitializeComponents()
 	//InitInputFunctions();
 
 	//일단 얘는 리플리케이션 꺼둘거니까 서버랑 클라이언트 각자 생성하는걸로.
-	DefaultInputFunctions = GetWorld()->SpawnActor<AInputFunctionSet>(DefaultInputFunctionClass);	
+	DefaultInputFunctions = GetWorld()->SpawnActor<AInputFunctionSet>(DefaultAbilityConfig->InputFunctionSetClass);	
 }
 
 // Called every frame
