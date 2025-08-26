@@ -55,17 +55,17 @@ void UInteractionComponent::TryInteraction(TScriptInterface<IInteractiveInterfac
 		return;
 	}
 	
-	switch(Target->Execute_Interact(Target.GetObject(), OwnerCharacter))
+	switch(Target->Execute_Interact(Target.GetObject(), OwnerCharacter, nullptr))
 	{
-	case InteractResult::InteractInProgress :
+	case EInteractResult::InteractInProgress :
 		InteractingTarget = Target;
 		bIsInteracting = true;
 		break;
 
-	case InteractResult::InteractFail :
+	case EInteractResult::InteractFail :
 		break;
 		
-	case InteractResult::InteractEnd :
+	case EInteractResult::InteractEnd :
 		bIsInteracting = false;
 		break;
 	}

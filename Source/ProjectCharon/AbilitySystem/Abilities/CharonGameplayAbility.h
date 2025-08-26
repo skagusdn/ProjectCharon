@@ -45,6 +45,7 @@ public :
 protected :
 	//~UGameplayAbility interface
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~End of UGameplayAbility interface
 	
 	/** Called when this ability is granted to the ability system component. */
@@ -53,7 +54,10 @@ protected :
 
 	// OnSpawn인 어빌리티 발동용. (어빌리티 부여되자마자 발동하게). Lyra꺼 긁어옴
 	void TryActivateAbilityOnSpawn(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) const;
-	
+
+	/** 종료 시 부여한 어빌리티 제거 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	bool bRemoveAbilityOnEnd;
 protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)

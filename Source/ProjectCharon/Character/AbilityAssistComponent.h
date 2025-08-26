@@ -18,16 +18,10 @@ class UAbilityAssistComponent;
 //Attribute값 변경시 호출되는 델리게이트
 DECLARE_MULTICAST_DELEGATE_FourParams(FCharonAttributeChanged, UAbilityAssistComponent*, float, float, AActor*);
 
-// DECLARE_MULTICAST_DELEGATE_FourParams(FCharonAttributeChanged, UAbilityAssistComponent*,
-// 											  AbilityAssistComp, float, OldValue, float, NewValue, AActor*,
-// 											  Instigator);
-
-
 
 //Attribute값 변경시 호출되는 델리게이트에 바인드할 이벤트.
 DECLARE_DYNAMIC_DELEGATE_FourParams(FCharonSingleAttributeChanged, UAbilityAssistComponent*,
-											  AbilityAssistComp, float, OldValue, float, NewValue, AActor*,
-											  Instigator);
+											  AbilityAssistComp, float, OldValue, float, NewValue, AActor*, Instigator);
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -38,14 +32,6 @@ class PROJECTCHARON_API UAbilityAssistComponent : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UAbilityAssistComponent();
-
-	// //deprecated 콜백 함수 바인딩할.  
-	// UPROPERTY(BlueprintAssignable)
-	// FCharonAttributeChanged OnRunSpeedChanged;
-	//
-	// UPROPERTY(BlueprintAssignable)
-	// FCharonAttributeChanged OnStaminaChanged;
-	// //
 	
 	//각종 초기화.
 	void InitAbilityAssist(UCharonAbilitySystemComponent* InAsc, AActor* InOwnerActor, const TObjectPtr<UCharacterAbilityConfig>& InAbilityConfig);

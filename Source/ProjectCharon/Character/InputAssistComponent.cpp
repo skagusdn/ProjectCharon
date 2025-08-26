@@ -47,7 +47,7 @@ void UInputAssistComponent::InitInputAssist(const UCharonInputConfig* InputConfi
 	}
 }
 
-void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputConfig* InputConfig, AInputFunctionSet* InInputFunctions)
+void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputConfig* InputConfig, AInputFunctionSet* InInputFunctions, bool bIsTemporary)
 {
 	const AActor* OwnerActor = GetOwner();
 	const APawn* OwnerPawn = Cast<APawn>(OwnerActor);
@@ -60,18 +60,36 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		return;
 	}
 	
-	if(!InputConfig || PresentInputConfig == InputConfig)
+	if(!InputConfig)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InputConfig is Not Valid"));
+		return;
+	}
+
+	if(!bIsTemporary && TemporaryInputConfig == nullptr && PresentInputConfig == InputConfig)
 	{
 		return;
 	}
 		
 	if(PresentInputConfig)
 	{
-		UnregisterInputConfig();
+		UnregisterInputConfig(bIsTemporary);
 	}
 
-	PresentInputConfig = InputConfig;
+	if(!bIsTemporary)
+	{
+		PresentInputConfig = InputConfig;
+		PresentInputFunctions = InInputFunctions;
 
+		TemporaryInputConfig = nullptr;
+		TemporaryInputFunctions = nullptr;
+	}
+	else
+	{
+		TemporaryInputConfig = InputConfig;
+		TemporaryInputFunctions = InInputFunctions;
+	}
+	
 	const APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
 	check(PC);
 
@@ -98,11 +116,9 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 			CharonIC->BindNativeFunctions(InputConfig, OwnerCharacter, InInputFunctions,  NativeBindHandles );
 		}
 	}
-	
-	
 }
 
-void UInputAssistComponent::UnregisterInputConfig()
+void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 {
 	const AActor* OwnerActor = GetOwner();
 	const APawn* OwnerPawn = Cast<APawn>(OwnerActor);
@@ -128,9 +144,34 @@ void UInputAssistComponent::UnregisterInputConfig()
 		CharonIC->RemoveBinds(AbilityBindHandles);
 		CharonIC->RemoveBinds(NativeBindHandles);
 	}
+
+	//임시 교체일 경우 PresentInputConfig는 유지. 
+	if(!bIsTemporary)
+	{
+		PresentInputConfig = nullptr;	
+	}
 	
-	PresentInputConfig = nullptr;
 	
+}
+
+void UInputAssistComponent::K2_SwitchTemporaryInputConfig(const UCharonInputConfig* InputConfig,
+	AInputFunctionSet* InputFunctions)
+{
+	SwitchInputConfig(InputConfig, InputFunctions, true);
+}
+
+void UInputAssistComponent::K2_UnregisterTemporaryInputConfig(const UCharonInputConfig* InputConfig, AInputFunctionSet* InputFunctions)
+{
+	if(APawn* PawnOwner = Cast<APawn>(GetOwner()))
+	{
+		if(PawnOwner->IsLocallyControlled())
+		{
+			
+		}
+	}
+	
+	
+	SwitchInputConfig(PresentInputConfig, PresentInputFunctions, false);
 }
 
 void UInputAssistComponent::ResetToDefaultInputConfig_Implementation()
@@ -142,7 +183,7 @@ void UInputAssistComponent::ResetToDefaultInputConfig_Implementation()
 			return;
 		}
 
-		UnregisterInputConfig();
+		UnregisterInputConfig(false);
 	}
 
 	SwitchInputConfig(DefaultInputConfig, DefaultInputFunctions);

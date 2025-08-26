@@ -40,7 +40,7 @@ void AVehicle::PostInitializeComponents()
 		Riders.Add(nullptr);
 		Seats.Add(nullptr);
 
-		// 되나 시도중.
+		// 어빌리티 COnfig 및 InputFunctionSet 초기화.
 		AbilityConfigsForRiders.Add(nullptr);
 
 		if(AbilityConfigsForRiders.Num() > i && AbilityConfigsForRiders[i]->InputFunctionSetClass != nullptr)
@@ -50,8 +50,6 @@ void AVehicle::PostInitializeComponents()
 		{
 			InputFunctionSets.Add(nullptr);
 		}
-		
-		/////////////////////
 	}
 
 	VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
@@ -112,7 +110,7 @@ bool AVehicle::RideVehicle(ACharacter* Rider)
 	}
 
 	MountVehicle(Rider);
-	NotifyVehicleChanged(Rider, true);
+	//NotifyVehicleChanged(Rider, true);
 	
 	return true;
 }
@@ -124,7 +122,7 @@ bool AVehicle::UnrideVehicle(ACharacter* Rider)
 	if(Ret)
 	{
 		UnmountVehicle(Rider);
-		NotifyVehicleChanged(Rider, false);
+		//NotifyVehicleChanged(Rider, false);
 	}
 	
 	return Ret;
@@ -176,7 +174,16 @@ void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
 }
 
 
+FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)
+{
+	FRiderSpecData RiderSpecData{
+		AbilityConfigsForRiders.Num() > RiderIdx ? AbilityConfigsForRiders[RiderIdx] : nullptr,
+		InputFunctionSets.Num() > RiderIdx ? InputFunctionSets[RiderIdx] : nullptr,
+		VehicleUISets.Num() > RiderIdx ? VehicleUISets[RiderIdx] : FVehicleUISet()
+	};
 
+	return RiderSpecData;
+}
 
 int32 AVehicle::RegisterRider(ACharacter* Rider)
 {

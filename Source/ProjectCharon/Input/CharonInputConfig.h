@@ -46,6 +46,9 @@ public :
 	const UInputAction* FindNativeInputActionForTag(const FGameplayTag& InputTag, bool bLogNotFound = true) const;
 
 	// UFUNCTION(BlueprintCallable)
+	// virtual bool IsStillValid() const {return true;};
+	
+	// UFUNCTION(BlueprintCallable)
 	// const FCharonInputAction FindNativeCharonInputActionForTag(const FGameplayTag& InputTag, bool bLogNotFound = true) const;
 
 	UFUNCTION(BlueprintCallable)

@@ -27,6 +27,21 @@ struct FVehicleUISet
 	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
 };
 
+USTRUCT(BlueprintType)
+struct FRiderSpecData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	UCharacterAbilityConfig* AbilityConfig;
+
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AInputFunctionSet> InputFunctionSet;
+
+	UPROPERTY(BlueprintReadOnly)
+	FVehicleUISet VehicleUISet;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
 	float, DamageMagnitude, FGameplayTagContainer, DamageType);
 
@@ -66,6 +81,9 @@ public:
 	// 탈것에 데미지 적용시 호출됨.
 	UPROPERTY(BlueprintAssignable)
 	FVehicleAttributeChangedDelegate OnVehicleDamageApplied;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	FRiderSpecData GetRiderSpecData(uint8 RiderIdx);
 	
 protected:
 
@@ -105,7 +123,7 @@ protected:
 	TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
 	void HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue);
 
-	//라이더에게 부여할 입력/어빌리티 목록, Test중~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//라이더에게 부여할 입력/어빌리티 및 UI
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
 
@@ -114,5 +132,5 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FVehicleUISet> VehicleUISets;
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 };

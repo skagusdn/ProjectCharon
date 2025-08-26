@@ -14,8 +14,28 @@ void UCharonGameplayAbility::OnGiveAbility(const FGameplayAbilityActorInfo* Acto
 	TryActivateAbilityOnSpawn(ActorInfo, Spec);
 }
 
+void UCharonGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility, bool bWasCancelled)
+{
+	// 만약 bRemoveAbilityOnEnd 플래그가 켜져 있다면, 어빌리티 스펙을 제거합니다.
+	if (bRemoveAbilityOnEnd)
+	{
+		if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
+		{
+			// 아직 스펙이 유효한지 확인 후 제거
+			if (ActorInfo->AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
+			{
+				ActorInfo->AbilitySystemComponent->ClearAbility(Handle);
+			}
+		}
+	}
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
 void UCharonGameplayAbility::TryActivateAbilityOnSpawn(const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilitySpec& Spec) const
+                                                       const FGameplayAbilitySpec& Spec) const
 {
 	const bool bIsPredicting = (Spec.ActivationInfo.ActivationMode == EGameplayAbilityActivationMode::Predicting);
 

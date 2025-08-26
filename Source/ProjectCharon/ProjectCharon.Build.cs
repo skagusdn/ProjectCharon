@@ -15,7 +15,7 @@ public class ProjectCharon : ModuleRules
         );
 
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", 
-	        "EnhancedInput", "GameplayAbilities", "GameplayTags", "GameplayTasks", "DeveloperSettings", "UMG", "Niagara" });
+	        "EnhancedInput", "GameplayTags", "GameplayTasks", "GameplayAbilities", "DeveloperSettings", "UMG", "Niagara" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
