@@ -1,21 +1,22 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "CharonAbility_RideVehicle.h"
+#include "CharonAbility_EnterVehicle.h"
 
 #include "Logging.h"
-#include "Vehicle.h"
+
 #include "Character/CharonCharacter.h"
 #include "GameFramework/Character.h"
+#include "Vehicle/Vehicle.h"
 
-UCharonAbility_RideVehicle::UCharonAbility_RideVehicle(const FObjectInitializer& ObjectInitializer)
+UCharonAbility_EnterVehicle::UCharonAbility_EnterVehicle(const FObjectInitializer& ObjectInitializer)
 {
 	//ActivationPolicy = ECharonAbilityActivationPolicy::OnInputTriggered
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;//
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
-void UCharonAbility_RideVehicle::EndAbility(const FGameplayAbilitySpecHandle Handle,
+void UCharonAbility_EnterVehicle::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
@@ -26,9 +27,9 @@ void UCharonAbility_RideVehicle::EndAbility(const FGameplayAbilitySpecHandle Han
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-bool UCharonAbility_RideVehicle::TryRideVehicle(AVehicle* VehicleToRide, ACharacter* InRider)
+bool UCharonAbility_EnterVehicle::TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider)
 {
-	if(!VehicleToRide || !InRider)
+	if(!VehicleToEnter || !InRider)
 	{
 		UE_LOG(LogCharon,Warning,TEXT("TryRideVehicle Failed : Vehicle or Rider is not valid."));
 		return false;
@@ -44,13 +45,13 @@ bool UCharonAbility_RideVehicle::TryRideVehicle(AVehicle* VehicleToRide, ACharac
 
 	Rider = InRider;
 	
-	if(!VehicleToRide->RideVehicle(InRider))
+	if(!VehicleToEnter->EnterVehicle(InRider))
 	{
 		UE_LOG(LogCharon,Warning,TEXT("TryRideVehicle Failed : Vehicle denied rider."));
 		return false;
 	}
 
-	RidingVehicle = VehicleToRide;
+	RidingVehicle = VehicleToEnter;
 
 	int RiderIdx = RidingVehicle->FindRiderIdx(InRider);
 

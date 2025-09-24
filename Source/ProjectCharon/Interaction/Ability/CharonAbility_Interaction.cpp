@@ -105,6 +105,20 @@ void UCharonAbility_Interaction::PressInteractionInputOnceMore()
 	
 }
 
+void UCharonAbility_Interaction::InputPressed(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+
+	UE_LOG(LogTemp, Display, TEXT("TESTING~~~~~~~~ Interaction InputPressed"));
+		
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo(); 
+	FSimpleMulticastDelegate& TargetDelegate = ASC->AbilityReplicatedEventDelegate(EAbilityGenericReplicatedEvent::InputPressed, Handle, ActivationInfo.GetActivationPredictionKey());
+	UE_LOG(LogTemp, Display, TEXT("TESTING~~~~~~~~ SIZE :  %llu"), TargetDelegate.GetAllocatedSize());
+}
+
+
+
 // void UCharonAbility_Interaction::Interact_GrantAbilityAndActivate()
 // {
 // 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();

@@ -68,6 +68,9 @@ public :
 
 protected:
 
+	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
+	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;
+	
 	TOptional<FGameplayAttribute> FindAttribute(const FGameplayAttribute& AttributeToFind);
 	
 	TMap<TObjectPtr<UObject>, TArray<FDelegateHandleWrapper>> AttributeBindHandlesOfSource;

@@ -156,28 +156,26 @@ void UCharonAbilitySystemComponent::AbilityLocalInputTagPressed(FGameplayTag Inp
 	ABILITYLIST_SCOPE_LOCK();
 	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
-		if (Spec.DynamicAbilityTags.HasTagExact(InputTag))
+		if (Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
 		{
 			if (Spec.Ability)
 			{
 				Spec.InputPressed = true;
 				if (Spec.IsActive())
 				{
-					if (Spec.Ability->bReplicateInputDirectly && IsOwnerActorAuthoritative() == false)
-					{
-						ServerSetInputPressed(Spec.Handle);
-					}
-
 					AbilitySpecInputPressed(Spec);
-
-					// Invoke the InputPressed event. This is not replicated here. If someone is listening, they may replicate the InputPressed event to the server.
-					InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, Spec.ActivationInfo.GetActivationPredictionKey());					
 				}
 				else
 				{
-					// Ability is not active, so try to activate it
+					// 어빌리티 비활성 상태이면 액티비티 발동.
 					TryActivateAbility(Spec.Handle);
 					
+					// UCharonGameplayAbility* CharonAbility = Cast<UCharonGameplayAbility>(Spec.Ability);
+					// if(CharonAbility && (CharonAbility->GetActivationPolicy() == ECharonAbilityActivationPolicy::OnInputTriggered ||
+					// 	CharonAbility->GetActivationPolicy() == ECharonAbilityActivationPolicy::WhileInputActive))
+					// {
+					// 	TryActivateAbility(Spec.Handle);
+					// }								
 				}
 			}
 		}
@@ -189,16 +187,11 @@ void UCharonAbilitySystemComponent::AbilityLocalInputTagReleased(FGameplayTag In
 	ABILITYLIST_SCOPE_LOCK();
 	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
-		if (Spec.DynamicAbilityTags.HasTagExact(InputTag))
+		if (Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
 		{
 			Spec.InputPressed = false;
 			if (Spec.Ability && Spec.IsActive())
 			{
-				if (Spec.Ability->bReplicateInputDirectly && IsOwnerActorAuthoritative() == false)
-				{
-					ServerSetInputReleased(Spec.Handle);
-				}
-
 				AbilitySpecInputReleased(Spec);
 
 				// 누르고 있을때만 발동하는 어빌리티는 떼면 취소하기.
@@ -209,10 +202,47 @@ void UCharonAbilitySystemComponent::AbilityLocalInputTagReleased(FGameplayTag In
 						CancelAbilityHandle(Spec.Handle);
 					}
 				}
-				
-				InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputReleased, Spec.Handle, Spec.ActivationInfo.GetActivationPredictionKey());
 			}
 		}
+	}
+}
+
+void UCharonAbilitySystemComponent::AbilitySpecInputPressed(FGameplayAbilitySpec& Spec)
+{
+	Super::AbilitySpecInputPressed(Spec);
+	
+	// We don't support UGameplayAbility::bReplicateInputDirectly.
+	// Use replicated events instead so that the WaitInputPress ability task works.
+	// 라이라에서 가져온 코드. 5.4 -> 5.6 버젼 바꾸면서 달라진 부분.
+	// 달라진 로직에선 PredictionKey가 뭐 리플리케이션 문제 같은것 때문에 뭔가 달라지나 봄. 
+	if (Spec.IsActive())
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const UGameplayAbility* Instance = Spec.GetPrimaryInstance();
+		FPredictionKey OriginalPredictionKey = Instance ? Instance->GetCurrentActivationInfo().GetActivationPredictionKey() : Spec.ActivationInfo.GetActivationPredictionKey();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// Invoke the InputPressed event. This is not replicated here. If someone is listening, they may replicate the InputPressed event to the server.
+		InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, OriginalPredictionKey);
+	}
+}
+
+void UCharonAbilitySystemComponent::AbilitySpecInputReleased(FGameplayAbilitySpec& Spec)
+{
+	Super::AbilitySpecInputReleased(Spec);
+
+	// We don't support UGameplayAbility::bReplicateInputDirectly.
+	// Use replicated events instead so that the WaitInputRelease ability task works.
+	// Pressed랑 마찬가지.
+	if (Spec.IsActive())
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const UGameplayAbility* Instance = Spec.GetPrimaryInstance();
+		FPredictionKey OriginalPredictionKey = Instance ? Instance->GetCurrentActivationInfo().GetActivationPredictionKey() : Spec.ActivationInfo.GetActivationPredictionKey();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// Invoke the InputReleased event. This is not replicated here. If someone is listening, they may replicate the InputReleased event to the server.
+		InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputReleased, Spec.Handle, OriginalPredictionKey);
 	}
 }
 

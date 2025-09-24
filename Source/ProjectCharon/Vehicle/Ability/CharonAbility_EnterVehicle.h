@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystem/Abilities/CharonGameplayAbility.h"
-#include "CharonAbility_RideVehicle.generated.h"
+#include "CharonAbility_EnterVehicle.generated.h"
 
 class AVehicle;
 
@@ -12,13 +12,13 @@ class AVehicle;
  *  탈 것을 탈 때 사용하는 어빌리티
  */
 UCLASS(Blueprintable)
-class PROJECTCHARON_API UCharonAbility_RideVehicle : public UCharonGameplayAbility
+class PROJECTCHARON_API UCharonAbility_EnterVehicle : public UCharonGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
 	
-	UCharonAbility_RideVehicle(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UCharonAbility_EnterVehicle(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	
 	
@@ -29,7 +29,7 @@ protected:
 	//~End of UGameplayAbility interface
 	
 	UFUNCTION(BlueprintCallable)
-	bool TryRideVehicle(AVehicle* VehicleToRide, ACharacter* InRider);
+	bool TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider);
 	
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AVehicle> RidingVehicle;

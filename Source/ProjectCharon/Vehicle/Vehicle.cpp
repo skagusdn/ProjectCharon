@@ -4,7 +4,7 @@
 #include "Vehicle.h"
 
 #include "AbilitySystemComponent.h"
-#include "RiderComponent.h"
+#include "VehicleRiderComponent.h"
 #include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
 #include "Data/InputFunctionSet.h"
 #include "Net/UnrealNetwork.h"
@@ -100,33 +100,33 @@ void AVehicle::Tick(float DeltaTime)
 
 }
 
-bool AVehicle::RideVehicle(ACharacter* Rider)
-{
-	check(Rider);
-	
-	if(RegisterRider(Rider) < 0)
-	{
-		return false;
-	}
-
-	MountVehicle(Rider);
-	//NotifyVehicleChanged(Rider, true);
-	
-	return true;
-}
-
-bool AVehicle::UnrideVehicle(ACharacter* Rider)
-{
-	check(Rider);
-	bool Ret = UnregisterRider(Rider);
-	if(Ret)
-	{
-		UnmountVehicle(Rider);
-		//NotifyVehicleChanged(Rider, false);
-	}
-	
-	return Ret;
-}
+// bool AVehicle::EnterVehicle(ACharacter* Rider)
+// {
+// 	check(Rider);
+// 	
+// 	if(RegisterRider(Rider) < 0)
+// 	{
+// 		return false;
+// 	}
+//
+// 	AttachToVehicle(Rider);
+// 	//NotifyVehicleChanged(Rider, true);
+// 	
+// 	return true;
+// }
+//
+// bool AVehicle::ExitVehicle(ACharacter* Rider)
+// {
+// 	check(Rider);
+// 	bool Ret = UnregisterRider(Rider);
+// 	if(Ret)
+// 	{
+// 		DetachFromVehicle(Rider);
+// 		//NotifyVehicleChanged(Rider, false);
+// 	}
+// 	
+// 	return Ret;
+// }
 
 int32 AVehicle::FindRiderIdx (ACharacter* Rider)
 {
@@ -144,34 +144,34 @@ UAbilitySystemComponent* AVehicle::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
-{
-	check(Rider);
-	
-	if(URiderComponent* RiderComponent = URiderComponent::FindRiderComponent(Rider))
-	{
-		if(IsRidingOn)
-		{
-			int RiderIdx = FindRiderIdx(Rider);
-			if(RiderIdx < 0)
-			{
-				return;
-			}
-
-			check(AbilityConfigsForRiders.Num() > RiderIdx);
-			check(InputFunctionSets.Num() > RiderIdx);
-			check(VehicleUISets.Num() > RiderIdx);
-			
-			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx], VehicleUISets[RiderIdx]);
-
-			
-		}
-		else
-		{
-			RiderComponent->ServerHandleUnride();
-		}
-	}
-}
+// void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
+// {
+// 	check(Rider);
+// 	
+// 	if(UVehicleRiderComponent* RiderComponent = UVehicleRiderComponent::FindRiderComponent(Rider))
+// 	{
+// 		if(IsRidingOn)
+// 		{
+// 			int RiderIdx = FindRiderIdx(Rider);
+// 			if(RiderIdx < 0)
+// 			{
+// 				return;
+// 			}
+//
+// 			check(AbilityConfigsForRiders.Num() > RiderIdx);
+// 			check(InputFunctionSets.Num() > RiderIdx);
+// 			check(VehicleUISets.Num() > RiderIdx);
+// 			
+// 			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx], VehicleUISets[RiderIdx]);
+//
+// 			
+// 		}
+// 		else
+// 		{
+// 			RiderComponent->ServerHandleUnride();
+// 		}
+// 	}
+// }
 
 
 FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)

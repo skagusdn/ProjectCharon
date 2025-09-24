@@ -34,6 +34,12 @@ protected:
 	void PressInteractionInputOnceMore();
 
 	//void Interact_GrantAbilityAndActivate();
+
+	/////////////// 테스트 용~~~~~~~~~~~~~~
+	
+	virtual void InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
+	///
+	
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Charon|Interaction")
 	FInteractionDescription DescriptionData;

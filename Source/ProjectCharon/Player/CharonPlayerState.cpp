@@ -8,8 +8,8 @@
 
 ACharonPlayerState::ACharonPlayerState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	NetUpdateFrequency = 100.f;
-	MinNetUpdateFrequency = 60.f;
+	SetNetUpdateFrequency(100.f);
+	SetMinNetUpdateFrequency(60.f);
 	
 	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UCharonAbilitySystemComponent>
 		(this, TEXT("CharonAbilitySystemComponent"));

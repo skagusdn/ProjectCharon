@@ -8,7 +8,7 @@
 #include "GameFramework/Character.h"
 #include "AbilityAssistComponent.h"
 #include "InputAssistComponent.h"
-#include "Interaction/InteractionComponent.h"
+//#include "Interaction/InteractionComponent.h"
 
 
 #include "CharonCharacter.generated.h"
@@ -50,9 +50,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAssistComponent> InputAssistComponent;
 
-	//상호작용 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInteractionComponent> InteractionComponent;
+	// //상호작용 컴포넌트
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
+	// TObjectPtr<UInteractionComponent> InteractionComponent;
 	
 	//InputAction과 매핑할 InputFunction
 	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))

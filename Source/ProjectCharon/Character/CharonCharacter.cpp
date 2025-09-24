@@ -16,7 +16,8 @@ ACharonCharacter::ACharonCharacter()
 	bReplicates = true;
 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
-	InteractionComponent = CreateDefaultSubobject<UInteractionComponent>(TEXT("InteractionComponent"));
+	//상호작용 개편전 컴포넌트임.
+	//InteractionComponent = CreateDefaultSubobject<UInteractionComponent>(TEXT("InteractionComponent"));
 	
 	//DefaultInputFunctions = CreateDefaultSubobject<ANewInputFunctionSet>(TEXT("DefaultInputFunctions"));
 	DefaultInputFunctions = nullptr;

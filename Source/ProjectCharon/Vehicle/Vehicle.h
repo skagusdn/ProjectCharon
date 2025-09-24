@@ -45,16 +45,14 @@ struct FRiderSpecData
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
 	float, DamageMagnitude, FGameplayTagContainer, DamageType);
 
-UCLASS()
+UCLASS(Abstract)
 class PROJECTCHARON_API AVehicle : public AActor, public IInteractiveInterface, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AVehicle();
 	
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -63,11 +61,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TObjectPtr<USceneComponent>> Seats;
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	bool RideVehicle(ACharacter* Rider);
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintImplementableEvent)
+	bool EnterVehicle(ACharacter* Rider);
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	bool UnrideVehicle(ACharacter* Rider);
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintImplementableEvent)
+	bool ExitVehicle(ACharacter* Rider);
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	int32 FindRiderIdx(ACharacter* Rider);
@@ -94,13 +92,13 @@ protected:
 	bool UnregisterRider(ACharacter* Rider);
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
-	void MountVehicle(ACharacter* Rider);
+	void AttachToVehicle(ACharacter* Rider);
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
-	void UnmountVehicle(ACharacter* Rider);
+	void DetachFromVehicle(ACharacter* Rider);
 	
-	// Rider의 RiderComponent에게 승차/하차 신호 보내기.
-	virtual void NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn);
+	// // Rider의 RiderComponent에게 승차/하차 신호 보내기.
+	// virtual void NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn);
 	
 	virtual void BeginPlay() override;
 	virtual void PostInitializeComponents() override;

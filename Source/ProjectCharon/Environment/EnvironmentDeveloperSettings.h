@@ -6,6 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "EnvironmentDeveloperSettings.generated.h"
 
+class AWaterFluidSimulator;
 class AEnvironmentInteractionManager;
 /**
  * 
@@ -16,7 +17,8 @@ class PROJECTCHARON_API UEnvironmentDeveloperSettings : public UDeveloperSetting
 	GENERATED_BODY()
 
 public:
+
+	UPROPERTY(EditAnywhere, Config, Category="Fluid Simulation")
+	TSubclassOf<AWaterFluidSimulator> WaterFluidSimulatorClass;
 	
-	UPROPERTY(EditAnywhere, config, Category = "Environment Interaction Manager")
-	TSoftClassPtr<AEnvironmentInteractionManager> EnvironmentManagerClass;
 };
