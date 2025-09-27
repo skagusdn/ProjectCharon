@@ -150,6 +150,31 @@ void UCharonAbilitySystemComponent::CheckAttributeBinds()
 	}
 }
 
+void UCharonAbilitySystemComponent::CheckAbilitySpecs(FGameplayAbilitySpecHandle Handle)
+{
+	//SCOPE_CYCLE_COUNTER(STAT_FindAbilitySpecFromHandle);
+
+	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CheckAbilitySpecs : %s, Handle : %s"), *Spec.Ability.GetName(), *Spec.Handle.ToString());
+		if (Spec.Handle == Handle)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CheckAbilitySpecs, FOUND!"));
+			
+		}
+	}
+
+	for (const FGameplayAbilitySpec& Spec : AbilityPendingAdds)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CheckAbilitySpecs - PendAdds : %s, Handle : %s"), *Spec.Ability.GetName(), *Spec.Handle.ToString());
+		if (Spec.Handle == Handle)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CheckAbilitySpecs, FOUND!"));
+		}
+		
+	}
+}
+
 
 void UCharonAbilitySystemComponent::AbilityLocalInputTagPressed(FGameplayTag InputTag)
 {
@@ -207,6 +232,13 @@ void UCharonAbilitySystemComponent::AbilityLocalInputTagReleased(FGameplayTag In
 	}
 }
 
+void UCharonAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
+{
+	Super::OnGiveAbility(AbilitySpec);
+
+	UE_LOG(LogTemp, Display, TEXT("Ability - %s Has Granted"), *AbilitySpec.Ability.GetName());
+}
+
 void UCharonAbilitySystemComponent::AbilitySpecInputPressed(FGameplayAbilitySpec& Spec)
 {
 	Super::AbilitySpecInputPressed(Spec);
@@ -217,13 +249,18 @@ void UCharonAbilitySystemComponent::AbilitySpecInputPressed(FGameplayAbilitySpec
 	// 달라진 로직에선 PredictionKey가 뭐 리플리케이션 문제 같은것 때문에 뭔가 달라지나 봄. 
 	if (Spec.IsActive())
 	{
+		
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const UGameplayAbility* Instance = Spec.GetPrimaryInstance();
 		FPredictionKey OriginalPredictionKey = Instance ? Instance->GetCurrentActivationInfo().GetActivationPredictionKey() : Spec.ActivationInfo.GetActivationPredictionKey();
+
+		UE_LOG(LogTemp, Warning, TEXT("Prediction KEY1 : %s"), *OriginalPredictionKey.ToString());//
+		UE_LOG(LogTemp, Warning, TEXT("Prediction KEY2 : %s"), *Spec.ActivationInfo.GetActivationPredictionKey().ToString());//
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Invoke the InputPressed event. This is not replicated here. If someone is listening, they may replicate the InputPressed event to the server.
 		InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, OriginalPredictionKey);
+		
 	}
 }
 

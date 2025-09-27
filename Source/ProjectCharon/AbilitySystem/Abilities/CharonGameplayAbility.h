@@ -62,6 +62,5 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	ECharonAbilityActivationPolicy ActivationPolicy;
-
 	
 };

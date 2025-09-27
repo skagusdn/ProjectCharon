@@ -56,34 +56,37 @@ FGameplayAbilitySpecHandle UInteractionExtensionComponent::GrantAbilityAndActiva
 	FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityForInteraction);
 	FGameplayAbilitySpecHandle AbilitySpecHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
 	
-	bool bSuccess = AbilitySystemComponent->TriggerAbilityFromGameplayEvent(
-	AbilitySpecHandle,
-		&ActorInfo,
-	CharonGameplayTags::Tag_Ability_Event_Interaction,
-		&Payload,
-		*AbilitySystemComponent
-		);
+	///////////////
+	
+	FGameplayAbilitySpec* AbilitySpec2 = AbilitySystemComponent->FindAbilitySpecFromHandle(AbilitySpecHandle, EConsiderPending::PendingAdd);
+	if(!AbilitySpec2)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Temp - AbilitySpec2 Is InValid"));
+	}
+	//////////////////
 
-	// if(bSuccess)
+	//발동하지 말아볼까?
+	// bool bSuccess = AbilitySystemComponent->TriggerAbilityFromGameplayEvent(
+	// AbilitySpecHandle,
+	// 	&ActorInfo,
+	// CharonGameplayTags::Tag_Ability_Event_Interaction,
+	// 	&Payload,
+	// 	*AbilitySystemComponent
+	// 	);
+
+	
+	
+
+
+	// //
+	// if(!bSuccess)
 	// {
-	// 	
-	// 	if(AbilitySpec.GetAbilityInstances().Num() > 0)
-	// 	{
-	// 		UGameplayAbility* AbilityInstance = AbilitySpec.GetAbilityInstances()[0];
-	// 		AbilityInstance->OnGameplayAbilityEnded.
-	// 		AddWeakLambda(Instigator, [AbilitySystemComponent](UGameplayAbility* Ability)->
-	// 		void{
-	// 			if(AbilitySystemComponent == Ability->GetAbilitySystemComponentFromActorInfo())
-	// 			{
-	// 				AbilitySystemComponent->ClearAbility(Ability->GetCurrentAbilitySpecHandle());
-	// 			}
-	// 		});
-	// 	}
-	// 	else
-	// 	{
-	// 		AbilitySystemComponent->ClearAbility(AbilitySpecHandle);
-	// 	}
+	// 	UE_LOG(LogTemp, Warning, TEXT("Triggering Ability For Interaction Failed"));
 	// }
+	//
+	
+	// 부여한 어빌리티의 해제는 일단은 어빌리티 자체에서. bRemoveAbilityOnEnd.
+	// TODO 좀 더 명시적으로 어빌리티를 부여할때 bRemovedAbilityOnEnd를 True로 하고 싶음.
 	
 	return AbilitySpecHandle;
 }

@@ -60,6 +60,11 @@ public :
 	//
 	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
 	void CheckAttributeBinds();
+
+	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
+	void CheckAbilitySpecs(FGameplayAbilitySpecHandle Handle);
+
+	
 	//
 	
 	// Input
@@ -68,6 +73,10 @@ public :
 
 protected:
 
+	// 테스트를 위해 추가, 언제든 삭제 가능.
+	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
+	//
+	
 	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
 	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;
 	
