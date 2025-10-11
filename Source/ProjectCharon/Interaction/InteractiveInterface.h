@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "UObject/Interface.h"
 #include "InteractiveInterface.generated.h"
 
@@ -22,16 +23,15 @@ enum class EInteractionInputPolicy : uint8
 	Toggle
 };
 
-UENUM(BlueprintType)
-enum class EInteractionActivationPolicy : uint8
-{
-	CallFunction	UMETA(DisplayName = "Call Function on Target"),
-	GrantAndActivateAbility	UMETA(DisplayName = "Grant Ability to Player and Activate Ability"),
-	ActivateOwningAbility	UMETA(DisplayName = "Active Ability of Interactve Object"),
-};
+// UENUM(BlueprintType)
+// enum class EInteractionActivationPolicy : uint8
+// {
+// 	CallFunction	UMETA(DisplayName = "Call Function on Target"),
+// 	GrantAndActivateAbility	UMETA(DisplayName = "Grant Ability to Player and Activate Ability"),
+// 	ActivateOwningAbility	UMETA(DisplayName = "Active Ability of Interactve Object"),
+// };
 
-
-// 근처에 갔을 때 뜨는 상호작용 UI에 표시할 텍스트 및 색깔 등.
+// 근처에 갔을 때 뜨는 상호작용 UI에 표시할 텍스트 및 색깔 등. 일단 임시. 
 USTRUCT(BlueprintType)
 struct FInteractionDescription
 {
@@ -46,6 +46,22 @@ struct FInteractionDescription
 };
 
 USTRUCT(BlueprintType)
+struct FInteractionResultWithAbilityData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	EInteractResult InteractionResult;
+
+	UPROPERTY(BlueprintReadWrite)
+	TSubclassOf<class UGameplayAbility> AbilityForInteraction;
+
+	UPROPERTY(BlueprintReadWrite)
+	FGameplayEventData EventData;
+	
+};
+
+USTRUCT(BlueprintType)
 struct FInteractionInfo
 {
 	GENERATED_BODY()
@@ -56,15 +72,15 @@ struct FInteractionInfo
 	UPROPERTY(BlueprintReadWrite)
 	EInteractionInputPolicy InteractionInputPolicy;
 	
-	UPROPERTY(BlueprintReadWrite)
-	EInteractionActivationPolicy InteractionActivationPolicy;
+	// UPROPERTY(BlueprintReadWrite)
+	// EInteractionActivationPolicy InteractionActivationPolicy;
 	
 	UPROPERTY(BlueprintReadWrite)
 	FInteractionDescription DescriptionData;
 
-	// 상호작용에 어빌리티를 사용하는 타입일 경우. 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TSubclassOf<class UGameplayAbility> InteractionAbility;
+	// // 상호작용에 어빌리티를 사용하는 타입일 경우. 
+	// UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	// TSubclassOf<class UGameplayAbility> InteractionAbility;
 };
 
 // This class does not need to be modified.
@@ -85,17 +101,17 @@ class PROJECTCHARON_API IInteractiveInterface
 public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Charon|Interaction")
-	EInteractResult Interact(ACharacter* Character, UCharonGameplayAbility* InteractionAbility);
+	FInteractionResultWithAbilityData Interact(ACharacter* Character, UCharonGameplayAbility* InteractionAbility);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Charon|Interaction")
-	void CancelInteraction(ACharacter* Character);
+	// UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Charon|Interaction")
+	// void CancelInteraction(ACharacter* Character);
+	//
+	// UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Charon|Interaction")
+	// bool CanInteract(ACharacter* Character);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Charon|Interaction")
-	bool CanInteract(ACharacter* Character);
-
-	// 상호작용을 진행하거나 끝내기 위해서 한 번 더 입력이 필요한 타입일때 호출할 함수. 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Charon|Interaction")
-	void PressInputOnceMore(ACharacter* Character);
+	// // 상호작용을 진행하거나 끝내기 위해서 한 번 더 입력이 필요한 타입일때 호출할 함수. 
+	// UFUNCTION(BlueprintImplementableEvent, Category = "Charon|Interaction")
+	// void PressInputOnceMore(ACharacter* Character);
 	
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Charon|Interaction")
 	FInteractionInfo GetInteractionInfo() const;

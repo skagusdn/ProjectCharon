@@ -3,7 +3,6 @@
 
 #include "CharonCharacter.h"
 
-#include "AnimationEditorViewportClient.h"
 #include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 

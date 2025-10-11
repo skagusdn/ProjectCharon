@@ -4,9 +4,9 @@
 #include "AbilitySystem/CharonAbilitySystemComponent.h"
 
 #include "Abilities/CharonGameplayAbility.h"
-#include "Engine/SpecularProfile.h"
+// "Engine/SpecularProfile.h"
 #include "ProjectCharon.h"
-#include "Animation/AnimTrace.h"
+//#include "Animation/AnimTrace.h"
 
 UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

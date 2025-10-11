@@ -4,20 +4,16 @@
 #include "WaterFluidSimulator.h"
 
 #include "WaterInteractiveComponent.h"
+#include "WaterSubsystem.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 
 // Sets default values
 AWaterFluidSimulator::AWaterFluidSimulator()
 {
-
 	PrimaryActorTick.bCanEverTick = true;
-
-	// DebugGridMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("DebugGridMesh"));
-	// if(!bDrawDebugGrid)
-	// {
-	// 	DebugGridMesh->SetHiddenInGame(true);
-	// }
 }
 
 void AWaterFluidSimulator::RegisterTarget(UWaterInteractiveComponent* Target)
@@ -41,6 +37,35 @@ void AWaterFluidSimulator::UnregisterTarget(USceneComponent* Target)
 	TouchingSurfaceTargets.Remove(ID);
 	TargetsPrevLocation.Remove(ID);
 	
+}
+
+void AWaterFluidSimulator::UpdateOverlappingWaterZone()
+{
+	
+	const FVector Location = GetActorLocation();
+	const FBox Bounds(Location - 500.0, Location + 500.0);
+
+	TSoftObjectPtr<AWaterZone> FoundWaterZoneSoftPtr = UWaterSubsystem::FindWaterZone3D(GetWorld(), Bounds, GetLevel());
+	if(FoundWaterZoneSoftPtr.IsValid())
+	{
+		if(OverlappingWaterZone != FoundWaterZoneSoftPtr.Get())
+		{
+			OverlappingWaterZone = FoundWaterZoneSoftPtr.Get();
+			WaterInfoTextureArray = OverlappingWaterZone->WaterInfoTextureArray;
+		}
+	}
+	else if(!FoundWaterZoneSoftPtr.IsPending())
+	{
+		FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+		Streamable.RequestAsyncLoad(FoundWaterZoneSoftPtr.ToSoftObjectPath(),
+			FStreamableDelegate::CreateLambda([FoundWaterZoneSoftPtr, this]()
+		{
+			if(FoundWaterZoneSoftPtr.IsValid())
+			{
+				OverlappingWaterZone = FoundWaterZoneSoftPtr.Get();
+			}
+		}));
+	}
 }
 
 

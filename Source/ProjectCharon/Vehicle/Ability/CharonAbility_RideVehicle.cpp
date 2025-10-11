@@ -1,7 +1,7 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "CharonAbility_EnterVehicle.h"
+#include "CharonAbility_RideVehicle.h"
 
 #include "Logging.h"
 
@@ -9,25 +9,25 @@
 #include "GameFramework/Character.h"
 #include "Vehicle/Vehicle.h"
 
-UCharonAbility_EnterVehicle::UCharonAbility_EnterVehicle(const FObjectInitializer& ObjectInitializer)
+UCharonAbility_RideVehicle::UCharonAbility_RideVehicle(const FObjectInitializer& ObjectInitializer)
 {
 	//ActivationPolicy = ECharonAbilityActivationPolicy::OnInputTriggered
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
-void UCharonAbility_EnterVehicle::EndAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility, bool bWasCancelled)
-{
-	if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(Rider))
-	{
-		CharonRider->ResetAbilityConfig();
-	}
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-}
+// void UCharonAbility_EnterVehicle::EndAbility(const FGameplayAbilitySpecHandle Handle,
+// 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+// 	bool bReplicateEndAbility, bool bWasCancelled)
+// {
+// 	if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(Rider))
+// 	{
+// 		CharonRider->ResetAbilityConfig();
+// 	}
+// 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+// }
 
-bool UCharonAbility_EnterVehicle::TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider)
+bool UCharonAbility_RideVehicle::TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider)
 {
 	if(!VehicleToEnter || !InRider)
 	{
@@ -66,6 +66,36 @@ bool UCharonAbility_EnterVehicle::TryEnterVehicle(AVehicle* VehicleToEnter, ACha
 	if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(InRider))
 	{
 		CharonRider->SwitchAbilityConfig(RiderSpecData.AbilityConfig, RiderSpecData.InputFunctionSet);
+	}
+
+	return true;
+}
+
+bool UCharonAbility_RideVehicle::TryExitVehicle(AVehicle* VehicleToExit, ACharacter* InRider)
+{
+	if(!VehicleToExit || !InRider)
+	{
+		UE_LOG(LogCharon,Warning,TEXT("TryExitVehicle Failed : Vehicle or Rider is not valid."));
+		return false;
+	}
+
+	int RiderIdx = VehicleToExit->FindRiderIdx(InRider);
+	
+	if(RiderIdx < 0)
+	{
+		UE_LOG(LogCharon,Warning,TEXT("TryExitVehicle Failed : Rider is not riding this Vehicle"));
+		return false;
+	}
+	
+	if(!VehicleToExit->ExitVehicle(InRider))
+	{
+		UE_LOG(LogCharon,Warning,TEXT("TryExitVehicle Failed : Rider has denied to leave Vehicle"));
+		return false;
+	}
+
+	if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(InRider))
+	{
+		CharonRider->ResetAbilityConfig();
 	}
 
 	return true;

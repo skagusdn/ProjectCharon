@@ -29,16 +29,19 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
 	void UpdateInteractionTarget(AActor* InInteractionTarget);
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
-	EInteractResult TriggerInteraction();
-	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
-	void PressInteractionInputOnceMore();
+	FInteractionResultWithAbilityData TriggerInteraction();
+	// UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
+	// void PressInteractionInputOnceMore();
 
 	//void Interact_GrantAbilityAndActivate();
 
-	/////////////// 테스트 용~~~~~~~~~~~~~~
-	
-	virtual void InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
-	///
+	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
+	bool TriggerAbilityForInteraction(FGameplayAbilitySpecHandle AbilitySpecHandle, FGameplayEventData EventData);
+
+	// /////////////// 테스트 용~~~~~~~~~~~~~~
+	//
+	// virtual void InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
+	// ///
 	
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Charon|Interaction")

@@ -7,6 +7,8 @@
 #include "WaterFluidSimulator.generated.h"
 
 
+class UTextureRenderTarget2DArray;
+class AWaterZone;
 class UWaterInteractiveComponent;
 /*
  * 플레이어를 따라다니며 물의 물결을 그려내는 Grid
@@ -24,12 +26,12 @@ public:
 	void RegisterTarget(UWaterInteractiveComponent* Target);
 	UFUNCTION(BlueprintCallable)
 	void UnregisterTarget(USceneComponent* Target);
+	
+	UFUNCTION(BlueprintCallable)
+	void UpdateOverlappingWaterZone();
 
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	// bool bDrawDebugGrid;
-	//
-	// UPROPERTY()
-	// TObjectPtr<UStaticMeshComponent> DebugGridMesh;
+	// UFUNCTION(BlueprintCallable)
+	// AWaterZone* GetOverlappingWaterZone() const {return OverlappingWaterZone;};
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool bFollowPlayer;
@@ -91,6 +93,12 @@ protected:
 	TObjectPtr<UMaterialInterface> HeightCalculationMaterial;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UMaterialInterface> HeightNormalCalculationMaterial;
+
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AWaterZone> OverlappingWaterZone;
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<UTextureRenderTarget2DArray> WaterInfoTextureArray; 
+	
 public:
 	
 	virtual void Tick(float DeltaTime) override;
