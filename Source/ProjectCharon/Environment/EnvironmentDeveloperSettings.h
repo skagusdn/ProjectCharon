@@ -6,6 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "EnvironmentDeveloperSettings.generated.h"
 
+class ACharonWaterManager;
 class AWaterFluidSimulator;
 class AEnvironmentInteractionManager;
 /**
@@ -20,5 +21,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Config, Category="Fluid Simulation")
 	TSubclassOf<AWaterFluidSimulator> WaterFluidSimulatorClass;
-	
+
+	UPROPERTY(EditAnywhere, Config, Category="Charon Water Manager")
+	TSubclassOf<ACharonWaterManager> CharonWaterManagerClass;
 };

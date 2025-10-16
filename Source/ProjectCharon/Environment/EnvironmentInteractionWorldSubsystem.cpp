@@ -4,6 +4,7 @@
 #include "EnvironmentInteractionWorldSubsystem.h"
 
 #include "EnvironmentDeveloperSettings.h"
+#include "Water/CharonWaterManager.h"
 #include "Water/WaterFluidSimulator/WaterFluidSimulator.h"
 
 void UEnvironmentInteractionWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -33,13 +34,36 @@ void UEnvironmentInteractionWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 			{
 				WaterFluidSimulatorClass = EnvironmentInteractionSettings->WaterFluidSimulatorClass;
 			}
+			if(EnvironmentInteractionSettings->CharonWaterManagerClass)
+			{
+				CharonWaterManagerClass = EnvironmentInteractionSettings->CharonWaterManagerClass;
+			}
 		}
 	}
 
-	if(EnvironmentInteractionSettings)
+	if(UWorld* World = GetWorld())
 	{
-		SpawnWaterFluidSimulator();
+		if(WaterFluidSimulatorClass)
+		{
+			SpawnWaterFluidSimulator();
+		}
+
+		if(CharonWaterManagerClass)
+		{
+			
+			CharonWaterManager = World->SpawnActor<ACharonWaterManager>(CharonWaterManagerClass);
+			if(CharonWaterManager)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Charon Water Manager Spawned"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Charon Water Manager Spawn Failed"));
+			}
+		}
 	}
+	
+	
 }
 
 void UEnvironmentInteractionWorldSubsystem::SpawnWaterFluidSimulator()

@@ -6,6 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "EnvironmentInteractionWorldSubsystem.generated.h"
 
+class ACharonWaterManager;
 class AWaterFluidSimulator;
 class UEnvironmentDeveloperSettings;
 /**
@@ -29,9 +30,15 @@ class PROJECTCHARON_API UEnvironmentInteractionWorldSubsystem : public UWorldSub
 	protected :
 
 	void SpawnWaterFluidSimulator();
+
 	UPROPERTY()
 	const UEnvironmentDeveloperSettings* EnvironmentInteractionSettings;
+
 	TSubclassOf<AWaterFluidSimulator> WaterFluidSimulatorClass;
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AWaterFluidSimulator> WaterFluidSimulator;
+
+	TSubclassOf<ACharonWaterManager> CharonWaterManagerClass;
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<ACharonWaterManager> CharonWaterManager;
 };
