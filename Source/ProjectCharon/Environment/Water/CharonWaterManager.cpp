@@ -3,12 +3,24 @@
 
 #include "CharonWaterManager.h"
 
+#include "WaterZoneActor.h"
+
 
 // Sets default values
 ACharonWaterManager::ACharonWaterManager()
 {
 	TestNumber = 0;
 	
+}
+
+void ACharonWaterManager::RegisterWaterZone(AWaterZone* WaterZone)
+{
+	if (WaterZone)
+	{
+		WaterZones.Add(WaterZone);
+
+		WaterZone->OnWaterInfoTextureArrayCreated.Add(this, &ACharonWaterManager::UpdateWaterZVelocity);
+	}
 }
 
 // Called when the game starts or when spawned

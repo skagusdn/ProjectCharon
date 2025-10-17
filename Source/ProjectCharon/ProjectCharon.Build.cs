@@ -18,8 +18,7 @@ public class ProjectCharon : ModuleRules
 	        "EnhancedInput", "GameplayTags", "GameplayTasks", "GameplayAbilities", "DeveloperSettings", "UMG", "Niagara" });
 	
 		PrivateDependencyModuleNames.AddRange(
-			new string[] { 
-			}
+			new string[] {}
 		);
 
 		
