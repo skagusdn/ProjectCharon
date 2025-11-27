@@ -31,3 +31,51 @@ void ACharonController::OnPossess(APawn* InPawn)
 	// }
 }
 
+//// 여기서부터 저 아래까지 긁어온 네트워크 시계 구현.
+
+float ACharonController::GetServerWorldTimeDelta() const
+{
+	return ServerWorldTimeDelta;
+}
+
+float ACharonController::GetServerWorldTime() const
+{
+	return GetWorld()->GetTimeSeconds() + ServerWorldTimeDelta;
+}
+
+void ACharonController::PostNetInit()
+{
+	Super::PostNetInit();
+	if (GetLocalRole() != ROLE_Authority)
+	{
+		RequestWorldTime_Internal();
+		if (NetworkClockUpdateFrequency > 0.f)
+		{
+			FTimerHandle TimerHandle;
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &ThisClass::RequestWorldTime_Internal, NetworkClockUpdateFrequency, true);
+		}
+	}
+}
+
+void ACharonController::RequestWorldTime_Internal()
+{
+	ServerRequestWorldTime(GetWorld()->GetTimeSeconds());
+}
+
+void ACharonController::ClientUpdateWorldTime_Implementation(float ClientTimestamp, float ServerTimestamp)
+{
+	const float RoundTripTime = GetWorld()->GetTimeSeconds() - ClientTimestamp;
+	if (RoundTripTime < ShortestRoundTripTime)
+	{
+		ShortestRoundTripTime = RoundTripTime;
+		ServerWorldTimeDelta = ServerTimestamp - ClientTimestamp - ShortestRoundTripTime / 2.f;
+	}
+}
+
+void ACharonController::ServerRequestWorldTime_Implementation(float ClientTimestamp)
+{
+	const float Timestamp = GetWorld()->GetTimeSeconds();
+	ClientUpdateWorldTime(ClientTimestamp, Timestamp);
+}
+
+//// ~~~~~~~~~~~~~ 네트워크 시계 구현 끝.

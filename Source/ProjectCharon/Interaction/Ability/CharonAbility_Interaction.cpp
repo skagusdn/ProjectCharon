@@ -128,7 +128,7 @@ bool UCharonAbility_Interaction::TriggerAbilityForInteraction(FGameplayAbilitySp
 	ActorInfo.InitFromActor(AbilitySystemComponent->GetOwnerActor(), AbilitySystemComponent->GetAvatarActor(), AbilitySystemComponent);
 	
 	bool Result = AbilitySystemComponent->TriggerAbilityFromGameplayEvent(
-		AbilitySpecHandle, &ActorInfo, CharonGameplayTags::Tag_Ability_Event_Interaction, &EventData, *AbilitySystemComponent);
+		AbilitySpecHandle, &ActorInfo, CharonGameplayTags::GameplayEvent_Interaction, &EventData, *AbilitySystemComponent);
 
 	return Result;
 }

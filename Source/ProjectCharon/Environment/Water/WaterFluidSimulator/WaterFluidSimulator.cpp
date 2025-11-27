@@ -25,6 +25,7 @@ void AWaterFluidSimulator::RegisterTarget(UWaterInteractiveComponent* Target)
 	}
 	TouchingSurfaceTargets.Add(ID, Target);
 	TargetsPrevLocation.Add(ID, Target->GetComponentLocation());
+	TargetsPrevInWater.Add(ID, Target->GetIsInWater());
 }
 
 void AWaterFluidSimulator::UnregisterTarget(USceneComponent* Target)
@@ -36,6 +37,7 @@ void AWaterFluidSimulator::UnregisterTarget(USceneComponent* Target)
 	}
 	TouchingSurfaceTargets.Remove(ID);
 	TargetsPrevLocation.Remove(ID);
+	TargetsPrevInWater.Remove(ID);
 	
 }
 
@@ -89,23 +91,23 @@ void AWaterFluidSimulator::BeginPlay()
 // 	return false;
 // }
 
-void AWaterFluidSimulator::InitRTs()
-{
-
-	HeightRTs.Empty();
-	
-	for(int i = 0; i < 3; i++)
-	{
-		UTextureRenderTarget2D* NewRT = NewObject<UTextureRenderTarget2D>();
-		NewRT->InitAutoFormat(GridResolution, GridResolution);
-		NewRT->RenderTargetFormat = RTF_RGBA16f;
-		NewRT->AddressX = TextureAddress::TA_Clamp;
-		NewRT->AddressY = TextureAddress::TA_Clamp;
-		NewRT->ClearColor = FColor::Black;
-		
-		HeightRTs.Add(NewRT);
-	}
-}
+// void AWaterFluidSimulator::InitRTs()
+// {
+//
+// 	HeightRTs.Empty();
+// 	
+// 	for(int i = 0; i < 3; i++)
+// 	{
+// 		UTextureRenderTarget2D* NewRT = NewObject<UTextureRenderTarget2D>();
+// 		NewRT->InitAutoFormat(GridResolution, GridResolution);
+// 		NewRT->RenderTargetFormat = RTF_RGBA16f;
+// 		NewRT->AddressX = TextureAddress::TA_Clamp;
+// 		NewRT->AddressY = TextureAddress::TA_Clamp;
+// 		NewRT->ClearColor = FColor::Black;
+// 		
+// 		HeightRTs.Add(NewRT);
+// 	}
+// }
 
 UTextureRenderTarget2D* AWaterFluidSimulator::GetHeightRT(const int PrevIdx)
 {

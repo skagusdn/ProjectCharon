@@ -57,15 +57,13 @@ public :
 	//void UnBindEventOnAttributeChange(FDelegateHandle EventHandle);
 	
 
-	//
+	///////////////////
 	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
 	void CheckAttributeBinds();
 
 	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
 	void CheckAbilitySpecs(FGameplayAbilitySpecHandle Handle);
-
-	
-	//
+	////////////////////
 	
 	// Input
 	void AbilityLocalInputTagPressed(FGameplayTag InputTag);

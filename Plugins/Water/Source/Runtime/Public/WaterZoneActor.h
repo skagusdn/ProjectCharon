@@ -112,13 +112,13 @@ public:
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	TObjectPtr<UTextureRenderTarget2DArray> WaterInfoTextureArray;
 
-	//수정. 
-	/*
-	 * 물의 Z속도까지 넣은 텍스처
-	 * 좀 짜치는 방식이지만 CharonWaterManager에 업데이트를 맡기는 걸로 하자. 
-	 */
-	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Water)
-	TObjectPtr<UTextureRenderTarget2D> WaterXYZVelocityTexture; //
+	// //수정. 
+	// /*
+	//  * 물의 Z속도까지 넣은 텍스처
+	//  * 좀 짜치는 방식이지만 CharonWaterManager에 업데이트를 맡기는 걸로 하자. 
+	//  */
+	// UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Water)
+	// TObjectPtr<UTextureRenderTarget2D> WaterXYZVelocityTexture; //
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	int32 WaterInfoTextureArrayNumSlices = 1;
@@ -145,13 +145,15 @@ public:
 	FOnWaterInfoTextureCreated& GetOnWaterInfoTextureCreated() { return OnWaterInfoTextureCreated_DEPRECATED; }
 #endif
 
-private:
+//private: 수정
+protected:
 
 	/**
 	 * Enqueues a command on the Water Scene View Extension to re-render the water info on the next frame.
 	 * Returns false if the water info cannot be rendered this frame due to one of the dependencies not being ready yet (ie. a material under On-Demand-Shader-Compilation)
 	 */
-	UE_API bool UpdateWaterInfoTexture();
+	//UE_API bool UpdateWaterInfoTexture(); // 수정
+	UE_API virtual bool UpdateWaterInfoTexture(); // 수정
 
 	/**
 	 * Updates the list of owned water bodies causing any overlapping water bodies which do no have an owning water zone to register themselves to this water zone.
@@ -198,7 +200,8 @@ private:
 	UE_API void OnLandscapeComponentDataChanged(ALandscapeProxy* InLandscape, const FLandscapeProxyComponentDataChangedParams& InChangeParams);
 #endif // WITH_EDITOR
 
-private:
+//private: // 수정
+protected:
 
 	UPROPERTY(Transient, Category = Water, VisibleAnywhere)
 	TArray<TWeakObjectPtr<UWaterBodyComponent>> OwnedWaterBodies;

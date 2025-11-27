@@ -54,7 +54,7 @@ void UEnvironmentEditorSubsystem::OnLevelActorAdded(AActor* Actor)
 		&& ActorWorld && ActorWorld->IsEditorWorld()
 		&& WaterZoneActor != nullptr)
 	{
-		if(CharonWaterManagerClass)
+		if(!CharonWaterManager.IsValid())
 		{
 			CharonWaterManager = ActorWorld -> SpawnActor<ACharonWaterManager>(CharonWaterManagerClass);
 		}

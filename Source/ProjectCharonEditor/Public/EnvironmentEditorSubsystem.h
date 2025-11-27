@@ -35,5 +35,5 @@ protected:
 	
 	TSubclassOf<ACharonWaterManager> CharonWaterManagerClass;
 	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<ACharonWaterManager> CharonWaterManager;
+	TWeakObjectPtr<ACharonWaterManager> CharonWaterManager;
 };

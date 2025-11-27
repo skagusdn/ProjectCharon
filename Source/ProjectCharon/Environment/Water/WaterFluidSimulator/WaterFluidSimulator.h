@@ -65,8 +65,8 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	int HeightState ;
 
-	UFUNCTION(BlueprintCallable)
-	void InitRTs();
+	// UFUNCTION(BlueprintCallable)
+	// void InitRTs();
 	UFUNCTION(BlueprintCallable)
 	UTextureRenderTarget2D* GetHeightRT(int PrevIdx = 0);
 	UPROPERTY(BlueprintReadWrite)
@@ -77,12 +77,13 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UTextureRenderTarget2D> PresentHeightRT;
 
-	
+	// Fluid Simulator에 등록된 WaterInteractive Components, 그 아래는 컴포넌트의 이전 위치 및 이전에 물 속에 있는지 여부. 
 	UPROPERTY(BlueprintReadWrite)
 	TMap<int32 , UWaterInteractiveComponent*> TouchingSurfaceTargets;
 	UPROPERTY(BlueprintReadWrite)
 	TMap<int32, FVector> TargetsPrevLocation;
-	
+	UPROPERTY(BlueprintReadWrite)
+	TMap<int32, bool> TargetsPrevInWater;
 	
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<APawn> PlayerToFollow;

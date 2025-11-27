@@ -11,7 +11,7 @@ public class ProjectCharonTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 
 		ExtraModuleNames.AddRange( new string[] { "ProjectCharon" } );
-		RegisterModulesCreatedByRider();
+		//RegisterModulesCreatedByRider();
 	}
 
 	private void RegisterModulesCreatedByRider()
