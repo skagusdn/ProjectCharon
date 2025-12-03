@@ -2,6 +2,8 @@
 
 
 #include "AbilityAssistComponent.h"
+
+#include "CharonGameplayTags.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -88,13 +90,17 @@ void UAbilityAssistComponent::UninitializeAbilitySystem()
 	if (AbilitySystemComponent->GetAvatarActor() == GetOwner())
 	{
 		FGameplayTagContainer AbilityTypesToIgnore;
-		//AbilityTypesToIgnore.AddTag(제외할 태그);
+		AbilityTypesToIgnore.AddTag(CharonGameplayTags::Ability_Option_IgnoreDeath);
 		
 		// 특정 태그를 가지고 있는 어빌리티를 제외하고 모든 어빌리티를 중단, Cancel함. 
 		AbilitySystemComponent->CancelAbilities(nullptr, &AbilityTypesToIgnore);
 		
 		//AbilitySystemComponent->ClearAbilityInput(); 라이라는 ASC에서 어빌리티 입력을 다뤘는데 여기선 아니니까 어떻게 처리할지..
 		AbilitySystemComponent->RemoveAllGameplayCues();
+
+		FGameplayTagContainer EffectTypesToIgnore;
+		EffectTypesToIgnore.AddTag(CharonGameplayTags::GameplayEffect_Option_IgnoreDeath);
+		AbilitySystemComponent->RemoveActiveEffects(FGameplayEffectQuery::MakeQuery_MatchNoOwningTags(EffectTypesToIgnore));
 		
 		if (AbilitySystemComponent->GetOwnerActor() != nullptr)
 		{

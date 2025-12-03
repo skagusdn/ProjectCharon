@@ -27,7 +27,8 @@ protected:
 	
 public:	
 	
-
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	TSubclassOf<UGameplayEffect> EffectToGrant;
 private :
 
 	UPROPERTY(VisibleDefaultsOnly, meta = (AllowPrivateAccess = true))
@@ -36,7 +37,8 @@ private :
 	UPROPERTY(VisibleAnywhere, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UBoxComponent> OverlapBox;
 
-	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UGameplayEffect> EffectToGrant;
+protected :
+	
+	
 
 };

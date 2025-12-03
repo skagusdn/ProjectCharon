@@ -30,6 +30,11 @@ void AWaterFluidSimulator::RegisterTarget(UWaterInteractiveComponent* Target)
 
 void AWaterFluidSimulator::UnregisterTarget(USceneComponent* Target)
 {
+	if(!Target)
+	{
+		return;
+	}
+	
 	const uint32 ID = Target->GetUniqueID();
 	if(!TouchingSurfaceTargets.Contains(ID))
 	{

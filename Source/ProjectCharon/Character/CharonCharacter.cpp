@@ -3,6 +3,7 @@
 
 #include "CharonCharacter.h"
 
+#include "LifeStateComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 
@@ -13,13 +14,14 @@ ACharonCharacter::ACharonCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
+
 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
-	//상호작용 개편전 컴포넌트임.
-	//InteractionComponent = CreateDefaultSubobject<UInteractionComponent>(TEXT("InteractionComponent"));
-	
-	//DefaultInputFunctions = CreateDefaultSubobject<ANewInputFunctionSet>(TEXT("DefaultInputFunctions"));
 	DefaultInputFunctions = nullptr;
+
+	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
+	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
+	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnDeathFinished);
 }
 
 void ACharonCharacter::OnRep_Controller()
@@ -41,6 +43,50 @@ void ACharonCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 	InitCharonCharacter();
+}
+
+void ACharonCharacter::OnDeathStarted(AActor* OwningActor)
+{
+	if(OwningActor != this)
+	{
+		return;
+	}
+
+	K2_OnDeathStarted();
+}
+
+void ACharonCharacter::OnDeathFinished(AActor* OwningActor)
+{
+	if(OwningActor != this)
+	{
+		return;
+	}
+
+	K2_OnDeathFinished();
+	UninitCharonCharacter();
+}
+
+void ACharonCharacter::UninitCharonCharacter()
+{
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		DetachFromControllerPendingDestroy();
+		SetLifeSpan(0.1f);
+	}
+
+	InputAssistComponent->UnregisterInputConfig(false);
+	LifeStateComponent->UninitializeFromAbilitySystem();
+	
+	// Uninitialize the ASC if we're still the avatar actor (otherwise another pawn already did it when they became the avatar actor)
+	if (UCharonAbilitySystemComponent* CharonASC = Cast<UCharonAbilitySystemComponent>(GetAbilitySystemComponent()))
+	{
+		if (CharonASC->GetAvatarActor() == this)
+		{
+			AbilityAssistComponent->UninitializeAbilitySystem();
+		}
+	}
+
+	SetActorHiddenInGame(true);
 }
 
 
@@ -140,6 +186,12 @@ void ACharonCharacter::InitCharonCharacter()
 		{
 			InputAssistComponent->InitInputAssist(DefaultAbilityConfig->InputConfig, DefaultInputFunctions);
 		}
+
+		if(UCharonAbilitySystemComponent* CharonASC = Cast<UCharonAbilitySystemComponent>(GetAbilitySystemComponent()))
+		{
+			LifeStateComponent->InitializeWithAbilitySystem(CharonASC);	
+		}
+		
 	}
 	
 }

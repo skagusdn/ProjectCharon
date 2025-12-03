@@ -14,6 +14,7 @@
 #include "CharonCharacter.generated.h"
 
 
+class ULifeStateComponent;
 class AInputFunctionSet;
 class UCharacterAbilityConfig;
 
@@ -42,6 +43,18 @@ protected:
 	virtual void OnRep_PlayerState() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+	//캐릭터 죽음 관련
+	UFUNCTION()
+	virtual void OnDeathStarted(AActor* OwningActor);
+	UFUNCTION()
+	virtual void OnDeathFinished(AActor* OwningActor);
+	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Death Started"))
+	void K2_OnDeathStarted();
+	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Death Finished"))
+	void K2_OnDeathFinished();
+
+	void UninitCharonCharacter();
+	
 	//어빌리티 쪽 처리 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true", RenameComponentFrom = "ExpComp"))
 	TObjectPtr <UAbilityAssistComponent> AbilityAssistComponent;
@@ -50,9 +63,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAssistComponent> InputAssistComponent;
 
-	// //상호작용 컴포넌트
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
-	// TObjectPtr<UInteractionComponent> InteractionComponent;
+	// 생사 관련 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<ULifeStateComponent> LifeStateComponent;
 	
 	//InputAction과 매핑할 InputFunction
 	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))

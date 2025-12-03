@@ -6,8 +6,12 @@
 #include "GameFramework/GameMode.h"
 #include "CharonGameMode.generated.h"
 
+struct FCharonPlayerInfo;
 class UCharonPawnData;
 class UGameStartingData;
+
+
+
 /**
  * 
  */
@@ -21,10 +25,13 @@ protected:
 	//virtual void OnPostLogin(AController* NewPlayer) override;
 	
 public :
+	UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
+	void ReportDeath(AController* Player);
 
-	//UPROPERTY(EditDefaultsOnly, Category = "Charon|GameMode")
-	//TObjectPtr<const UCharonPawnData> DefaultPawnData; 
+protected:
+	//virtual void RestartPlayer(AController* NewPlayer) override;
+	//TArray<AController*> DeadPlayers;
 
-
-	
+	UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
+	void RegisterPlayer(APlayerController* Player, FCharonPlayerInfo PlayerInfo);
 };

@@ -9,6 +9,7 @@
 #include "GameFramework/PlayerState.h"
 #include "CharonPlayerState.generated.h"
 
+
 /**
  * 
  */
@@ -18,6 +19,8 @@ class PROJECTCHARON_API ACharonPlayerState : public APlayerState, public IAbilit
 	GENERATED_BODY()
 
 protected:
+	virtual void PostInitializeComponents() override;
+	
 	UPROPERTY(VisibleAnywhere, Category = "Charon|Abilities")
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 	
@@ -32,6 +35,7 @@ public :
 	UFUNCTION(BlueprintCallable)
 	UCharonAbilitySystemComponent* GetCharonAbilitySystemComponent() const{return AbilitySystemComponent;};
 
-	
+	UPROPERTY(BlueprintReadOnly)
+	int CrewId;
 	
 };

@@ -7,11 +7,14 @@
 //#include "InteractiveInterface.h"
 #include "AbilitySystemInterface.h"
 #include "NativeGameplayTags.h"
+#include "AbilitySystem/CharonAbilitySet.h"
 #include "AbilitySystem/CharonAbilitySystemComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Interaction/InteractiveInterface.h"
 #include "Vehicle.generated.h"
 
+struct FCharonAbilitySet_GrantedHandles;
+class UVehicleLifeStateComponent;
 class UAttributeBoundWidget;
 class UCharacterAbilityConfig;
 class UCharonInputConfig;
@@ -55,8 +58,10 @@ public:
 	
 	virtual void Tick(float DeltaTime) override;
 
+	// UPROPERTY(BlueprintReadWrite)
+	// TArray<TObjectPtr<ACharacter>> Riders;
 	UPROPERTY(BlueprintReadWrite)
-	TArray<TObjectPtr<ACharacter>> Riders;
+	TMap<int32, TObjectPtr<ACharacter>> Riders;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TObjectPtr<USceneComponent>> Seats;
@@ -85,32 +90,39 @@ public:
 	
 protected:
 
+	//탑승자로 등록
 	UFUNCTION(BlueprintCallable)
 	int32 RegisterRider(ACharacter* Rider);
-
+	//탑승자에서 해제. 탑승자 목록에서 없으면 false 리턴.
 	UFUNCTION(BlueprintCallable)
 	bool UnregisterRider(ACharacter* Rider);
-
+	void RemoveInvalidRiders();
+	
+	
+	//탑승자의 메시를 Vehicle에 부착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void AttachToVehicle(ACharacter* Rider);
-
+	//탑승자의 메시를 Vehicle에 탈착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void DetachFromVehicle(ACharacter* Rider);
 	
-	// // Rider의 RiderComponent에게 승차/하차 신호 보내기.
-	// virtual void NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn);
-	
 	virtual void BeginPlay() override;
 	virtual void PostInitializeComponents() override;
-
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// //에디터에서 프로퍼티 바꿀때 호출.
-	// virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	//베히클 죽음 관련
+	UFUNCTION()
+	virtual void OnVehicleDeathStarted(AActor* OwningActor);
+	UFUNCTION()
+	virtual void OnVehicleDeathFinished(AActor* OwningActor);
+	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Vehicle Death Started"))
+	void K2_OnVehicleDeathStarted();
+	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Vehicle Death Finished"))
+	void K2_OnVehicleDeathFinished();
+	void DestroyVehicle();
 	
 	UPROPERTY(BlueprintReadOnly)
 	int32 CurrentRiderNum = 0;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 MaxRiderNum = 1;
 
@@ -121,14 +133,25 @@ protected:
 	TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
 	void HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue);
 
-	//라이더에게 부여할 입력/어빌리티 및 UI
+	//어빌리티 및 입력
+	//베히클 자체가 가지고 있는 어빌리티들
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSet<UCharonAbilitySet*> VehicleAbilitySets;
+	// 어빌리티셋 핸들. 일단 만들어두긴 했는데 어빌리티를 다시 회수할 일이 있나?
+	FCharonAbilitySet_GrantedHandles VehicleAbilityHandles;
+	//탑승자에게 적용할 어빌리티-입력 설정
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
-
+	//탑승자에게 적용할 InputFunctionSet
 	UPROPERTY(BlueprintReadOnly)
 	TArray<TObjectPtr<AInputFunctionSet>> InputFunctionSets;
-
+	
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FVehicleUISet> VehicleUISets;
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	
+
+	// 생사 관련 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UVehicleLifeStateComponent> VehicleLifeStateComponent;
 };

@@ -10,7 +10,7 @@ class UCharonAbilitySystemComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLifeState_DeathEvent, AActor*, OwningActor);
 
 UENUM(BlueprintType)
-enum ECharonLifeState : uint8
+enum class ECharonLifeState : uint8
 {
 	NotDead = 0,
 	DeathStarted,
@@ -25,11 +25,12 @@ class PROJECTCHARON_API ULifeStateComponent : public UActorComponent
 
 public:
 	
-	ULifeStateComponent();
+	ULifeStateComponent(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	
-	virtual void BeginPlay() override;
+	virtual void OnUnregister() override;
+	//virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;	
+	//virtual void BeginPlay() override;
 
 	void StartDeath();
 	void FinishDeath();
@@ -39,7 +40,7 @@ protected:
 
 protected:
 
-	virtual void OnUnregister() override;
+	
 	
 	UPROPERTY()
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;

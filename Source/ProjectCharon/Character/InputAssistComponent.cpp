@@ -17,16 +17,11 @@ UInputAssistComponent::UInputAssistComponent()
 	
 }
 
-
-// Called when the game starts
-void UInputAssistComponent::BeginPlay()
+void UInputAssistComponent::OnUnregister()
 {
-	Super::BeginPlay();
-
-	// ...
-	
+	UnregisterInputConfig(false);
+	Super::OnUnregister();
 }
-
 
 
 void UInputAssistComponent::ClearAbilityConfig()
@@ -126,7 +121,10 @@ void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 	check(OwnerPawn);
 
 	const APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
-	check(PC);
+	if(!PC)
+	{
+		return;
+	}
 
 	const ULocalPlayer* LP = PC->GetLocalPlayer(); 
 	check(LP);
@@ -136,7 +134,7 @@ void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 
 	UCharonInputComponent* CharonIC =  Cast<UCharonInputComponent>(OwnerPawn->InputComponent);
 
-	if(ensureMsgf(CharonIC, TEXT("Input Component Is Not SubClass of CharonInputComponent!")))
+	if(ensureMsgf(CharonIC, TEXT("This Input Component Is Not SubClass of CharonInputComponent!")))
 	{
 		// TODO : 이거 이렇게 하면 여러 InputConfig에서 겹치는 InputMappingContext가 있으면 문제가 되겠는데???
 		CharonIC->RemoveInputMappings( PresentInputConfig, InputSubsystem);

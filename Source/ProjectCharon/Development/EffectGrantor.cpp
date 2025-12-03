@@ -52,7 +52,7 @@ void AEffectGrantor::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
 			const FGameplayEffectSpecHandle SpecHandle = OtherASC -> MakeOutgoingSpec(EffectToGrant, 1.f, ContextHandle);
 			OtherASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	
-			Destroy();
+			//Destroy();
 		}
 	}
 

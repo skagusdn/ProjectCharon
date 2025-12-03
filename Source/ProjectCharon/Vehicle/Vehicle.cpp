@@ -4,7 +4,9 @@
 #include "Vehicle.h"
 
 #include "AbilitySystemComponent.h"
+#include "VehicleLifeStateComponent.h"
 #include "VehicleRiderComponent.h"
+#include "AbilitySystem/CharonAbilitySet.h"
 #include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
 #include "Data/InputFunctionSet.h"
 #include "Net/UnrealNetwork.h"
@@ -19,7 +21,12 @@ AVehicle::AVehicle()
 	AbilitySystemComponent = CreateDefaultSubobject<UCharonAbilitySystemComponent>(TEXT("VehicleASC"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
-
+	VehicleAbilityHandles = FCharonAbilitySet_GrantedHandles();
+	
+	VehicleLifeStateComponent = CreateDefaultSubobject<UVehicleLifeStateComponent>(TEXT("LifeStateComponent"));
+	VehicleLifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
+	VehicleLifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
+	
 	VehicleBasicAttributeSet = nullptr;
 }
 
@@ -35,9 +42,10 @@ void AVehicle::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
 	
 	for (int i = 0; i < MaxRiderNum; i++) {
-		Riders.Add(nullptr);
+		//Riders.Add(nullptr);
 		Seats.Add(nullptr);
 
 		// 어빌리티 COnfig 및 InputFunctionSet 초기화.
@@ -52,6 +60,15 @@ void AVehicle::PostInitializeComponents()
 		}
 	}
 
+	if(HasAuthority())
+	{
+		for(UCharonAbilitySet* AbilitySet : VehicleAbilitySets)
+		{
+			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, &VehicleAbilityHandles, this);
+		}
+	}
+	
+	
 	VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
 	if(VehicleBasicAttributeSet)
 	{
@@ -67,8 +84,40 @@ void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLi
 	//DOREPLIFETIME(AVehicle, InputFunctionSets);
 }
 
+void AVehicle::OnVehicleDeathStarted(AActor* OwningActor)
+{
+	if(OwningActor != this)
+	{
+		return;
+	}
+
+	K2_OnVehicleDeathStarted();
+}
+
+void AVehicle::OnVehicleDeathFinished(AActor* OwningActor)
+{
+	if(OwningActor != this)
+	{
+		return;
+	}
+	
+	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::DestroyVehicle);
+}
+
+void AVehicle::DestroyVehicle()
+{
+	K2_OnVehicleDeathFinished();
+	
+	if (HasAuthority())
+	{
+		SetLifeSpan(0.1f);
+	}
+
+	SetActorHiddenInGame(true);
+}
+
 void AVehicle::HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser,
-	const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
+                                          const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
 	OnVehicleDamageApplied.Broadcast(DamageInstigator, DamageCauser, DamageMagnitude, DamageEffectSpec->GetDynamicAssetTags());
 }
@@ -100,39 +149,11 @@ void AVehicle::Tick(float DeltaTime)
 
 }
 
-// bool AVehicle::EnterVehicle(ACharacter* Rider)
-// {
-// 	check(Rider);
-// 	
-// 	if(RegisterRider(Rider) < 0)
-// 	{
-// 		return false;
-// 	}
-//
-// 	AttachToVehicle(Rider);
-// 	//NotifyVehicleChanged(Rider, true);
-// 	
-// 	return true;
-// }
-//
-// bool AVehicle::ExitVehicle(ACharacter* Rider)
-// {
-// 	check(Rider);
-// 	bool Ret = UnregisterRider(Rider);
-// 	if(Ret)
-// 	{
-// 		DetachFromVehicle(Rider);
-// 		//NotifyVehicleChanged(Rider, false);
-// 	}
-// 	
-// 	return Ret;
-// }
-
 int32 AVehicle::FindRiderIdx (ACharacter* Rider)
 {
 	for (int32 i = 0; i < Riders.Num(); i++) 
 	{
-		if (Riders[i] == Rider) {
+		if (Riders.Contains(i) && Riders[i] == Rider) {
 			return i;
 		}
 	}
@@ -143,36 +164,6 @@ UAbilitySystemComponent* AVehicle::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
 }
-
-// void AVehicle::NotifyVehicleChanged(ACharacter* Rider, bool IsRidingOn)
-// {
-// 	check(Rider);
-// 	
-// 	if(UVehicleRiderComponent* RiderComponent = UVehicleRiderComponent::FindRiderComponent(Rider))
-// 	{
-// 		if(IsRidingOn)
-// 		{
-// 			int RiderIdx = FindRiderIdx(Rider);
-// 			if(RiderIdx < 0)
-// 			{
-// 				return;
-// 			}
-//
-// 			check(AbilityConfigsForRiders.Num() > RiderIdx);
-// 			check(InputFunctionSets.Num() > RiderIdx);
-// 			check(VehicleUISets.Num() > RiderIdx);
-// 			
-// 			RiderComponent->ServerHandleRide(this, AbilityConfigsForRiders[RiderIdx], InputFunctionSets[RiderIdx], VehicleUISets[RiderIdx]);
-//
-// 			
-// 		}
-// 		else
-// 		{
-// 			RiderComponent->ServerHandleUnride();
-// 		}
-// 	}
-// }
-
 
 FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)
 {
@@ -194,11 +185,11 @@ int32 AVehicle::RegisterRider(ACharacter* Rider)
 	}
 	
 	for (int i = 0; i < MaxRiderNum; i++) {
-		if (Riders[i] != nullptr) {
+		if (Riders.Contains(i)) {
 			continue;
 		}
 
-		Riders[i] = Rider;
+		Riders.Add(i,Rider);
 		CurrentRiderNum++;
 		return i;
 	}
@@ -212,10 +203,21 @@ bool AVehicle::UnregisterRider(ACharacter* Rider)
 	if (idx == -1) {
 		return false;
 	}
-	Riders[idx] = nullptr;
+	Riders.Remove(idx);
 	CurrentRiderNum--;
 
 	return true;
+}
+
+void AVehicle::RemoveInvalidRiders()
+{
+	for(TTuple<int32, TObjectPtr<ACharacter>> Tuple : Riders)
+	{
+		if(!Tuple.Value)
+		{
+			
+		}
+	}
 }
 
 

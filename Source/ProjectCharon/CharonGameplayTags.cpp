@@ -9,6 +9,9 @@ namespace CharonGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayEvent_Interaction, "GameplayEvent.Interaction", "Trigger Ability For Interaction");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Option_RemoveOnEnd, "Ability.Option.RemoveOnEnd", "Remove this Ability on End");
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Option_IgnoreDeath, "Ability.Option.IgnoreDeath", "This Ability does Not canceled by Death Ability");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayEffect_Option_IgnoreDeath, "GameplayEffect.Option.IgnoreDeath", "This GameplayEffect does Not canceled by Death Ability");
 	
 	
 }

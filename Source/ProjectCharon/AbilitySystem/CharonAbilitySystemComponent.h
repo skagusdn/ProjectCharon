@@ -41,7 +41,7 @@ class PROJECTCHARON_API UCharonAbilitySystemComponent : public UAbilitySystemCom
 public :
 	UCharonAbilitySystemComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
+	virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
 
 	// 어트리뷰트 값 변화 델리게이트에 바인딩/언바인딩 하기. 
 	// TODO : 나중에 Bind/UnBind는 BlueprintCallable을 없애고 다른 c++클래스 경유해서 하게 하는게 나을듯?  
@@ -57,7 +57,7 @@ public :
 	//void UnBindEventOnAttributeChange(FDelegateHandle EventHandle);
 	
 
-	///////////////////
+	///////////////////테스트용
 	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
 	void CheckAttributeBinds();
 
@@ -73,7 +73,9 @@ protected:
 
 	// 테스트를 위해 추가, 언제든 삭제 가능.
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
-	//
+
+	// 데이터 테이블로 어트리뷰트 셋 초기화.(기존 ASC는 OnRegister에서 이를 수행하더라)
+	void InitAttributesWithDefaultData();
 	
 	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
 	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;

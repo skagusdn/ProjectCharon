@@ -14,9 +14,26 @@ UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitia
 	
 }
 
+void UCharonAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor)
+{
+	FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
+	check(ActorInfo);
+	check(InOwnerActor);
+
+	const bool bHasNewPawnAvatar = Cast<APawn>(InAvatarActor) && (InAvatarActor != ActorInfo->AvatarActor);
+
+	Super::InitAbilityActorInfo(InOwnerActor, InAvatarActor);
+
+	if (bHasNewPawnAvatar)
+	{
+		// ASC가 초기화 될 경우 어트리뷰트도 초기화.
+		InitAttributesWithDefaultData();
+	}
+}
+
 
 FDelegateHandleWrapper UCharonAbilitySystemComponent::K2_BindEventOnAttributeChange(UObject* EventSource, FGameplayAttribute AttributeToBind,
-                                                               FOnCharonAttributeChanged_Dynamic Event)
+                                                                                    FOnCharonAttributeChanged_Dynamic Event)
 {
 	if(!IsValid(EventSource))
 	{
@@ -237,6 +254,19 @@ void UCharonAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilityS
 	Super::OnGiveAbility(AbilitySpec);
 
 	UE_LOG(LogTemp, Display, TEXT("Ability - %s Has Granted"), *AbilitySpec.Ability.GetName());
+}
+
+void UCharonAbilitySystemComponent::InitAttributesWithDefaultData()
+{
+	// Init starting data
+	for (int32 i=0; i < DefaultStartingData.Num(); ++i)
+	{
+		if (DefaultStartingData[i].Attributes && DefaultStartingData[i].DefaultStartingTable)
+		{
+			UAttributeSet* Attributes = const_cast<UAttributeSet*>(GetOrCreateAttributeSubobject(DefaultStartingData[i].Attributes));
+			Attributes->InitFromMetaDataTable(DefaultStartingData[i].DefaultStartingTable);
+		}
+	}
 }
 
 void UCharonAbilitySystemComponent::AbilitySpecInputPressed(FGameplayAbilitySpec& Spec)

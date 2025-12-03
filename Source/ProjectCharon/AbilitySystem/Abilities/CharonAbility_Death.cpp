@@ -5,12 +5,14 @@
 
 #include "Character/CharonCharacter.h"
 #include "Character/LifeStateComponent.h"
+#include "Framework/CharonGameMode.h"
 
 UCharonAbility_Death::UCharonAbility_Death(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 }
 
 void UCharonAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -31,28 +33,47 @@ void UCharonAbility_Death::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
+	FinishDeath();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UCharonAbility_Death::StartDeath()
 {
-	if(ULifeStateComponent* LifeStateComponent = GetAvatarActorFromActorInfo()->FindComponentByClass<ULifeStateComponent>())
+	if(const AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		if(LifeStateComponent->GetLifeState() == ECharonLifeState::NotDead)
+		if(ULifeStateComponent* LifeStateComponent = AvatarActor->FindComponentByClass<ULifeStateComponent>())
 		{
-			LifeStateComponent->TryStartDeath();	
+			if(LifeStateComponent->GetLifeState() == ECharonLifeState::NotDead)
+			{
+				LifeStateComponent->TryStartDeath();	
+			}
 		}
-	}
+	}	
 }
 
 void UCharonAbility_Death::FinishDeath()
 {
-	if(ULifeStateComponent* LifeStateComponent = GetAvatarActorFromActorInfo()->FindComponentByClass<ULifeStateComponent>())
+	if(const AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		if(LifeStateComponent->GetLifeState() == ECharonLifeState::DeathStarted)
+		APlayerController* Player = GetActorInfo().PlayerController.Get();
+		
+		if(ULifeStateComponent* LifeStateComponent = AvatarActor->FindComponentByClass<ULifeStateComponent>())
 		{
-			LifeStateComponent->TryFinishDeath();	
+			if(LifeStateComponent->GetLifeState() == ECharonLifeState::DeathStarted)
+			{
+				LifeStateComponent->TryFinishDeath();	
+			}
+		}
+
+		if(GetWorld() && GetWorld()->GetAuthGameMode() && Player)
+		{
+			if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
+			{
+					CharonGameMode->ReportDeath(Player);
+			}			
 		}
 	}
+
+	
 }
 

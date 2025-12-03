@@ -6,6 +6,7 @@
 #include "AbilitySystem/CharonAbilitySystemComponent.h"
 #include "Net/UnrealNetwork.h"
 
+
 ACharonPlayerState::ACharonPlayerState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	SetNetUpdateFrequency(100.f);
@@ -19,6 +20,15 @@ ACharonPlayerState::ACharonPlayerState(const FObjectInitializer& ObjectInitializ
 	
 	
 }
+
+void ACharonPlayerState::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	check(AbilitySystemComponent);
+	AbilitySystemComponent->InitAbilityActorInfo(this, GetPawn());
+}
+
 
 UAbilitySystemComponent* ACharonPlayerState::GetAbilitySystemComponent() const
 {

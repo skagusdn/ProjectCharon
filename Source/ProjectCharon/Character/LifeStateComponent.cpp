@@ -8,24 +8,15 @@
 
 
 // Sets default values for this component's properties
-ULifeStateComponent::ULifeStateComponent()
+ULifeStateComponent::ULifeStateComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
-}
-
-
-// Called when the game starts
-void ULifeStateComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// ...
+	//PrimaryComponentTick.bCanEverTick = true;
+	AbilitySystemComponent = nullptr;
+	LifeState = ECharonLifeState::NotDead;
 	
 }
+
+
 
 void ULifeStateComponent::StartDeath()
 {
@@ -98,7 +89,7 @@ void ULifeStateComponent::OnRep_LifeState(ECharonLifeState OldLifeState)
 
 void ULifeStateComponent::OnUnregister()
 {
-	UnregisterComponent();
+	UninitializeFromAbilitySystem();
 	
 	Super::OnUnregister();
 }
@@ -133,6 +124,7 @@ void ULifeStateComponent::InitializeWithAbilitySystem(UCharonAbilitySystemCompon
 
 void ULifeStateComponent::UninitializeFromAbilitySystem()
 {
+	// 아직은 딱히 뭘 더 할게 없네. 
 	AbilitySystemComponent = nullptr;
 }
 

@@ -14,47 +14,6 @@ class AVehicle;
 class AInputFunctionSet;
 struct FGameplayAbilitySpecHandle;
 
-//
-// USTRUCT(BlueprintType)
-// struct FInputLayerHandle
-// {
-// 	GENERATED_BODY()
-//
-// 	explicit FInputLayerHandle(const uint64 InValue) : Value(InValue) {};
-// 	
-// 	bool IsValid() const { return Value != 0; }
-// 	bool operator==(const FInputLayerHandle& Other) const { return Value == Other.Value; }
-// 	
-// private :
-// 	uint64 Value = 0;
-// 	
-// };
-//
-// USTRUCT(BlueprintType)
-// struct FInputLayer
-// {
-// 	GENERATED_BODY()
-// 	
-// 	TObjectPtr<UCharonInputConfig> InputConfig;
-// 	TObjectPtr<AInputFunctionSet> InputFunctionSet;
-// 	FInputLayerHandle LayerHandle;
-// };
-//
-// USTRUCT(Blueprintable)
-// struct FInputLayerCondition
-// {
-// 	GENERATED_BODY()
-//
-// 	UPROPERTY(BlueprintReadWrite)
-// 	TObjectPtr<UObject> RequiredObject;
-// 	UPROPERTY(BlueprintReadWrite)
-// 	FGameplayTagContainer RequiredTags;
-// 	UPROPERTY(BlueprintReadWrite)
-// 	TSubclassOf<AVehicle> RequiredVehicle;
-// 	UPROPERTY(BlueprintReadWrite)
-// 	TSubclassOf<UCharonGameplayAbility> RequiredAbility;
-// };
-
 
 /**
  * 캐릭터의 입력 등록과 교체, 어빌리티나 함수를 바인딩 해주는 입력 보조 컴포넌트
@@ -73,9 +32,10 @@ private:
 	
 	
 protected:
-	virtual void BeginPlay() override;
 
-	void ClearAbilityConfig();
+	virtual void OnUnregister() override;
+	
+	void ClearAbilityConfig();//
 
 	void Input_AbilityInputTagPressed(FGameplayTag InputTag);
 	void Input_AbilityInputTagReleased(FGameplayTag InputTag);
