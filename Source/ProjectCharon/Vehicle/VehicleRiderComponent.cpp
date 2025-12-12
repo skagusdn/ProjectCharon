@@ -4,6 +4,7 @@
 #include "Vehicle/VehicleRiderComponent.h"
 
 #include "AbilitySystemComponent.h"
+#include "Logging.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharonCharacter.h"
 #include "GameFramework/Character.h"
@@ -34,97 +35,83 @@ void UVehicleRiderComponent::OnRegister()
 	AActor* Owner = GetOwner();
 	
 	OwnerCharacter = Cast<ACharacter>(Owner);
+	ensureAlwaysMsgf((OwnerCharacter != nullptr), TEXT("VehicleRiderComponent on [%s] can only be added to Character actors."), *GetNameSafe(GetOwner()));
+
+	if(const USkeletalMeshComponent* CharacterMesh =  OwnerCharacter->GetMesh())
+	{
+		OriginalRiderAnimClass = CharacterMesh->AnimClass;
+	}
+	
 }
 
-// void UVehicleRiderComponent::HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-// 	AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
-// {
-// 	check(Vehicle);
-//
-// 	RidingVehicle = Vehicle;
-// 	if(ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(OwnerCharacter))
-// 	{
-// 		// Ability 및 입력 등록
-// 		if(AbilityConfig)
-// 		{
-// 			CharonCharacter->SwitchAbilityConfig(AbilityConfig, InputFunctions);	
-// 		}
-// 	}
-// }
-//
-// void UVehicleRiderComponent::ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-// 	AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
-// {
-// 	if(!GetOwner()->HasAuthority())
-// 	{
-// 		return;
-// 	}
-// 	HandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
-// 	ClientHandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
-// }
-//
-// void UVehicleRiderComponent::ServerHandleUnride()
-// {
-// 	if(!GetOwner()->HasAuthority())
-// 	{
-// 		return;
-// 	}
-// 	HandleUnride();
-// 	ClientHandleUnride();
-// }
-//
-//
-// void UVehicleRiderComponent::ClientHandleRide_Implementation(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig,
-//                                                       AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet)
-// {
-// 	HandleRide(Vehicle, AbilityConfig, InputFunctions, VehicleUISet);
-//
-// 	// Vehicle UI 적용.
-// 	if(VehicleUISet.WidgetClassList.Num() > 0)
-// 	{
-// 		APawn* Owner = Cast<APawn>(GetOwner());
-// 		UCharonAbilitySystemComponent* VehicleASC = Cast<UCharonAbilitySystemComponent>(Vehicle->GetAbilitySystemComponent());
-// 		for(TSubclassOf<UAttributeBoundWidget> WidgetClass : VehicleUISet.WidgetClassList)
-// 		{
-// 			UAttributeBoundWidget* Widget = CreateWidget<UAttributeBoundWidget>(Cast<APlayerController>(Owner->Controller), WidgetClass);
-// 			if(Widget)
-// 			{
-// 				Widget->InitAttributeBoundWidget(VehicleASC);
-// 				Widget->AddToViewport();
-// 				VehicleWidgets.Add(Widget);
-// 			}
-// 		}
-// 	}
-// }
-//
-// void UVehicleRiderComponent::ClientHandleUnride_Implementation()
-// {
-// 	HandleUnride();
-//
-// 	// Vehicle UI 해제
-// 	for(UAttributeBoundWidget* Widget : VehicleWidgets)
-// 	{
-// 		Widget->RemoveFromParent();
-// 	}
-// 	VehicleWidgets.Empty();
-// 	
-// }
-//
-// void UVehicleRiderComponent::HandleUnride()
-// {
-// 	if(ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(OwnerCharacter))
-// 	{
-// 		CharonCharacter->ResetAbilityConfig();
-// 	}
-//
-// 	RidingVehicle = nullptr;
-// }
+void UVehicleRiderComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(UVehicleRiderComponent, RidingVehicle);
+}
 
 UVehicleRiderComponent* UVehicleRiderComponent::FindRiderComponent(ACharacter* Character)
 {
 	check(Character);
 	return Character->FindComponentByClass<UVehicleRiderComponent>();
+}
+
+void UVehicleRiderComponent::SetRidingVehicle(AVehicle* VehicleToRide)
+{
+	if(GetOwner()->HasAuthority())
+	{
+		AVehicle* OldVehicle = RidingVehicle;
+		RidingVehicle = VehicleToRide;
+		OnRep_RidingVehicle(OldVehicle);
+	}
+
+	
+}
+
+void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
+{
+	if(RidingVehicle != nullptr)
+	{
+		bIsRidingVehicle = true;
+
+		if(OwnerCharacter && OwnerCharacter->GetMesh())
+		{
+			OwnerCharacter->GetMesh()->SetHiddenInGame(true);
+		}
+
+		// 서버인지 권한체크해야되나?
+		if (GetOwner()->HasAuthority())
+		{
+			const int RiderIdx = RidingVehicle->FindRiderIdx(OwnerCharacter);
+			if (RiderIdx >= 0)
+			{
+				if (ACharonCharacter* CharonRider = Cast<ACharonCharacter>(OwnerCharacter))
+				{
+					FRiderSpecData RiderSpecData = RidingVehicle->GetRiderSpecData(RiderIdx);
+					CharonRider->SwitchAbilityConfig(RiderSpecData.AbilityConfig, RiderSpecData.InputFunctionSet);
+				}
+			}
+			else
+			{
+				UE_LOG(LogCharon, Error, TEXT("UVehicleRiderComponent::OnRep_RidingVehicle Error"));
+			}
+		}
+	}
+	else
+	{
+		bIsRidingVehicle = false;
+		// 애니메이션 원상 복구
+		OwnerCharacter->GetMesh()->SetAnimInstanceClass(OriginalRiderAnimClass);
+		if(OwnerCharacter && OwnerCharacter->GetMesh())
+		{
+			OwnerCharacter->GetMesh()->SetHiddenInGame(false);
+		}
+		if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(OwnerCharacter))
+		{
+			CharonRider->ResetAbilityConfig();
+		}
+	}
 }
 
 

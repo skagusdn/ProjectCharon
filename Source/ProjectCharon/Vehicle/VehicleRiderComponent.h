@@ -49,19 +49,33 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	AVehicle* GetRidingVehicle() const {return RidingVehicle;};
+
+	UFUNCTION(BlueprintCallable)
+	bool GetIsRidingVehicle() const{ return bIsRidingVehicle; };
 	
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+	void SetRidingVehicle(AVehicle* VehicleToRide);
 protected:
+
+	
 	// //virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	// UFUNCTION(BlueprintCallable)
 	// void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
 	//
 	// UFUNCTION(BlueprintCallable)
 	// void HandleUnride();
+	UFUNCTION()
+	void OnRep_RidingVehicle(AVehicle* OldVehicle);
 	
-	UPROPERTY(BlueprintReadWrite, meta=(AllowPrivateAccess=true))
+	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = OnRep_RidingVehicle, meta=(AllowPrivateAccess=true))
 	TObjectPtr<AVehicle> RidingVehicle;
 	
 	TObjectPtr<ACharacter> OwnerCharacter;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsRidingVehicle;
+
+	UPROPERTY(BlueprintReadOnly)
+	TSubclassOf<UAnimInstance> OriginalRiderAnimClass;
 	// TArray<UAttributeBoundWidget*> VehicleWidgets;
 };

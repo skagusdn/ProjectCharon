@@ -19,18 +19,19 @@ class PROJECTCHARON_API ACharonController : public APlayerController
 
 public :
 	UCharonAbilitySystemComponent* GetCharonAbilitySystemComponent() const;
-
+	
 	// Network시계 관련
 	UFUNCTION(BlueprintPure)
 	float GetServerWorldTimeDelta() const;
 	UFUNCTION(BlueprintPure)
 	float GetServerWorldTime() const;
-	void PostNetInit() override;
+	virtual void PostNetInit() override;
 
 	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
-
+	//virtual void OnRep_Pawn() override;
+	
 	/** Frequency that the client requests to adjust it's local clock. Set to zero to disable periodic updates. */
 	UPROPERTY(EditDefaultsOnly, Category=GameState)
 	float NetworkClockUpdateFrequency = 5.f;

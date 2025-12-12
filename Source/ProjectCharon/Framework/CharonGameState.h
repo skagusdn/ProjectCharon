@@ -57,7 +57,7 @@ struct FCharonPlayerInfo
 	UPROPERTY(BlueprintReadWrite)
 	FString PlayerName;
 	UPROPERTY(BlueprintReadWrite)
-	int32 CrewID;
+	int32 CrewID = -1;
 };
 
 

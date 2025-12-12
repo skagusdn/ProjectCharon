@@ -31,6 +31,7 @@ public :
 protected:
 	//virtual void RestartPlayer(AController* NewPlayer) override;
 	//TArray<AController*> DeadPlayers;
+	
 
 	UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
 	void RegisterPlayer(APlayerController* Player, FCharonPlayerInfo PlayerInfo);

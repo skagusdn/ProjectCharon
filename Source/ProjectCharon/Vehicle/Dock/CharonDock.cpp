@@ -3,6 +3,7 @@
 
 #include "CharonDock.h"
 
+#include "GameFramework/GameStateBase.h"
 #include "Vehicle/Vehicle.h"
 
 
@@ -54,12 +55,20 @@ AVehicle* ACharonDock::RentVehicle(const int32 CrewId, const TSubclassOf<AVehicl
 void ACharonDock::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if(AGameStateBase* GameState = GetWorld()->GetGameState())
+	{
+		if(UVehicleGameStateComponent* VehicleGameStateComponent = GameState->FindComponentByClass<UVehicleGameStateComponent>())
+		{
+			VehicleGameStateComp = VehicleGameStateComponent;
+		}
+	}
+	
 	
 }
 
 bool ACharonDock::CanRentThisVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass)
 {
-	//임시
-	return true;
+	return VehicleGameStateComp->CantRentThisVehicle(CrewId, VehicleClass);
 }
 

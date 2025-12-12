@@ -36,10 +36,10 @@ struct FRiderSpecData
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
-	UCharacterAbilityConfig* AbilityConfig;
+	UCharacterAbilityConfig* AbilityConfig = nullptr;
 
 	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<AInputFunctionSet> InputFunctionSet;
+	TObjectPtr<AInputFunctionSet> InputFunctionSet = nullptr;
 
 	UPROPERTY(BlueprintReadOnly)
 	FVehicleUISet VehicleUISet;
@@ -66,10 +66,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TObjectPtr<USceneComponent>> Seats;
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintImplementableEvent)
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent)
 	bool EnterVehicle(ACharacter* Rider);
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintImplementableEvent)
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent)
 	bool ExitVehicle(ACharacter* Rider);
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
@@ -91,11 +91,19 @@ public:
 protected:
 
 	//탑승자로 등록
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	int32 RegisterRider(ACharacter* Rider);
+	// UFUNCTION(Client, Reliable)
+	// void Client_RegisterRider(ACharacter* Rider, int RiderIdx);
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_RegisterRider(ACharacter* Rider, int RiderIdx);
+	
 	//탑승자에서 해제. 탑승자 목록에서 없으면 false 리턴.
 	UFUNCTION(BlueprintCallable)
 	bool UnregisterRider(ACharacter* Rider);
+	UFUNCTION(Client, Reliable)
+	void Client_UnregisterRider(ACharacter* Rider, int RiderIdx);
+	
 	void RemoveInvalidRiders();
 	
 	
@@ -120,8 +128,10 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Vehicle Death Finished"))
 	void K2_OnVehicleDeathFinished();
 	void DestroyVehicle();
+
+	//virtual void OnRiderDestroyed(AActor* DestroyedActor);
 	
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Replicated)
 	int32 CurrentRiderNum = 0;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 MaxRiderNum = 1;

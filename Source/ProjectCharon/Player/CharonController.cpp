@@ -5,6 +5,8 @@
 #include "CharonPlayerState.h"
 #include "Character/CharonCharacter.h"
 #include "Input/CharonInputComponent.h"
+#include "Vehicle/VehicleManager/VehicleManagerSubsystem.h"
+
 
 UCharonAbilitySystemComponent* ACharonController::GetCharonAbilitySystemComponent() const
 {
@@ -25,11 +27,38 @@ void ACharonController::OnPossess(APawn* InPawn)
 		}
 	}
 
-	// if(ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(InPawn))
+	// // VehicleManager에게 폰이 바꼈다고 알려주기 - 임시. 수정한다면 OnRep_Pawn도 고치기.
+	// // TODO : 플레이어 외형 관련 로직이 확정되면 이 부분 로직 바꾸기. 
+	// if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
 	// {
-	// 	CharonCharacter->InitCharonCharacter();
+	// 	VehicleManager->UpdateRiderMesh(GetPlayerState<APlayerState>());
 	// }
+
+	if(ACharonPlayerState* PS = GetPlayerState<ACharonPlayerState>())
+	{
+		if(ACharacter* InCharacter = Cast<ACharacter>(InPawn))
+		{
+			PS->SetCharacterMesh(InCharacter->GetMesh());
+		}
+		// GetWorldTimerManager().SetTimerForNextTick([PS]()-> void
+		// {
+		// 	
+		// 	PS->Multicast_NotifyPawnChanged();
+		// });
+		
+	}
+	
 }
+
+// void ACharonController::OnRep_Pawn()
+// {
+// 	Super::OnRep_Pawn();
+//
+// 	if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
+// 	{
+// 		VehicleManager->UpdateRiderMesh(GetPlayerState<APlayerState>());
+// 	}
+// }
 
 //// 여기서부터 저 아래까지 긁어온 네트워크 시계 구현.
 

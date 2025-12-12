@@ -9,6 +9,7 @@
 #include "AbilitySystem/CharonAbilitySet.h"
 #include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
 #include "Data/InputFunctionSet.h"
+#include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values
@@ -81,7 +82,9 @@ void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	//DOREPLIFETIME(AVehicle, Riders); -> 맵은 리플리케이션이 안되넹.
 	//DOREPLIFETIME(AVehicle, InputFunctionSets);
+	DOREPLIFETIME(AVehicle, CurrentRiderNum);
 }
 
 void AVehicle::OnVehicleDeathStarted(AActor* OwningActor)
@@ -116,6 +119,19 @@ void AVehicle::DestroyVehicle()
 	SetActorHiddenInGame(true);
 }
 
+// void AVehicle::OnRiderDestroyed(AActor* DestroyedActor)
+// {
+// 	ACharacter* Rider = Cast<ACharacter>(DestroyedActor);
+// 	if(!Rider)
+// 	{
+// 		return;
+// 	}
+//
+// 	
+//
+// 	
+//}
+
 void AVehicle::HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser,
                                           const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
@@ -149,9 +165,42 @@ void AVehicle::Tick(float DeltaTime)
 
 }
 
+bool AVehicle::EnterVehicle_Implementation(ACharacter* Rider)
+{
+	if(!HasAuthority())
+	{
+		return false;;
+	}
+	
+	const int32 Ret = RegisterRider(Rider);
+	if(Ret >= 0)
+	{
+		AttachToVehicle(Rider);
+		//Rider->OnDestroyed.AddDynamic(this, &ThisClass::OnRiderDestroyed);
+	}
+	
+	return Ret >= 0;
+}
+
+bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider)
+{
+	if(!HasAuthority())
+	{
+		return false;;
+	}
+	
+	const bool Ret = UnregisterRider(Rider);
+	if(Ret)
+	{
+		DetachFromVehicle(Rider);
+	}
+	
+	return Ret;
+}
+
 int32 AVehicle::FindRiderIdx (ACharacter* Rider)
 {
-	for (int32 i = 0; i < Riders.Num(); i++) 
+	for (int32 i = 0; i < MaxRiderNum; i++) 
 	{
 		if (Riders.Contains(i) && Riders[i] == Rider) {
 			return i;
@@ -178,6 +227,11 @@ FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)
 
 int32 AVehicle::RegisterRider(ACharacter* Rider)
 {
+	if(!HasAuthority())
+	{
+		return -1;
+	}
+	
 	if (CurrentRiderNum >= MaxRiderNum)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Rider number out of range"));
@@ -191,10 +245,24 @@ int32 AVehicle::RegisterRider(ACharacter* Rider)
 
 		Riders.Add(i,Rider);
 		CurrentRiderNum++;
+		//Client_RegisterRider(Rider, i);
+		Multicast_RegisterRider(Rider, i);
 		return i;
 	}
 
 	return -1;
+}
+
+// void AVehicle::Client_RegisterRider_Implementation(ACharacter* Rider, int RiderIdx)
+// {
+// 	ensure(Rider);
+// 	Riders.Add(RiderIdx, Rider);
+// }
+
+void AVehicle::Multicast_RegisterRider_Implementation(ACharacter* Rider, int RiderIdx)
+{
+	ensure(Rider);
+	Riders.Add(RiderIdx, Rider);
 }
 
 bool AVehicle::UnregisterRider(ACharacter* Rider)
@@ -205,8 +273,15 @@ bool AVehicle::UnregisterRider(ACharacter* Rider)
 	}
 	Riders.Remove(idx);
 	CurrentRiderNum--;
+	Client_UnregisterRider(Rider, idx);
 
 	return true;
+}
+
+void AVehicle::Client_UnregisterRider_Implementation(ACharacter* Rider, int RiderIdx)
+{
+	ensure(Rider);
+	Riders.Remove(RiderIdx);
 }
 
 void AVehicle::RemoveInvalidRiders()

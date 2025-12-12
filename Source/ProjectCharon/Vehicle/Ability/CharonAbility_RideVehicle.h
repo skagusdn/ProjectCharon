@@ -28,11 +28,21 @@ protected:
 	// virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	// //~End of UGameplayAbility interface
 	
+	// UFUNCTION(BlueprintCallable)
+	// bool TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider);
+	// UFUNCTION(BlueprintCallable)
+	// bool TryExitVehicle(AVehicle* VehicleToExit, ACharacter* InRider);
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	
+	UFUNCTION()
+	void OnRidingVehicleDestroyed(AActor* DestroyedActor);
+	
 	UFUNCTION(BlueprintCallable)
-	bool TryEnterVehicle(AVehicle* VehicleToEnter, ACharacter* InRider);
+	bool TryEnterVehicle(AVehicle* VehicleToEnter);
+	UFUNCTION(BlueprintCallable)
+	bool TryExitVehicle();
 
-	UFUNCTION(BlueprintCallable)
-	bool TryExitVehicle(AVehicle* VehicleToExit, ACharacter* InRider);
 	
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AVehicle> RidingVehicle;

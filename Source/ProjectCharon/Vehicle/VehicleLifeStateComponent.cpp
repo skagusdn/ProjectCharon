@@ -30,14 +30,20 @@ void UVehicleLifeStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	// DeathFinished 상태가 아니라면 정상적으로 액터가 파괴된게 아니라는 뜻. 
 	if(LifeState != ECharonLifeState::DeathFinished)
 	{
-		// 강제적으로 탑승자 내리게하기. 원래는 어빌리티가 먼저 요청했어야 했다.
-		// Riders는 nullptr로 초기화되어있음.
+		TArray<ACharacter*> RidersToExit;
+		// 강제적으로 탑승자 내리게하기. RideVehicle 어빌리티 쪽에서 처리하긴하는데 이렇게 중복으로 만들어둬도 되나?
+		// 바로 Riders 에서 루프 돌면서 ExitVehicle하면 루프 내에서 Riders를 삭제하는 꼴이라고 경고줌.
 		for(TTuple<int32, ACharacter*> Tuple : OwnerVehicle->Riders)
 		{
 			if(ACharacter* Rider = Tuple.Value)
 			{
-				OwnerVehicle->ExitVehicle(Rider);	
+				RidersToExit.Add(Rider);	
 			}
+		}
+
+		for(ACharacter* Rider : RidersToExit)
+		{
+			OwnerVehicle->ExitVehicle(Rider);
 		}
 	}
 	UninitializeFromAbilitySystem();

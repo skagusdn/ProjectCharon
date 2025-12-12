@@ -4,19 +4,22 @@
 #include "AbilityTask_FindInteractables.h"
 #include "CharonAbility_Interaction.h"
 #include "Interaction/InteractiveInterface.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 
 UAbilityTask_FindInteractables* UAbilityTask_FindInteractables::AbilityTask_FindInteractables(
 	UCharonGameplayAbility* InteractionAbility, FCollisionProfileName TraceProfile, USceneComponent* TraceAim,
-	float TraceRange, float TraceRate, bool ShowDebug)
+	float TraceRange, float TraceRadius, float TraceRate, bool ShowDebug)
 {
 	UAbilityTask_FindInteractables* AbilityTask =  NewAbilityTask<UAbilityTask_FindInteractables>(InteractionAbility);
 
 	AbilityTask->TraceAim = TraceAim;
 	AbilityTask->TraceRange = TraceRange;
+	AbilityTask->TraceRadius = TraceRadius;
 	AbilityTask->TraceProfile = TraceProfile;
 	AbilityTask->TraceRate = TraceRate;
 	AbilityTask->bShowDebug = ShowDebug;
+	
 	
 	return AbilityTask;
 }
@@ -31,14 +34,14 @@ void UAbilityTask_FindInteractables::UnpauseTrace()
 	GetWorld()->GetTimerManager().UnPauseTimer( TraceTimerHandle);
 }
 
-FString UAbilityTask_FindInteractables::Test_CheckInteractionTarget()
-{
-	if(!InteractionTarget)
-	{
-		return FString("NULL");
-	}
-	return InteractionTarget->GetName();
-}
+// FString UAbilityTask_FindInteractables::Test_CheckInteractionTarget()
+// {
+// 	if(!InteractionTarget)
+// 	{
+// 		return FString("NULL");
+// 	}
+// 	return InteractionTarget->GetName();
+// }
 
 void UAbilityTask_FindInteractables::Activate()
 {
@@ -67,14 +70,17 @@ void UAbilityTask_FindInteractables::PerformTrace()
 	ActorsToIgnore.Add(AvatarActor);
 
 	
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActors(ActorsToIgnore);
+	// FCollisionQueryParams Params;
+	// Params.AddIgnoredActors(ActorsToIgnore);
 	
 	FHitResult OutHitResult;
 
 	FVector StartLocation = AvatarActor->GetActorLocation();
 	FVector EndLocation = StartLocation + TraceAim->GetForwardVector() * TraceRange;
-	World->LineTraceSingleByProfile(OutHitResult, StartLocation, EndLocation, TraceProfile.Name, Params);
+	//World->LineTraceSingleByProfile(OutHitResult, StartLocation, EndLocation, TraceProfile.Name, Params);
+	
+	UKismetSystemLibrary::SphereTraceSingleByProfile(World, StartLocation, EndLocation, TraceRadius, TraceProfile.Name, true,
+		ActorsToIgnore, (bShowDebug?EDrawDebugTrace::ForDuration : EDrawDebugTrace::None), OutHitResult, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
 	
 	AActor* NewInteractionTarget = nullptr;
 	if(OutHitResult.GetActor() && OutHitResult.GetActor()->Implements<UInteractiveInterface>())
