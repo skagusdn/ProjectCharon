@@ -21,6 +21,8 @@
 // 	
 // };
 
+class UVehicleGameStateComponent;
+
 USTRUCT(BlueprintType)
 struct FCharonCrew
 {
@@ -76,6 +78,9 @@ public:
 	void RegisterCrew(APlayerController* Player, const int32 CrewID);
 	
 protected:
+
+	TObjectPtr<UVehicleGameStateComponent> VehicleGameStateComponent;
+	
 	UPROPERTY(BlueprintReadWrite)
 	TMap<int32, FCharonCrew> CrewMap;
 };

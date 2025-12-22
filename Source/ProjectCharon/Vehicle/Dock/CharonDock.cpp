@@ -16,16 +16,17 @@ ACharonDock::ACharonDock()
 	bIsSpawningVehicle = false;
 }
 
-AVehicle* ACharonDock::FindCrewVehicle(int32 CrewId)
-{
-	if(CrewVehicles.Contains(CrewId))
-	{
-		return CrewVehicles[CrewId];
-	}
-	return nullptr;
-}
+// AVehicle* ACharonDock::FindCrewVehicle(int32 CrewId)
+// {
+// 	if(CrewVehicles.Contains(CrewId))
+// 	{
+// 		return CrewVehicles[CrewId];
+// 	}
+// 	return nullptr;
+// }
 
-AVehicle* ACharonDock::RentVehicle(const int32 CrewId, const TSubclassOf<AVehicle> VehicleClass, const FVector Location)
+AVehicle* ACharonDock::RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass, FVector Location,
+	FRotator Rotation)
 {
 	if(!HasAuthority()|| !CanRentThisVehicle(CrewId, VehicleClass) || bIsSpawningVehicle)
 	{
@@ -33,23 +34,51 @@ AVehicle* ACharonDock::RentVehicle(const int32 CrewId, const TSubclassOf<AVehicl
 	}
 
 	bIsSpawningVehicle = true;
-	
-	if(CrewVehicles.Contains(CrewId))
-	{
-		if(AVehicle* RentedVehicle = FindCrewVehicle(CrewId))
-		{
-			RentedVehicle->Destroy();
-			//베히클이 파괴될 때 Ride? Enter? 어빌리티 측에서 탑승자의 하차를 처리하도록.
-			CrewVehicles.Remove(CrewId);
-		}
-	}
 
-	AVehicle* RetVehicle = Cast<AVehicle>(GetWorld()->SpawnActor(VehicleClass, &Location));
-	CrewVehicles.Add(CrewId, RetVehicle);
-	bIsSpawningVehicle = false;
+	TWeakObjectPtr<ACharonDock> WeakThis(this);
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(
+		TimerHandle,
+		[WeakThis]()
+		{
+			if (WeakThis.IsValid())
+			{
+				WeakThis.Get()->bIsSpawningVehicle = false;
+			}
+		},
+		0.5f,
+		false
+	);
+	return VehicleGameStateComp->RentVehicle(CrewId, VehicleClass, Location, Rotation);
 	
-	return RetVehicle;
+	
 }
+
+// AVehicle* ACharonDock::RentVehicle(const int32 CrewId, const TSubclassOf<AVehicle> VehicleClass, const FVector Location)
+// {
+// 	if(!HasAuthority()|| !CanRentThisVehicle(CrewId, VehicleClass) || bIsSpawningVehicle)
+// 	{
+// 		return nullptr;
+// 	}
+//
+// 	bIsSpawningVehicle = true;
+// 	
+// 	if(CrewVehicles.Contains(CrewId))
+// 	{
+// 		if(AVehicle* RentedVehicle = FindCrewVehicle(CrewId))
+// 		{
+// 			RentedVehicle->Destroy();
+// 			//베히클이 파괴될 때 Ride? Enter? 어빌리티 측에서 탑승자의 하차를 처리하도록.
+// 			CrewVehicles.Remove(CrewId);
+// 		}
+// 	}
+//
+// 	AVehicle* RetVehicle = Cast<AVehicle>(GetWorld()->SpawnActor(VehicleClass, &Location));
+// 	CrewVehicles.Add(CrewId, RetVehicle);
+// 	bIsSpawningVehicle = false;
+// 	
+// 	return RetVehicle;
+// }
 
 
 void ACharonDock::BeginPlay()

@@ -18,11 +18,13 @@ public:
 	
 	ACharonDock();
 
-	UFUNCTION(BlueprintCallable)
-	AVehicle* FindCrewVehicle(int32 CrewId);
+	// UFUNCTION(BlueprintCallable)
+	// AVehicle* FindCrewVehicle(int32 CrewId);
 
+	// UFUNCTION(BlueprintCallable)
+	// AVehicle* RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass, FVector Location);
 	UFUNCTION(BlueprintCallable)
-	AVehicle* RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass, FVector Location);
+	AVehicle* RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass, FVector Location, FRotator Rotation);
 protected:
 	
 	virtual void BeginPlay() override;
@@ -33,9 +35,9 @@ protected:
 	
 	TObjectPtr<UVehicleGameStateComponent> VehicleGameStateComp;
 	
-	// <크루ID, 크루에서 렌탈한 탈것>
-	UPROPERTY(BlueprintReadWrite)
-	TMap<int32, AVehicle*> CrewVehicles;
+	// // <크루ID, 크루에서 렌탈한 탈것>
+	// UPROPERTY(BlueprintReadWrite)
+	// TMap<int32, AVehicle*> CrewVehicles;
 
 	bool bIsSpawningVehicle;
 public:

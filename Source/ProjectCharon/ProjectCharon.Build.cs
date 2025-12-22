@@ -14,8 +14,22 @@ public class ProjectCharon : ModuleRules
             }
         );
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", 
-	        "EnhancedInput", "GameplayTags", "GameplayTasks", "GameplayAbilities", "DeveloperSettings", "UMG", "Niagara" });
+        PublicDependencyModuleNames.AddRange(
+	        new string[] { 
+		        "Core", 
+		        "CoreUObject", 
+		        "Engine", 
+		        "InputCore", 
+				"EnhancedInput", 
+				"GameplayTags", 
+				"GameplayTasks", 
+				"GameplayAbilities", 
+				"DeveloperSettings", 
+				"UMG", 
+				"Niagara",
+				"CommonUI"
+	        }
+        );
 	
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {}

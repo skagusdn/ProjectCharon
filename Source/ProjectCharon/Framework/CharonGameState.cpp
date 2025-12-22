@@ -3,10 +3,12 @@
 
 #include "CharonGameState.h"
 
+#include "Vehicle/VehicleManager/VehicleGameStateComponent.h"
+
 ACharonGameState::ACharonGameState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	
+	VehicleGameStateComponent = CreateDefaultSubobject<UVehicleGameStateComponent>(TEXT("VehicleGameState"));
 }
 
 void ACharonGameState::RegisterCrew(APlayerController* Player, const int32 CrewID)
