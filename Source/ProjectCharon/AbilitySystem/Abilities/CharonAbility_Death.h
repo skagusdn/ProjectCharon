@@ -6,8 +6,21 @@
 #include "CharonGameplayAbility.h"
 #include "CharonAbility_Death.generated.h"
 
+USTRUCT(BlueprintType)
+struct FDeathMessage
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> DeadActor;
+
+	//TODO : 나중에 죽음 원인 정보 추가.
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> Killer;
+};
+
 /**
- * 
+ *  Death 어빌리티. LifeStateComponent와 연계.
  */
 UCLASS()
 class PROJECTCHARON_API UCharonAbility_Death : public UCharonGameplayAbility

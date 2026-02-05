@@ -2,3 +2,6 @@
 
 
 #include "CharonUIConfig.h"
+
+#include "Blueprint/UserWidget.h"
+

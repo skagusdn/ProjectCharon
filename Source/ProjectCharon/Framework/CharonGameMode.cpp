@@ -4,7 +4,12 @@
 #include "Framework/CharonGameMode.h"
 
 #include "CharonGameState.h"
+//#include "CharonPlayerSpawnManagerComponent.h"
+#include "CrewManagerComponent.h"
+#include "Player/CharonController.h"
+//#include "Player/CharonLocalPlayer.h"
 #include "Player/CharonPlayerState.h"
+#include "UI/CharonUISubsystem.h"
 
 //#include "Data/GameStartingData.h"
 
@@ -19,17 +24,43 @@
 // }
 
 
-
 // void ACharonGameMode::OnPostLogin(AController* NewPlayer)
 // {
 // 	Super::OnPostLogin(NewPlayer);
-// 	
-// 	if(APlayerController* PC = Cast<APlayerController>(NewPlayer))
+//
+// 	if(APlayerController* Player = Cast<APlayerController>(NewPlayer))
 // 	{
-// 		RestartPlayer(PC);
+// 		if(UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(Player->GetLocalPlayer()))
+// 		{
+// 					
+// 		}
+// 	}	
+// }
+
+// void ACharonGameMode::StartPlay()
+// {
+// 	Super::StartPlay();
+//
+// 	if(UCharonUISubsystem* CharonUISubsystem =  GetGameInstance()->GetSubsystem<UCharonUISubsystem>())
+// 	{
+// 		CharonUISubsystem->InitUIPolicy();
+// 	}
+// }
+
+// AActor* ACharonGameMode::ChoosePlayerStart_Implementation(AController* Player)
+// {
+// 	if(UCharonPlayerSpawnManagerComponent* SpawnManager = GameState->GetComponentByClass<UCharonPlayerSpawnManagerComponent>())
+// 	{
+// 		if(AActor* PlayerStart = SpawnManager->ChoosePlayerStart(Player))
+// 		{
+// 			return PlayerStart;
+// 		}
 // 	}
 // 	
+// 	return Super::ChoosePlayerStart_Implementation(Player);
 // }
+
+
 void ACharonGameMode::ReportDeath(AController* Player)
 {
 	if(!Player)
@@ -49,6 +80,9 @@ void ACharonGameMode::ReportDeath(AController* Player)
 		FTimerDelegate TimerDel;
 		FTimerHandle TimerHandle;
 
+		// 플레이어의 StartSpot을 초기화하지 않으면 오버라이드한 ChoosePlayerStart 함수가 호출되지 않음. 
+		Player->StartSpot = nullptr;
+		
 		TimerDel.BindUObject(this, &ThisClass::RestartPlayer, Player);
 		
 		GetWorldTimerManager().SetTimer(TimerHandle, TimerDel, 5.0f, false);
@@ -57,13 +91,23 @@ void ACharonGameMode::ReportDeath(AController* Player)
 	
 }
 
+void ACharonGameMode::InitializeHUDForPlayer_Implementation(APlayerController* NewPlayer)
+{
+	Super::InitializeHUDForPlayer_Implementation(NewPlayer);
+
+	if(ACharonController* CharonPlayer = Cast<ACharonController>(NewPlayer))
+	{
+		CharonPlayer->UpdateUIConfigFromGameMode();
+	}	
+}
+
 void ACharonGameMode::RegisterPlayer(APlayerController* Player, FCharonPlayerInfo PlayerInfo)
 {
 	check(Player);
 	
-	if(ACharonGameState* CharonGameState =  Cast<ACharonGameState>(GameState))
+	if(UCrewManagerComponent* CrewManager = GameState->GetComponentByClass<UCrewManagerComponent>())
 	{
-		CharonGameState->RegisterCrew(Player, PlayerInfo.CrewID);
+		CrewManager->RegisterCrew(Player, PlayerInfo.CrewID);
 	}
 	if(ACharonPlayerState* CharonPlayerState =  Cast<ACharonPlayerState>(Player->PlayerState))
 	{

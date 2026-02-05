@@ -30,5 +30,7 @@ public :
 	UFUNCTION(BlueprintCallable)
 	void InitPontoons(FVector UpLeftFront, FVector DownRightBack, int32 Radius, int MaxPontoonNum = 0);
 
+	UFUNCTION(BlueprintCallable)
+	double GetPercentOfPontoonsInWater() const;
 	
 };

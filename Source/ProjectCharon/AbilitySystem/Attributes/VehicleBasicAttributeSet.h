@@ -27,6 +27,9 @@ public :
 	ATTRIBUTE_ACCESSORS(UVehicleBasicAttributeSet, VehicleDamage);
 
 	mutable FCharonAttributeEvent OnVehicleDamageApplied;
+
+	// Delegate to broadcast when the health attribute reaches zero
+	mutable FCharonAttributeEvent OnOutOfHealth;
 	
 protected:
 
@@ -52,5 +55,7 @@ protected:
 	FGameplayAttributeData VehicleSpeed;
 	UPROPERTY(BlueprintReadOnly, Meta=(AllowPrivateAccess=true))
 	FGameplayAttributeData VehicleDamage;
+
+	bool bOutOfHealth;
 	
 };

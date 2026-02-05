@@ -1,19 +1,31 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "VehicleLifeStateComponent.h"
+#include "Deprecated_VehicleLifeStateComponent.h"
 
 #include "Vehicle.h"
 
 
-UVehicleLifeStateComponent::UVehicleLifeStateComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UDeprecated_VehicleLifeStateComponent::UDeprecated_VehicleLifeStateComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// Super 해놨으니까 상관없나?
 	AbilitySystemComponent = nullptr;
 	LifeState = ECharonLifeState::NotDead;
+
+	
 }
 
-void UVehicleLifeStateComponent::OnRegister()
+void UDeprecated_VehicleLifeStateComponent::InitializeWithAbilitySystem(UCharonAbilitySystemComponent* InASC)
+{
+	Super::InitializeWithAbilitySystem(InASC);
+
+	if(AbilitySystemComponent)
+	{
+		
+	}
+}
+
+void UDeprecated_VehicleLifeStateComponent::OnRegister()
 {
 	Super::OnRegister();
 
@@ -25,7 +37,7 @@ void UVehicleLifeStateComponent::OnRegister()
 	OwnerVehicle = Vehicle;
 }
 
-void UVehicleLifeStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UDeprecated_VehicleLifeStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// DeathFinished 상태가 아니라면 정상적으로 액터가 파괴된게 아니라는 뜻. 
 	if(LifeState != ECharonLifeState::DeathFinished)
@@ -49,6 +61,11 @@ void UVehicleLifeStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	UninitializeFromAbilitySystem();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void UDeprecated_VehicleLifeStateComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* DamageCauser,
+	const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
+{
 }
 
 

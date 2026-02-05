@@ -40,6 +40,7 @@ void UCharonAbility_RideVehicle::EndAbility(const FGameplayAbilitySpecHandle Han
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+
 void UCharonAbility_RideVehicle::OnRidingVehicleDestroyed(AActor* DestroyedActor)
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);

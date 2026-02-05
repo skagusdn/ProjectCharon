@@ -2,9 +2,13 @@
 
 
 #include "CharonController.h"
+
+#include "CharonLocalPlayer.h"
 #include "CharonPlayerState.h"
 #include "Character/CharonCharacter.h"
+#include "Framework/CharonGameMode.h"
 #include "Input/CharonInputComponent.h"
+#include "UI/CharonUISubsystem.h"
 #include "Vehicle/VehicleManager/VehicleManagerSubsystem.h"
 
 
@@ -14,6 +18,8 @@ UCharonAbilitySystemComponent* ACharonController::GetCharonAbilitySystemComponen
 		
 	return CharonPS? CharonPS->GetCharonAbilitySystemComponent() : nullptr;
 }
+
+
 
 void ACharonController::OnPossess(APawn* InPawn)
 {
@@ -27,6 +33,11 @@ void ACharonController::OnPossess(APawn* InPawn)
 		}
 	}
 
+	if(UCharonLocalPlayer* CharonLocalPlayer = Cast<UCharonLocalPlayer>(Player))
+	{
+		CharonLocalPlayer->OnPlayerPawnSet.Broadcast(CharonLocalPlayer, InPawn);
+	}
+	
 	// // VehicleManager에게 폰이 바꼈다고 알려주기 - 임시. 수정한다면 OnRep_Pawn도 고치기.
 	// // TODO : 플레이어 외형 관련 로직이 확정되면 이 부분 로직 바꾸기. 
 	// if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
@@ -40,14 +51,80 @@ void ACharonController::OnPossess(APawn* InPawn)
 		{
 			PS->SetCharacterMesh(InCharacter->GetMesh());
 		}
-		// GetWorldTimerManager().SetTimerForNextTick([PS]()-> void
-		// {
-		// 	
-		// 	PS->Multicast_NotifyPawnChanged();
-		// });
 		
 	}
 	
+}
+
+void ACharonController::ReceivedPlayer()
+{
+	Super::ReceivedPlayer();
+
+	if(UCharonLocalPlayer* CharonLocalPlayer = Cast<UCharonLocalPlayer>(Player))
+	{
+		CharonLocalPlayer->OnPlayerControllerSet.Broadcast(CharonLocalPlayer, this);
+
+		if (PlayerState)
+		{
+			CharonLocalPlayer->OnPlayerStateSet.Broadcast(CharonLocalPlayer, PlayerState);
+		}
+	}
+}
+
+void ACharonController::SetPawn(APawn* InPawn)
+{
+	Super::SetPawn(InPawn);
+	
+	if (UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(Player))
+	{
+		LocalPlayer->OnPlayerPawnSet.Broadcast(LocalPlayer, InPawn);
+	}
+}
+
+void ACharonController::OnUnPossess()
+{
+	Super::OnUnPossess();
+	
+	if (UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(Player))
+	{
+		LocalPlayer->OnPlayerPawnSet.Broadcast(LocalPlayer, nullptr);
+	}
+}
+
+void ACharonController::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	if (PlayerState)
+	{
+		if (UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(Player))
+		{
+			LocalPlayer->OnPlayerStateSet.Broadcast(LocalPlayer, PlayerState);
+		}
+	}
+}
+
+void ACharonController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ACharonController, UIConfig);
+}
+
+void ACharonController::UpdateUIConfigFromGameMode()
+{
+	if(GetWorld() && GetWorld()->GetAuthGameMode())
+	{
+		if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
+		{
+			UCharonUIConfig* OldUIConfig = UIConfig;
+			UIConfig = CharonGameMode->GetDefaultUIConfig();
+			if(HasAuthority() && !IsRunningDedicatedServer())
+			{
+				OnRep_UIConfig(OldUIConfig);
+			}
+		}
+	}
 }
 
 // void ACharonController::OnRep_Pawn()
@@ -89,6 +166,17 @@ void ACharonController::PostNetInit()
 void ACharonController::RequestWorldTime_Internal()
 {
 	ServerRequestWorldTime(GetWorld()->GetTimeSeconds());
+}
+
+void ACharonController::OnRep_UIConfig(const UCharonUIConfig* OldUIConfig)
+{
+	if(GetGameInstance())
+	{
+		if(UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(GetLocalPlayer()))
+		{
+			LocalPlayer->InitUIConfig();
+		}
+	}
 }
 
 void ACharonController::ClientUpdateWorldTime_Implementation(float ClientTimestamp, float ServerTimestamp)

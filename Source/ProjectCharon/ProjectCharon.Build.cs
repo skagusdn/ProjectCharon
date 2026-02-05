@@ -27,12 +27,15 @@ public class ProjectCharon : ModuleRules
 				"DeveloperSettings", 
 				"UMG", 
 				"Niagara",
-				"CommonUI"
+				"CommonUI",
+				"NetCore",
+				"Slate",
+				"SlateCore"
 	        }
         );
 	
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {}
+			new string[] {"GameplayMessageRuntime"}
 		);
 
 		

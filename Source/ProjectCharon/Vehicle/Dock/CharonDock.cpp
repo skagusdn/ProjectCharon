@@ -3,8 +3,10 @@
 
 #include "CharonDock.h"
 
+#include "Framework/CharonGameState.h"
 #include "GameFramework/GameStateBase.h"
 #include "Vehicle/Vehicle.h"
+#include "Vehicle/VehicleManager/DockManagerComponent.h"
 
 
 // Sets default values
@@ -16,18 +18,11 @@ ACharonDock::ACharonDock()
 	bIsSpawningVehicle = false;
 }
 
-// AVehicle* ACharonDock::FindCrewVehicle(int32 CrewId)
-// {
-// 	if(CrewVehicles.Contains(CrewId))
-// 	{
-// 		return CrewVehicles[CrewId];
-// 	}
-// 	return nullptr;
-// }
-
 AVehicle* ACharonDock::RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass, FVector Location,
 	FRotator Rotation)
 {
+	check(DockManager);
+	
 	if(!HasAuthority()|| !CanRentThisVehicle(CrewId, VehicleClass) || bIsSpawningVehicle)
 	{
 		return nullptr;
@@ -49,37 +44,14 @@ AVehicle* ACharonDock::RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleCl
 		0.5f,
 		false
 	);
-	return VehicleGameStateComp->RentVehicle(CrewId, VehicleClass, Location, Rotation);
 	
-	
+	return DockManager->RentVehicle(CrewId, VehicleClass, Location, Rotation);
 }
 
-// AVehicle* ACharonDock::RentVehicle(const int32 CrewId, const TSubclassOf<AVehicle> VehicleClass, const FVector Location)
-// {
-// 	if(!HasAuthority()|| !CanRentThisVehicle(CrewId, VehicleClass) || bIsSpawningVehicle)
-// 	{
-// 		return nullptr;
-// 	}
-//
-// 	bIsSpawningVehicle = true;
-// 	
-// 	if(CrewVehicles.Contains(CrewId))
-// 	{
-// 		if(AVehicle* RentedVehicle = FindCrewVehicle(CrewId))
-// 		{
-// 			RentedVehicle->Destroy();
-// 			//베히클이 파괴될 때 Ride? Enter? 어빌리티 측에서 탑승자의 하차를 처리하도록.
-// 			CrewVehicles.Remove(CrewId);
-// 		}
-// 	}
-//
-// 	AVehicle* RetVehicle = Cast<AVehicle>(GetWorld()->SpawnActor(VehicleClass, &Location));
-// 	CrewVehicles.Add(CrewId, RetVehicle);
-// 	bIsSpawningVehicle = false;
-// 	
-// 	return RetVehicle;
-// }
-
+void ACharonDock::ReturnRentalVehicle(int32 CrewId)
+{
+	
+}
 
 void ACharonDock::BeginPlay()
 {
@@ -87,9 +59,9 @@ void ACharonDock::BeginPlay()
 
 	if(AGameStateBase* GameState = GetWorld()->GetGameState())
 	{
-		if(UVehicleGameStateComponent* VehicleGameStateComponent = GameState->FindComponentByClass<UVehicleGameStateComponent>())
+		if(UDockManagerComponent* DockManagerComponent = GameState->FindComponentByClass<UDockManagerComponent>())
 		{
-			VehicleGameStateComp = VehicleGameStateComponent;
+			DockManager = DockManagerComponent;
 		}
 	}
 	
@@ -98,6 +70,23 @@ void ACharonDock::BeginPlay()
 
 bool ACharonDock::CanRentThisVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass)
 {
-	return VehicleGameStateComp->CantRentThisVehicle(CrewId, VehicleClass);
+	return DockManager->CanRentThisVehicle(CrewId, VehicleClass);
+}
+
+void ACharonDock::SetCrewAccess(int32 CrewId, bool NewAccess)
+{
+	if(!HasAuthority())
+	{
+		return;
+	}
+	
+	if(!CrewAccessMap.Contains(CrewId) || CrewAccessMap[CrewId] != NewAccess)
+	{
+		if(DockManager)
+		{
+			DockManager->UpdateDockAccess(CrewId, this, NewAccess);
+		}
+	}
+	CrewAccessMap.Add(CrewId, NewAccess);
 }
 

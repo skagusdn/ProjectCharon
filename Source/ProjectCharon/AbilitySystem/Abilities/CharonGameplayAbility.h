@@ -32,7 +32,7 @@ enum class ECharonAbilityActivationPolicy : uint8
 /**
  * 
  */
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(Blueprintable, BlueprintType, Abstract)
 class PROJECTCHARON_API UCharonGameplayAbility : public UGameplayAbility
 {
 	GENERATED_BODY()

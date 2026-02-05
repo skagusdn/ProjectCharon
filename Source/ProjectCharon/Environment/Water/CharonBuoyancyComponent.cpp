@@ -86,3 +86,20 @@ void UCharonBuoyancyComponent::InitPontoons(FVector UpLeftFront, FVector DownRig
 	AddPontoons(Radius, Locations);
 }
 
+double UCharonBuoyancyComponent::GetPercentOfPontoonsInWater() const
+{
+	double PontoonNum = BuoyancyData.Pontoons.Num();
+	if(PontoonNum <= 0)
+	{
+		return 0;
+	}
+
+	double NumInWater = 0;
+	for(FSphericalPontoon Pontoon : BuoyancyData.Pontoons)
+	{
+		NumInWater += Pontoon.bIsInWater ? 1 : 0;
+	}
+	
+	return NumInWater / PontoonNum;
+}
+

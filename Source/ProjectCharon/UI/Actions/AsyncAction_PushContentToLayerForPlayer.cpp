@@ -4,7 +4,7 @@
 #include "AsyncAction_PushContentToLayerForPlayer.h"
 
 #include "Engine/StreamableManager.h"
-#include "UI/CharonGameLayout.h"
+#include "UI/CharonRootLayout.h"
 
 
 UAsyncAction_PushContentToLayerForPlayer* UAsyncAction_PushContentToLayerForPlayer::
@@ -36,7 +36,7 @@ void UAsyncAction_PushContentToLayerForPlayer::Activate()
 {
 	Super::Activate();
 
-	if (UCharonGameLayout* RootLayout = UPrimaryGameLayout::GetPrimaryGameLayout(OwningPlayerPtr.Get()))
+	if (UCharonRootLayout* RootLayout = UCharonRootLayout::GetRootLayout(OwningPlayerPtr.Get()))
 	{
 		TWeakObjectPtr<UAsyncAction_PushContentToLayerForPlayer> WeakThis = this;
 		StreamingHandle = RootLayout->PushWidgetToLayerStackAsync<UCommonActivatableWidget>(LayerName, bSuspendInputUntilComplete, WidgetClass, [this, WeakThis](EAsyncWidgetLayerState State, UCommonActivatableWidget* Widget) {

@@ -22,7 +22,8 @@ class PROJECTCHARON_API UAbilityTask_FindInteractables : public UAbilityTask
 
 public :
 	UFUNCTION(BlueprintCallable)
-	static UAbilityTask_FindInteractables* AbilityTask_FindInteractables(UCharonGameplayAbility* InteractionAbility, FCollisionProfileName TraceProfile, USceneComponent* TraceAim, float TraceRange, float TraceRadius, float TraceRate = 0.1f, bool ShowDebug = false );
+	//static UAbilityTask_FindInteractables* AbilityTask_FindInteractables(UCharonGameplayAbility* InteractionAbility, FCollisionProfileName TraceProfile, USceneComponent* TraceAim, float TraceRange, float TraceRadius, float TraceRate = 0.1f, bool ShowDebug = false );
+	static UAbilityTask_FindInteractables* AbilityTask_FindInteractables(UCharonGameplayAbility* InteractionAbility, ETraceTypeQuery TraceChannel, USceneComponent* TraceAim, float TraceRange, float TraceRadius, float TraceRate = 0.1f, bool ShowDebug = false );
 	
 	UPROPERTY(BlueprintAssignable, DisplayName = "On Interaction Target Changed")
 	FInteractableFoundDelegate OnInteractionTargetChanged;
@@ -41,8 +42,8 @@ protected:
 	
 	void PerformTrace();
 
-	
-	FCollisionProfileName TraceProfile;
+	ETraceTypeQuery TraceChannel;
+	//FCollisionProfileName TraceProfile;
 	UPROPERTY()
 	USceneComponent* TraceAim;
 	float TraceRate;

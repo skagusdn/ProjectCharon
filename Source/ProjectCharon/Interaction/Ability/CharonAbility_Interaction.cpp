@@ -19,69 +19,22 @@ UCharonAbility_Interaction::UCharonAbility_Interaction(const FObjectInitializer&
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
-// FGameplayAbilitySpecHandle UCharonAbility_Interaction::GrantAbilityAndActivate(TSubclassOf<UGameplayAbility> AbilityForInteraction, AActor* InteractionObject, const bool HasOptionalEventData,
-// 	FGameplayEventData OptionalEventData)
-// {
-// 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
-// 	
-// 	if(InteractionTarget != InteractionObject)
-// 	{
-// 		UE_LOG(LogTemp, Warning, TEXT("Wrong Interaction Target"));
-// 		return FGameplayAbilitySpecHandle();
-// 	}
-//
-// 	if(!AbilitySystemComponent)
-// 	{
-// 		UE_LOG(LogTemp, Warning, TEXT("AbilitySystemComponent Is Not VALID"));
-// 		return FGameplayAbilitySpecHandle();
-// 	}
-//
-// 	if(HasAuthority(&CurrentActivationInfo))
-// 	{
-// 		UE_LOG(LogTemp, Warning, TEXT("Authority is Necessary for Granting Ability"));
-// 		return FGameplayAbilitySpecHandle();
-// 	}
-// 	
-// 	AActor* Instigator = GetAvatarActorFromActorInfo();
-// 	FGameplayEventData Payload = HasOptionalEventData ? OptionalEventData : FGameplayEventData();
-//
-// 	if(!HasOptionalEventData)
-// 	{
-// 		Payload.Instigator = Instigator;
-// 		Payload.Target = InteractionTarget;
-// 	}
-//
-// 	FGameplayAbilityActorInfo ActorInfo;
-// 	ActorInfo.InitFromActor(AbilitySystemComponent->GetOwnerActor(), AbilitySystemComponent->GetAvatarActor(), AbilitySystemComponent);
-//
-// 	FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(AbilityForInteraction);
-// 	FGameplayAbilitySpecHandle AbilitySpecHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
-// 	
-// 	bool bSuccess = AbilitySystemComponent->TriggerAbilityFromGameplayEvent(
-// 	AbilitySpecHandle,
-// 		&ActorInfo,
-// 	CharonGameplayTags::Tag_Ability_Event_Interaction,
-// 		&Payload,
-// 		*AbilitySystemComponent
-// 		);
-//
-// 	return AbilitySpecHandle;
-// }
-
-
-
-void UCharonAbility_Interaction::UpdateInteractionTarget(AActor* InInteractionTarget)
+bool UCharonAbility_Interaction::UpdateInteractionTarget(AActor* InInteractionTarget)
 {
+	bool bTargetChanged = InteractionTarget != InInteractionTarget; 
+	
 	if(!InInteractionTarget || !InInteractionTarget->Implements<UInteractiveInterface>())
 	{
 		//UE_LOG(LogTemp, Warning, TEXT("Update Interaction Target Failed : Not Interactable"));
 		DescriptionData = {};
 		InteractionTarget = nullptr;
-		return;
+		return bTargetChanged;
 	}
 	TargetInteractionInfo = IInteractiveInterface::Execute_GetInteractionInfo(InInteractionTarget);
 	DescriptionData = TargetInteractionInfo.DescriptionData;
 	InteractionTarget = InInteractionTarget;
+
+	return bTargetChanged;
 }
 
 FInteractionResultWithAbilityData UCharonAbility_Interaction::TriggerInteraction()
@@ -106,7 +59,7 @@ bool UCharonAbility_Interaction::TriggerAbilityForInteraction(FGameplayAbilitySp
 	// 	return false;
 	// }
 	
-	const IAbilitySystemInterface* Instigator = Cast<IAbilitySystemInterface>(EventData.Instigator);
+	//const IAbilitySystemInterface* Instigator = Cast<IAbilitySystemInterface>(EventData.Instigator);
 	//UAbilitySystemComponent* AbilitySystemComponent = Instigator->GetAbilitySystemComponent();
 	UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(EventData.Instigator);
 
@@ -133,35 +86,3 @@ bool UCharonAbility_Interaction::TriggerAbilityForInteraction(FGameplayAbilitySp
 	return Result;
 }
 
-// void UCharonAbility_Interaction::PressInteractionInputOnceMore()
-// {
-// 	if(!InteractionTarget)
-// 	{
-// 		return;
-// 	}
-// 	if(ACharacter* Avatar = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
-// 	{
-// 		IInteractiveInterface::Execute_PressInputOnceMore(InteractionTarget, Avatar);
-// 	}
-// 	
-// }
-
-// void UCharonAbility_Interaction::InputPressed(const FGameplayAbilitySpecHandle Handle,
-// 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
-// {
-// 	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
-//
-// 	UE_LOG(LogTemp, Display, TEXT("TESTING~~~~~~~~ Interaction InputPressed"));
-// 		
-// 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo(); 
-// 	FSimpleMulticastDelegate& TargetDelegate = ASC->AbilityReplicatedEventDelegate(EAbilityGenericReplicatedEvent::InputPressed, Handle, ActivationInfo.GetActivationPredictionKey());
-// 	UE_LOG(LogTemp, Display, TEXT("TESTING~~~~~~~~ SIZE :  %llu"), TargetDelegate.GetAllocatedSize());
-// }
-
-
-
-// void UCharonAbility_Interaction::Interact_GrantAbilityAndActivate()
-// {
-// 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-// 	if()
-// }

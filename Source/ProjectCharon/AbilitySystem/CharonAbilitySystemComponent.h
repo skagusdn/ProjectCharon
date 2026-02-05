@@ -43,7 +43,7 @@ public :
 
 	virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
 
-	// 어트리뷰트 값 변화 델리게이트에 바인딩/언바인딩 하기. 
+	// 어트리뷰트 값 변화 델리게이트에 바인딩/언바인딩 하기. EventSource - 델리게이트에 바인드할때 얘 이름으로. EventSource 파괴되면 바인딩도 해제되게.
 	// TODO : 나중에 Bind/UnBind는 BlueprintCallable을 없애고 다른 c++클래스 경유해서 하게 하는게 나을듯?  
 	UFUNCTION(BlueprintCallable, Category = "Charon | Ability", DisplayName="BindEventOnAttributeChange")
 	FDelegateHandleWrapper K2_BindEventOnAttributeChange(UObject* EventSource, FGameplayAttribute AttributeToBind, FOnCharonAttributeChanged_Dynamic Event);

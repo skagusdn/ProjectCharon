@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "VehicleGameStateComponent.generated.h"
+#include "DockManagerComponent.generated.h"
 
 
 class ACharonDock;
@@ -22,23 +22,34 @@ struct FVehicleEntry
 	AVehicle* Vehicle;
 };
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PROJECTCHARON_API UVehicleGameStateComponent : public UActorComponent
+/**
+ * Dock 및 베히클 스폰 관리
+ */
+UCLASS(Blueprintable,ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class PROJECTCHARON_API UDockManagerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	
-	UVehicleGameStateComponent();
+	UDockManagerComponent();
 
 	UFUNCTION(BlueprintCallable)
-	bool CantRentThisVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass);
+	bool CanRentThisVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleClass);
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	AVehicle* RentVehicle(const int32 CrewId, TSubclassOf<AVehicle> VehicleClass, const FVector Location, const FRotator Rotation);
-
+	
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+	void ReturnRentalVehicle(const int32 CrewId);
+	
 	UFUNCTION(BlueprintCallable)
 	AVehicle* FindCrewVehicle(int32 CrewId);
+
+	virtual void UpdateDockAccess(int32 CrewId, ACharonDock* Dock, bool NewAccess);
+
+	// UFUNCTION(BlueprintImplementableEvent)
+	// void UpdateCrewStartDock(int32 CrewId, ACharonDock* Dock);
 	
 protected:
 	virtual void OnRegister() override;
@@ -48,11 +59,11 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void Client_UpdateCrewVehicles(const TArray<FVehicleEntry>& VehicleEntries);
 	
-	UPROPERTY(BlueprintReadOnly)
-	TArray<ACharonDock*> Docks;
-	
 	UPROPERTY(BlueprintReadWrite)
 	TMap<int32, AVehicle*> CrewVehicles;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<ACharonDock*> Docks;
 public:
 	
 };

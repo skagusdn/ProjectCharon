@@ -4,10 +4,12 @@
 #include "Vehicle.h"
 
 #include "AbilitySystemComponent.h"
-#include "VehicleLifeStateComponent.h"
+#include "NiagaraShared.h"
+#include "Deprecated_VehicleLifeStateComponent.h"
 #include "VehicleRiderComponent.h"
 #include "AbilitySystem/CharonAbilitySet.h"
 #include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
+#include "AbilitySystem/Attributes/HealthAttributeSet.h"
 #include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
@@ -24,11 +26,13 @@ AVehicle::AVehicle()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	VehicleAbilityHandles = FCharonAbilitySet_GrantedHandles();
 	
-	VehicleLifeStateComponent = CreateDefaultSubobject<UVehicleLifeStateComponent>(TEXT("LifeStateComponent"));
-	VehicleLifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
-	VehicleLifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
+	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
+	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
+	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
 	
 	VehicleBasicAttributeSet = nullptr;
+
+	//AbilitySystemComponent->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::HandleVehicleAbilityActivation);
 }
 
 
@@ -38,13 +42,67 @@ void AVehicle::BeginPlay()
 	Super::BeginPlay();
 }
 
+void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 이 아래 부분 의미가 없다. 어차피 베히클 파괴되면 Ride? EnterVehicle? Ability가 알아서 각 Rider를 내리게함.
+	// DeathFinished 상태가 아니라면 정상적으로 베히클이 파괴된게 아니라는 뜻.
+	ECharonLifeState LifeState =  LifeStateComponent->GetLifeState();
+	if(LifeState != ECharonLifeState::DeathFinished)
+	{
+		TArray<ACharacter*> RidersToExit;
+		// 강제적으로 탑승자 내리게하기. RideVehicle 어빌리티 쪽에서 처리하긴하는데 이렇게 중복으로 만들어둬도 되나?
+		// 바로 Riders 에서 루프 돌면서 ExitVehicle하면 루프 내에서 Riders를 삭제하는 꼴이라고 경고줌.
+		for(TTuple<int32, ACharacter*> Tuple : Riders)
+		{
+			if(ACharacter* Rider = Tuple.Value)
+			{
+				RidersToExit.Add(Rider);	
+			}
+		}
+
+		for(ACharacter* Rider : RidersToExit)
+		{
+			ExitVehicle(Rider);
+		}
+	}
+	
+	Super::EndPlay(EndPlayReason);
+}
+
 void AVehicle::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	if(HasAuthority())
+	{
+		//ASC 초기화
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+		// 베히클 어빌리티 셋 부여
+		for(UCharonAbilitySet* AbilitySet : VehicleAbilitySets)
+		{
+			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, &VehicleAbilityHandles, this);
+		}
+
+		// ///// 테스트 중
+		// VehicleHealthAttributeSet = AbilitySystemComponent->GetSet<UHealthAttributeSet>();
+		// if(VehicleHealthAttributeSet)
+		// {
+		// 	UE_LOG(LogTemp, Warning, TEXT("AVehicle HealthTest : Vehicle Health Set Valid"));
+		// }else
+		// {
+		// 	UE_LOG(LogTemp, Warning, TEXT("AVehicle HealthTest : Vehicle Health Set Invalid"));
+		// }
+		// /////
+		
+		// LifeComponent 초기화.
+		LifeStateComponent->UninitializeFromAbilitySystem(); // 없으면 문제 발생할 수도.
+		LifeStateComponent->InitializeWithAbilitySystem(AbilitySystemComponent);
+	}
 
 	
+	
+	// Riders에 부여할 AbilityConfig 및 InputFunctionSet 초기화...라기보단 정리. 
 	for (int i = 0; i < MaxRiderNum; i++) {
 		//Riders.Add(nullptr);
 		Seats.Add(nullptr);
@@ -60,21 +118,14 @@ void AVehicle::PostInitializeComponents()
 			InputFunctionSets.Add(nullptr);
 		}
 	}
-
-	if(HasAuthority())
-	{
-		for(UCharonAbilitySet* AbilitySet : VehicleAbilitySets)
-		{
-			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, &VehicleAbilityHandles, this);
-		}
-	}
-	
 	
 	VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
 	if(VehicleBasicAttributeSet)
 	{
 		VehicleBasicAttributeSet->OnVehicleDamageApplied.AddUObject(this, &ThisClass::HandleVehicleDamageApplied);
 	}
+
+
 	
 }
 
@@ -119,18 +170,7 @@ void AVehicle::DestroyVehicle()
 	SetActorHiddenInGame(true);
 }
 
-// void AVehicle::OnRiderDestroyed(AActor* DestroyedActor)
-// {
-// 	ACharacter* Rider = Cast<ACharacter>(DestroyedActor);
-// 	if(!Rider)
-// 	{
-// 		return;
-// 	}
-//
-// 	
-//
-// 	
-//}
+
 
 void AVehicle::HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser,
                                           const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
@@ -198,7 +238,7 @@ bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider)
 	return Ret;
 }
 
-int32 AVehicle::FindRiderIdx (ACharacter* Rider)
+int32 AVehicle::FindRiderIdx (const ACharacter* Rider)
 {
 	for (int32 i = 0; i < MaxRiderNum; i++) 
 	{
@@ -219,11 +259,12 @@ FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)
 	FRiderSpecData RiderSpecData{
 		AbilityConfigsForRiders.Num() > RiderIdx ? AbilityConfigsForRiders[RiderIdx] : nullptr,
 		InputFunctionSets.Num() > RiderIdx ? InputFunctionSets[RiderIdx] : nullptr,
-		VehicleUISets.Num() > RiderIdx ? VehicleUISets[RiderIdx] : FVehicleUISet()
+		//VehicleUISets.Num() > RiderIdx ? VehicleUISets[RiderIdx] : FVehicleUISet()
 	};
 
 	return RiderSpecData;
 }
+
 
 int32 AVehicle::RegisterRider(ACharacter* Rider)
 {
@@ -294,6 +335,8 @@ void AVehicle::RemoveInvalidRiders()
 		}
 	}
 }
+
+
 
 
 

@@ -13,22 +13,23 @@
 #include "Interaction/InteractiveInterface.h"
 #include "Vehicle.generated.h"
 
+class ULifeStateComponent;
 struct FCharonAbilitySet_GrantedHandles;
-class UVehicleLifeStateComponent;
+class UDeprecated_VehicleLifeStateComponent;
 class UAttributeBoundWidget;
 class UCharacterAbilityConfig;
 class UCharonInputConfig;
 class UCharonAbilitySet;
 class UGameplayAbility;
 
-USTRUCT(BlueprintType)
-struct FVehicleUISet
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
-};
+// USTRUCT(BlueprintType)
+// struct FVehicleUISet
+// {
+// 	GENERATED_BODY()
+//
+// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+// 	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
+// };
 
 USTRUCT(BlueprintType)
 struct FRiderSpecData
@@ -41,12 +42,14 @@ struct FRiderSpecData
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<AInputFunctionSet> InputFunctionSet = nullptr;
 
-	UPROPERTY(BlueprintReadOnly)
-	FVehicleUISet VehicleUISet;
+	// UPROPERTY(BlueprintReadOnly)
+	// FVehicleUISet VehicleUISet;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
 	float, DamageMagnitude, FGameplayTagContainer, DamageType);
+
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityActivatedDelegate, UGameplayAbility*, ActivatedAbility);
 
 UCLASS(Abstract)
 class PROJECTCHARON_API AVehicle : public AActor, public IInteractiveInterface, public IAbilitySystemInterface
@@ -73,7 +76,7 @@ public:
 	bool ExitVehicle(ACharacter* Rider);
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	int32 FindRiderIdx(ACharacter* Rider);
+	int32 FindRiderIdx(const ACharacter* Rider);
 	
 	//~ IAbilitySystemInterface 시작
 	/** 어빌리티 시스템 컴포넌트를 반환합니다. */
@@ -81,15 +84,19 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	//~ IAbilitySystemInterface 끝
 
-	// 탈것에 데미지 적용시 호출됨.
+	// 베히클에 데미지 적용시 브로드캐스트됨.
 	UPROPERTY(BlueprintAssignable)
 	FVehicleAttributeChangedDelegate OnVehicleDamageApplied;
 
+	// // 베히클이 베히클 어빌리티를 발동할때 브로드캐스트 됨.
+	// UPROPERTY(BlueprintAssignable)
+	// FVehicleAbilityActivatedDelegate OnVehicleAbilityActivated;
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	FRiderSpecData GetRiderSpecData(uint8 RiderIdx);
 	
 protected:
-
+	
 	//탑승자로 등록
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	int32 RegisterRider(ACharacter* Rider);
@@ -106,7 +113,6 @@ protected:
 	
 	void RemoveInvalidRiders();
 	
-	
 	//탑승자의 메시를 Vehicle에 부착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void AttachToVehicle(ACharacter* Rider);
@@ -115,10 +121,11 @@ protected:
 	void DetachFromVehicle(ACharacter* Rider);
 	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitializeComponents() override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	//베히클 죽음 관련
+	//베히클 죽음(파괴) 관련
 	UFUNCTION()
 	virtual void OnVehicleDeathStarted(AActor* OwningActor);
 	UFUNCTION()
@@ -129,11 +136,12 @@ protected:
 	void K2_OnVehicleDeathFinished();
 	void DestroyVehicle();
 
-	//virtual void OnRiderDestroyed(AActor* DestroyedActor);
+	// //베히클이 어빌리티를 발동했을 때 라이더 컴포넌트로 신호.
+	// void HandleVehicleAbilityActivation(UGameplayAbility* ActivatedAbility);
 	
-	UPROPERTY(BlueprintReadOnly, Replicated)
+	UPROPERTY(BlueprintReadOnly, Replicated, VisibleAnywhere, Category = "Charon | Vehicle")
 	int32 CurrentRiderNum = 0;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Charon | Vehicle")
 	int32 MaxRiderNum = 1;
 
 	UPROPERTY(VisibleAnywhere)
@@ -141,27 +149,34 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
+
+	UPROPERTY()
+	TObjectPtr<const class UHealthAttributeSet> VehicleHealthAttributeSet;
+	
 	void HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue);
 
+	
+	
+	
 	//어빌리티 및 입력
 	//베히클 자체가 가지고 있는 어빌리티들
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Charon | Vehicle")
 	TSet<UCharonAbilitySet*> VehicleAbilitySets;
 	// 어빌리티셋 핸들. 일단 만들어두긴 했는데 어빌리티를 다시 회수할 일이 있나?
 	FCharonAbilitySet_GrantedHandles VehicleAbilityHandles;
 	//탑승자에게 적용할 어빌리티-입력 설정
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Charon | Vehicle | Riders")
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
 	//탑승자에게 적용할 InputFunctionSet
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category = "Charon | Vehicle | Riders")
 	TArray<TObjectPtr<AInputFunctionSet>> InputFunctionSets;
 	
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FVehicleUISet> VehicleUISets;
+	// // 이거 지금 쓰고 있나? TODO : 리뉴얼
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	// TArray<FVehicleUISet> VehicleUISets;
 	
 
 	// 생사 관련 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UVehicleLifeStateComponent> VehicleLifeStateComponent;
+	TObjectPtr<ULifeStateComponent> LifeStateComponent;
 };

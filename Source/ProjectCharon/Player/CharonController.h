@@ -8,7 +8,8 @@
 #include "CharonController.generated.h"
 
 
-
+class UCharonUIConfig;
+class UCharonActivatableWidget;
 /**
  * 
  */
@@ -17,8 +18,8 @@ class PROJECTCHARON_API ACharonController : public APlayerController
 {
 	GENERATED_BODY()
 
-public :
-	UCharonAbilitySystemComponent* GetCharonAbilitySystemComponent() const;
+	public :
+		UCharonAbilitySystemComponent* GetCharonAbilitySystemComponent() const;
 	
 	// Network시계 관련
 	UFUNCTION(BlueprintPure)
@@ -27,10 +28,21 @@ public :
 	float GetServerWorldTime() const;
 	virtual void PostNetInit() override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	void UpdateUIConfigFromGameMode();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UCharonUIConfig* GetUIConfig() const {return UIConfig;};
 	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
+	virtual void ReceivedPlayer() override;
+	virtual void SetPawn(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+	virtual void OnRep_PlayerState() override;
 	//virtual void OnRep_Pawn() override;
+
+	
 	
 	/** Frequency that the client requests to adjust it's local clock. Set to zero to disable periodic updates. */
 	UPROPERTY(EditDefaultsOnly, Category=GameState)
@@ -48,7 +60,14 @@ private:
 	float ServerWorldTimeDelta = 0.f;
 	float ShortestRoundTripTime = BIG_NUMBER;
 
-
+protected:
+	UFUNCTION()
+	void OnRep_UIConfig(const UCharonUIConfig* OldUIConfig);
+	
+	UPROPERTY(ReplicatedUsing = OnRep_UIConfig)
+	TObjectPtr<UCharonUIConfig> UIConfig;
+	
+	
 	
 
 	

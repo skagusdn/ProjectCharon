@@ -27,7 +27,7 @@ public:
 	// 	AActor* InteractionObject, bool HasOptionalEventData = false, FGameplayEventData OptionalEventData = FGameplayEventData());
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
-	void UpdateInteractionTarget(AActor* InInteractionTarget);
+	bool UpdateInteractionTarget(AActor* InInteractionTarget);
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
 	FInteractionResultWithAbilityData TriggerInteraction();
 	// UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
@@ -37,12 +37,6 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
 	bool TriggerAbilityForInteraction(FGameplayAbilitySpecHandle AbilitySpecHandle, FGameplayEventData EventData);
-
-	// /////////////// 테스트 용~~~~~~~~~~~~~~
-	//
-	// virtual void InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
-	// ///
-	
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Charon|Interaction")
 	FInteractionDescription DescriptionData;

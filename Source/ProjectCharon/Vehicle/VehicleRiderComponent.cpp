@@ -6,9 +6,10 @@
 #include "AbilitySystemComponent.h"
 #include "Logging.h"
 #include "Abilities/GameplayAbility.h"
+#include "Ability/VehicleAbility.h"
 #include "Character/CharonCharacter.h"
 #include "GameFramework/Character.h"
-#include "UI/AttributeBoundWidget.h"
+
 #include "Vehicle/Vehicle.h"
 
 // Sets default values for this component's properties
@@ -66,8 +67,54 @@ void UVehicleRiderComponent::SetRidingVehicle(AVehicle* VehicleToRide)
 		OnRep_RidingVehicle(OldVehicle);
 	}
 
-	
 }
+
+void UVehicleRiderComponent::Server_HandleVehicleAbilityCommitted(UGameplayAbility* Ability)
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	FAbilityCommitInfo AbilityCommitInfo;
+	AbilityCommitInfo.Ability = Ability;
+	// float OutRemainingCooldown  = 0.0f;
+	// float OutCooldownDuration = 0.0f;
+	const FGameplayAbilityActorInfo ActorInfo = Ability->GetActorInfo();
+	Ability->GetCooldownTimeRemainingAndDuration(Ability->GetCurrentAbilitySpecHandle(), &ActorInfo , AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown );
+	
+	
+	HandleVehicleAbilityCommit(AbilityCommitInfo);
+	Client_HandleVehicleAbilityCommitted(AbilityCommitInfo);
+}
+
+void UVehicleRiderComponent::Client_HandleVehicleAbilityCommitted_Implementation(FAbilityCommitInfo AbilityCommitInfo)
+{
+	if(!GetOwner()->HasAuthority())
+	{
+		HandleVehicleAbilityCommit(AbilityCommitInfo);
+	}
+}
+
+void UVehicleRiderComponent::HandleVehicleAbilityCommit(FAbilityCommitInfo AbilityCommitInfo)
+{
+	OnVehicleAbilityCommitted.Broadcast(AbilityCommitInfo);
+}
+
+// void UVehicleRiderComponent::Server_OnVehicleAbilityActivated(UGameplayAbility* Ability)
+// {
+// 	if(!GetOwner()->HasAuthority())
+// 	{
+// 		return;
+// 	}
+// 	
+// 	Client_OnVehicleAbilityActivated(Ability);
+// }
+//
+// void UVehicleRiderComponent::Client_OnVehicleAbilityActivated_Implementation(UGameplayAbility* Ability)
+// {
+// 	OnVehicleAbilityActivated(Ability);
+// }
 
 void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 {
@@ -79,8 +126,8 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 		{
 			OwnerCharacter->GetMesh()->SetHiddenInGame(true);
 		}
-
-		// 서버인지 권한체크해야되나?
+		
+		// 서버인지 권한체크해야되나? 이 주석 시점에선 베히클의 Riders 목록이 리플리케이션 안되기 때문에.. 
 		if (GetOwner()->HasAuthority())
 		{
 			const int RiderIdx = RidingVehicle->FindRiderIdx(OwnerCharacter);
@@ -90,6 +137,12 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 				{
 					FRiderSpecData RiderSpecData = RidingVehicle->GetRiderSpecData(RiderIdx);
 					CharonRider->SwitchAbilityConfig(RiderSpecData.AbilityConfig, RiderSpecData.InputFunctionSet);
+				}
+
+				// 베히클 어빌리티 커밋 콜백 바인드
+				if(UAbilitySystemComponent* VehicleASC = RidingVehicle->GetAbilitySystemComponent())
+				{
+					VehicleASC->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::Server_HandleVehicleAbilityCommitted);
 				}
 			}
 			else
@@ -101,6 +154,16 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 	else
 	{
 		bIsRidingVehicle = false;
+
+		// 베히클 어빌리티 커밋 콜백 바인딩 해제 -> 머라는겨
+		if(OldVehicle)
+		{
+			if(UAbilitySystemComponent* VehicleASC = OldVehicle->GetAbilitySystemComponent())
+			{
+				VehicleASC->AbilityCommittedCallbacks.RemoveAll(this);
+			}
+		}
+		
 		// 애니메이션 원상 복구
 		OwnerCharacter->GetMesh()->SetAnimInstanceClass(OriginalRiderAnimClass);
 		if(OwnerCharacter && OwnerCharacter->GetMesh())
@@ -112,6 +175,7 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 			CharonRider->ResetAbilityConfig();
 		}
 	}
+	
 }
 
 

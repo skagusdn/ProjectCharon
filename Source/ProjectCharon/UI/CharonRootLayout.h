@@ -10,9 +10,10 @@
 #include "SSimpleComboButton.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "CharonGameLayout.generated.h"
+#include "CharonRootLayout.generated.h"
 
 
+class UCharonActivatableWidget;
 class UCommonActivatableWidget;
 /**
  * The state of an async load operation for the UI.
@@ -28,18 +29,22 @@ enum class EAsyncWidgetLayerState : uint8
 /**
  * 
  */
-UCLASS(MinimalAPI, Abstract, meta = (DisableNativeTick))
-class PROJECTCHARON_API UCharonGameLayout : public UCommonUserWidget
+UCLASS(Abstract, meta = (DisableNativeTick))
+class PROJECTCHARON_API UCharonRootLayout : public UCommonUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	static UCharonGameLayout* GetPrimaryGameLayoutForPrimaryPlayer(const UObject* WorldContextObject);
-	static UCharonGameLayout* GetPrimaryGameLayout(APlayerController* PlayerController);
-	static UCharonGameLayout* GetPrimaryGameLayout(ULocalPlayer* LocalPlayer);
+	static UCharonRootLayout* GetRootLayoutForPrimaryPlayer(const UObject* WorldContextObject);
+	static UCharonRootLayout* GetRootLayout(APlayerController* PlayerController);
+	static UCharonRootLayout* GetRootLayout(ULocalPlayer* LocalPlayer);
+	
+	// static UCharonGameLayout* GetPrimaryGameLayoutForPrimaryPlayer(const UObject* WorldContextObject);
+	// static UCharonGameLayout* GetPrimaryGameLayout(APlayerController* PlayerController);
+	// static UCharonGameLayout* GetPrimaryGameLayout(ULocalPlayer* LocalPlayer);
 
 public:
-	UCharonGameLayout(const FObjectInitializer& ObjectInitializer);
+	UCharonRootLayout(const FObjectInitializer& ObjectInitializer);
 
 public:
 	template <typename ActivatableWidgetT = UCommonActivatableWidget>
@@ -128,7 +133,7 @@ protected:
 	
 	//virtual void OnIsDormantChanged();
 
-	void OnWidgetStackTransitioning(UCommonActivatableWidgetContainerBase* Widget, bool bIsTransitioning);
+	//void OnWidgetStackTransitioning(UCommonActivatableWidgetContainerBase* Widget, bool bIsTransitioning);
 	
 private:
 	//bool bIsDormant = false;
@@ -140,4 +145,30 @@ private:
 	// The registered layers for the primary layout.
 	UPROPERTY(Transient, meta = (Categories = "UI.Layer"))
 	TMap<FGameplayTag, TObjectPtr<UCommonActivatableWidgetContainerBase>> Layers;
+
+
+// 	template <typename ActivatableWidgetT = UCommonActivatableWidget>
+// 	ActivatableWidgetT* Test_PushWidgetToLayerStack(UClass* ActivatableWidgetClass)
+// 	{
+// 		return Test_PushWidgetToLayerStack<ActivatableWidgetT>(ActivatableWidgetClass, [](ActivatableWidgetT&) {});
+// 	}
+// 	
+// 	template <typename ActivatableWidgetT = UCommonActivatableWidget>
+// 	ActivatableWidgetT* Test_PushWidgetToLayerStack(UClass* ActivatableWidgetClass, TFunctionRef<void(ActivatableWidgetT&)> InitInstanceFunc)
+// {
+// 	static_assert(TIsDerivedFrom<ActivatableWidgetT, UCommonActivatableWidget>::IsDerived, "Only CommonActivatableWidgets can be used here");
+//
+// 	if (UCommonActivatableWidgetContainerBase* Layer = TestLayer)
+// 	{
+// 		return Layer->AddWidget<ActivatableWidgetT>(ActivatableWidgetClass, InitInstanceFunc);
+// 	}
+//
+// 	return nullptr;
+// }
+// 	
+	
+	
+protected:
+	// UPROPERTY(BlueprintReadWrite)
+	// UCommonActivatableWidgetContainerBase* TestLayer;/////////
 };

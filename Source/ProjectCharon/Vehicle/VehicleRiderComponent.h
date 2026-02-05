@@ -3,16 +3,39 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystem/CharonAbilityTypes.h"
 #include "Components/ActorComponent.h"
 #include "Data/CharacterAbilityConfig.h"
 #include "Data/InputFunctionSet.h"
 #include "VehicleRiderComponent.generated.h"
 
+class UGameplayAbility;
 class UAttributeBoundWidget;
 struct FVehicleUISet;
 //class ANewInputFunctionSet;
 struct FVehicleInfo;
 class AVehicle;
+
+
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, UGameplayAbility*, CommittedAbility);
+
+
+// USTRUCT(BlueprintType)
+// struct FAbilityCommitInfo
+// {
+// 	GENERATED_BODY()
+//
+// 	UPROPERTY(BlueprintReadOnly)
+// 	TObjectPtr<UGameplayAbility> Ability = nullptr;
+//
+// 	UPROPERTY(BlueprintReadOnly)
+// 	float CooldownDuration = 0.f;
+//
+// 	UPROPERTY(BlueprintReadOnly)
+// 	float RemainingCooldown = 0.f;
+// };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, FAbilityCommitInfo, CommittedAbility);
 
 /* 캐릭터에서 Vehicle 탑승 처리하는 컴포넌트.
  *
@@ -32,18 +55,6 @@ protected:
 	
 public:
 	
-	// UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	// void ServerHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
-	//
-	// UFUNCTION(Client, Reliable, BlueprintCallable)
-	// void ClientHandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
-	//
-	// UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	// void ServerHandleUnride();
-	//
-	// UFUNCTION(Client, Reliable, BlueprintCallable)
-	// void ClientHandleUnride();
-	//
 	UFUNCTION(BlueprintPure)
 	static UVehicleRiderComponent* FindRiderComponent(ACharacter* Character);
 
@@ -55,15 +66,25 @@ public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	void SetRidingVehicle(AVehicle* VehicleToRide);
+
+	// void Server_OnVehicleAbilityActivated(UGameplayAbility* Ability);
+
+	UPROPERTY(BlueprintAssignable)
+	FVehicleAbilityCommittedDelegate OnVehicleAbilityCommitted;
 protected:
 
+	// UFUNCTION(Client, Reliable)
+	// void Client_OnVehicleAbilityActivated(UGameplayAbility* Ability);
+	// void OnVehicleAbilityActivated(UGameplayAbility* Ability);
+
+	/*
+	 * 탑승 중인 베히클이 어빌리티를 발동했을 떄  
+	 */
+	void Server_HandleVehicleAbilityCommitted(UGameplayAbility* Ability);
+	UFUNCTION(Client, Reliable)
+	void Client_HandleVehicleAbilityCommitted(FAbilityCommitInfo AbilityCommitInfo);
+	void HandleVehicleAbilityCommit(FAbilityCommitInfo AbilityCommitInfo);
 	
-	// //virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-	// UFUNCTION(BlueprintCallable)
-	// void HandleRide(AVehicle* Vehicle, UCharacterAbilityConfig* AbilityConfig, AInputFunctionSet* InputFunctions, const FVehicleUISet& VehicleUISet);
-	//
-	// UFUNCTION(BlueprintCallable)
-	// void HandleUnride();
 	UFUNCTION()
 	void OnRep_RidingVehicle(AVehicle* OldVehicle);
 	

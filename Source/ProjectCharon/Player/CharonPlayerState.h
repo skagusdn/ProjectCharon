@@ -44,7 +44,7 @@ public :
 	
 	void SetCharacterMesh(USkeletalMeshComponent* NewCharacterMesh);
 	
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Replicated)
 	int CrewId;
 	
 };

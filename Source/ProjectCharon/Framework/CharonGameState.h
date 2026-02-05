@@ -21,7 +21,8 @@
 // 	
 // };
 
-class UVehicleGameStateComponent;
+class ACharonDock;
+class UDockManagerComponent;
 
 USTRUCT(BlueprintType)
 struct FCharonCrew
@@ -30,8 +31,8 @@ struct FCharonCrew
 
 	FCharonCrew() : CrewId(-1){};
 
-	explicit FCharonCrew(const int InCrewId, TArray<APlayerController*> InPlayers)
-		: CrewId(InCrewId), CrewMembers(InPlayers)
+	explicit FCharonCrew(const int InCrewId, TArray<APlayerState*> InPlayerStates)
+		: CrewId(InCrewId), CrewMembers(InPlayerStates)
 	{}
 	// explicit FCharonCrew(const int InCrewID, TArray<APlayerController*> InPlayers)
 	// 	: CrewID(FCrewID(InCrewID)), CrewMembers(InPlayers)
@@ -44,7 +45,10 @@ struct FCharonCrew
 	int32 CrewId;
 	
 	UPROPERTY(BlueprintReadWrite)
-	TArray<APlayerController*> CrewMembers;
+	TArray<APlayerState*> CrewMembers;
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<ACharonDock*> AccessibleDocks;
 	
 	bool operator==(const FCharonCrew& Other) const { return CrewId == Other.CrewId; }
 	bool operator!=(const FCharonCrew& Other) const { return CrewId != Other.CrewId; }
@@ -73,14 +77,16 @@ class PROJECTCHARON_API ACharonGameState : public AGameState
 
 public:
 	ACharonGameState(const FObjectInitializer& ObjectInitializer);
+	
+	//void NotifyCrewGotAccessForDock(int32 CrewId, ACharonDock* Dock);
 
-	//void RegisterCrew(APlayerController* Player, const int CrewID);
-	void RegisterCrew(APlayerController* Player, const int32 CrewID);
 	
 protected:
 
-	TObjectPtr<UVehicleGameStateComponent> VehicleGameStateComponent;
+	virtual void BeginPlay() override;
+
+	//TObjectPtr<UDockManagerComponent> VehicleRentalManager;
 	
-	UPROPERTY(BlueprintReadWrite)
-	TMap<int32, FCharonCrew> CrewMap;
+	
+	
 };

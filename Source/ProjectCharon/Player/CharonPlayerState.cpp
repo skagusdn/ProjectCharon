@@ -26,6 +26,7 @@ void ACharonPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProper
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ACharonPlayerState, CharacterMesh);
+	DOREPLIFETIME(ACharonPlayerState, CrewId);
 }
 
 void ACharonPlayerState::PostInitializeComponents()

@@ -19,7 +19,7 @@ void UCharonGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
 	// 만약 bRemoveAbilityOnEnd 플래그가 켜져 있다면, 어빌리티 스펙을 제거합니다.
-	if (bRemoveAbilityOnEnd)
+	if (bRemoveAbilityOnEnd && HasAuthority(&GetCurrentActivationInfoRef()))
 	{
 		if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 		{

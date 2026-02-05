@@ -7,8 +7,25 @@
 #include "Kismet/KismetSystemLibrary.h"
 
 
+// UAbilityTask_FindInteractables* UAbilityTask_FindInteractables::AbilityTask_FindInteractables(
+// 	UCharonGameplayAbility* InteractionAbility, FCollisionProfileName TraceProfile, USceneComponent* TraceAim,
+// 	float TraceRange, float TraceRadius, float TraceRate, bool ShowDebug)
+// {
+// 	UAbilityTask_FindInteractables* AbilityTask =  NewAbilityTask<UAbilityTask_FindInteractables>(InteractionAbility);
+//
+// 	AbilityTask->TraceAim = TraceAim;
+// 	AbilityTask->TraceRange = TraceRange;
+// 	AbilityTask->TraceRadius = TraceRadius;
+// 	AbilityTask->TraceProfile = TraceProfile;
+// 	AbilityTask->TraceRate = TraceRate;
+// 	AbilityTask->bShowDebug = ShowDebug;
+// 	
+// 	
+// 	return AbilityTask;
+// }
+
 UAbilityTask_FindInteractables* UAbilityTask_FindInteractables::AbilityTask_FindInteractables(
-	UCharonGameplayAbility* InteractionAbility, FCollisionProfileName TraceProfile, USceneComponent* TraceAim,
+	UCharonGameplayAbility* InteractionAbility, ETraceTypeQuery TraceChannel, USceneComponent* TraceAim,
 	float TraceRange, float TraceRadius, float TraceRate, bool ShowDebug)
 {
 	UAbilityTask_FindInteractables* AbilityTask =  NewAbilityTask<UAbilityTask_FindInteractables>(InteractionAbility);
@@ -16,7 +33,7 @@ UAbilityTask_FindInteractables* UAbilityTask_FindInteractables::AbilityTask_Find
 	AbilityTask->TraceAim = TraceAim;
 	AbilityTask->TraceRange = TraceRange;
 	AbilityTask->TraceRadius = TraceRadius;
-	AbilityTask->TraceProfile = TraceProfile;
+	AbilityTask->TraceChannel = TraceChannel;
 	AbilityTask->TraceRate = TraceRate;
 	AbilityTask->bShowDebug = ShowDebug;
 	
@@ -79,8 +96,10 @@ void UAbilityTask_FindInteractables::PerformTrace()
 	FVector EndLocation = StartLocation + TraceAim->GetForwardVector() * TraceRange;
 	//World->LineTraceSingleByProfile(OutHitResult, StartLocation, EndLocation, TraceProfile.Name, Params);
 	
-	UKismetSystemLibrary::SphereTraceSingleByProfile(World, StartLocation, EndLocation, TraceRadius, TraceProfile.Name, true,
+	UKismetSystemLibrary::SphereTraceSingle(World, StartLocation, EndLocation, TraceRadius, TraceChannel, true,
 		ActorsToIgnore, (bShowDebug?EDrawDebugTrace::ForDuration : EDrawDebugTrace::None), OutHitResult, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
+	//UKismetSystemLibrary::SphereTraceSingleByProfile(World, StartLocation, EndLocation, TraceRadius, TraceProfile.Name, true,
+	//	ActorsToIgnore, (bShowDebug?EDrawDebugTrace::ForDuration : EDrawDebugTrace::None), OutHitResult, true, FLinearColor::Red, FLinearColor::Green, 0.1f);
 	
 	AActor* NewInteractionTarget = nullptr;
 	if(OutHitResult.GetActor() && OutHitResult.GetActor()->Implements<UInteractiveInterface>())

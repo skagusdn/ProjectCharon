@@ -3,6 +3,7 @@
 
 #include "CharonAbility_Death.h"
 
+#include "CharonGameplayTags.h"
 #include "Character/CharonCharacter.h"
 #include "Character/LifeStateComponent.h"
 #include "Framework/CharonGameMode.h"
@@ -13,6 +14,15 @@ UCharonAbility_Death::UCharonAbility_Death(const FObjectInitializer& ObjectIniti
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// Add the ability trigger tag as default to the CDO.
+		FAbilityTriggerData TriggerData;
+		TriggerData.TriggerTag = CharonGameplayTags::GameplayEvent_Death;
+		TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+		AbilityTriggers.Add(TriggerData);
+	}
 }
 
 void UCharonAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -65,13 +75,13 @@ void UCharonAbility_Death::FinishDeath()
 			}
 		}
 
-		if(GetWorld() && GetWorld()->GetAuthGameMode() && Player)
-		{
-			if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
-			{
-					CharonGameMode->ReportDeath(Player);
-			}			
-		}
+		// if(GetWorld() && GetWorld()->GetAuthGameMode() && Player)
+		// {
+		// 	if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
+		// 	{
+		// 		CharonGameMode->ReportDeath(Player);
+		// 	}			
+		// }
 	}
 
 	

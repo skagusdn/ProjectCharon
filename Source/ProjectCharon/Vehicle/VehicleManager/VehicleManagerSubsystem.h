@@ -8,7 +8,7 @@
 
 class AVehicleManager;
 /**
- *  베히클 관리 
+ *  일단 지금은 베히클 탑승 시 베히클에 부착할 캐릭터 메시만 관리.
  */
 UCLASS()
 class PROJECTCHARON_API UVehicleManagerSubsystem : public UWorldSubsystem

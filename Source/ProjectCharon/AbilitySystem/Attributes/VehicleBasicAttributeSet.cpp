@@ -11,6 +11,7 @@ UE_DEFINE_GAMEPLAY_TAG(TAG_VehicleState_DamageImmunity, "Vehicle.State.DamageImm
 
 UVehicleBasicAttributeSet::UVehicleBasicAttributeSet()
 {
+	bOutOfHealth = false;
 }
 
 
@@ -72,6 +73,10 @@ void UVehicleBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplay
 {
 	Super::PostGameplayEffectExecute(Data);
 
+	const FGameplayEffectContextHandle& EffectContext = Data.EffectSpec.GetEffectContext();
+	AActor* Instigator = EffectContext.GetOriginalInstigator();
+	AActor* Causer = EffectContext.GetEffectCauser();
+
 	if(Data.EvaluatedData.Attribute == GetVehicleDamageAttribute())
 	{
 		if(Data.EvaluatedData.Magnitude > 0.0f)
@@ -79,8 +84,17 @@ void UVehicleBasicAttributeSet::PostGameplayEffectExecute(const struct FGameplay
 			OnVehicleDamageApplied.Broadcast(Data.EffectSpec.GetContext().GetInstigator(), Data.EffectSpec.GetContext().GetEffectCauser(),
 				&Data.EffectSpec, Data.EvaluatedData.Magnitude, 0, Data.EvaluatedData.Magnitude);
 
+			float OldVehicleHP = GetVehicleHP();
+			
 			SetVehicleHP(FMath::Clamp(GetVehicleHP() - GetVehicleDamage(), 0.0f, GetVehicleMaxHP()));
 			SetVehicleDamage(0.0f);
+
+			if(GetVehicleHP() <= 0 && !bOutOfHealth)
+			{
+				OnOutOfHealth.Broadcast(Instigator, Causer, &Data.EffectSpec, Data.EvaluatedData.Magnitude, OldVehicleHP, GetVehicleHP());
+			}
+
+			bOutOfHealth = GetVehicleHP() <= 0;
 		}
 		
 	}
