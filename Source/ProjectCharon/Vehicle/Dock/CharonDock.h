@@ -36,8 +36,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	void ReturnRentalVehicle(int32 CrewId);
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
-	void ReturnRentalVehicle(AVehicle* VehicleToReturn);
+	// UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
+	// void ReturnRentalVehicle(AVehicle* VehicleToReturn);
 
 	// 이 크루가 해당 타입의 탈 것을 빌릴 수 있는가? 일단 걍 리턴 true 하게.
 	UFUNCTION(BlueprintCallable)

@@ -4,8 +4,7 @@
 #include "DockManagerComponent.h"
 
 #include "Logging.h"
-#include "Animation/MovieScene2DTransformSection.h"
-#include "Chaos/PBDSuspensionConstraintData.h"
+
 #include "Vehicle/Dock/CharonDock.h"
 #include "GameFramework/GameStateBase.h"
 #include "EngineUtils.h"
@@ -44,7 +43,7 @@ AVehicle* UDockManagerComponent::RentVehicle(const int32 CrewId, TSubclassOf<AVe
 	{
 		CrewVehicles.Add(CrewId, SpawnedVehicle);
 		Server_UpdateCrewVehicles();
-		
+		SpawnedVehicle->OnDestroyed.AddDynamic(this, &ThisClass::HandleRentalVehicleDestroyed);
 		
 		return SpawnedVehicle;
 	}
@@ -60,17 +59,49 @@ void UDockManagerComponent::ReturnRentalVehicle(const int32 CrewId)
 		return;
 	}
 	
-	if(AVehicle* RentalVehicle = FindCrewVehicle(CrewId))
+	if(CrewVehicles.Contains(CrewId))
 	{
-		
+		TWeakObjectPtr<AVehicle> VehicleWeakPtr = CrewVehicles[CrewId];
+
+		if(VehicleWeakPtr != nullptr)
+		{
+			// 타고 있는 사람 있는지 체크 이런건 dock이나 다른데서 하기. 
+			if(VehicleWeakPtr.IsValid())
+			{
+				if(!VehicleWeakPtr->IsPendingKillPending())
+				{
+					VehicleWeakPtr.Get()->Destroy();
+				}
+			}
+			// 빌려준 베히클이 이미 파괴되었을 때?
+			else
+			{
+				// 베히클 이미 파괴 시 실행한 로직
+			}
+			CrewVehicles.Add(CrewId, nullptr);
+
+			Server_UpdateCrewVehicles();
+		}
 	}
+}
+
+int UDockManagerComponent::FindCrewIdOfVehicle(AVehicle* Vehicle)
+{
+	for(TTuple<int32, TWeakObjectPtr<AVehicle>> Tuple : CrewVehicles)
+	{
+		if(Tuple.Value.IsValid() && Tuple.Value.Get() == Vehicle)
+		{
+			return(Tuple.Key);
+		}
+	}
+	return -1;
 }
 
 AVehicle* UDockManagerComponent::FindCrewVehicle(int32 CrewId)
 {
 	if(CrewVehicles.Contains(CrewId))
 	{
-		return CrewVehicles[CrewId];
+		return CrewVehicles[CrewId].Get();
 	}
 	return nullptr;
 }
@@ -141,16 +172,27 @@ void UDockManagerComponent::Server_UpdateCrewVehicles()
 
 	// TMap을 배열로 변환
 	TArray<FVehicleEntry> VehicleEntries;
-	for (const TTuple<int32, AVehicle*> Tuple : CrewVehicles)
+	for (const TTuple<int32, TWeakObjectPtr<AVehicle>> Tuple : CrewVehicles)
 	{
 		FVehicleEntry Entry;
 		Entry.CrewId = Tuple.Key;
-		Entry.Vehicle = Tuple.Value;
+		Entry.Vehicle = Tuple.Value.Get();
 		VehicleEntries.Add(Entry);
 	}
  
 	// 클라이언트 RPC 호출 (클라이언트마다 실행)
 	Client_UpdateCrewVehicles_Implementation(VehicleEntries);
+}
+
+void UDockManagerComponent::HandleRentalVehicleDestroyed(AActor* DestroyedActor)
+{
+	if(AVehicle* DestroyedVehicle = Cast<AVehicle>(DestroyedActor))
+	{
+		if(int CrewId = FindCrewIdOfVehicle(DestroyedVehicle))
+		{
+			ReturnRentalVehicle(CrewId);
+		}
+	}
 }
 
 void UDockManagerComponent::Client_UpdateCrewVehicles_Implementation(const TArray<FVehicleEntry>&  VehicleEntries)

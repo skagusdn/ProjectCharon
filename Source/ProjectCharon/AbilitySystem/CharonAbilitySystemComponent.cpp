@@ -6,6 +6,7 @@
 #include "Abilities/CharonGameplayAbility.h"
 // "Engine/SpecularProfile.h"
 #include "ProjectCharon.h"
+#include "Vehicle/Vehicle.h"
 //#include "Animation/AnimTrace.h"
 
 UCharonAbilitySystemComponent::UCharonAbilitySystemComponent(const FObjectInitializer& ObjectInitializer)
@@ -20,14 +21,37 @@ void UCharonAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, A
 	check(ActorInfo);
 	check(InOwnerActor);
 
-	const bool bHasNewPawnAvatar = Cast<APawn>(InAvatarActor) && (InAvatarActor != ActorInfo->AvatarActor);
+	// 아바타 갱신 && 아바타 액터가 폰이나 베히클인 경우에만
+	const bool bHasNewAvatar = (Cast<APawn>(InAvatarActor) || Cast<AVehicle>(InAvatarActor)) && InAvatarActor != ActorInfo->AvatarActor;
 
 	Super::InitAbilityActorInfo(InOwnerActor, InAvatarActor);
 
-	if (bHasNewPawnAvatar)
+	if (bHasNewAvatar)
 	{
 		// ASC가 초기화 될 경우 어트리뷰트도 초기화.
 		InitAttributesWithDefaultData();
+		
+// 		// Notify all abilities that a new pawn avatar has been set
+// 		for (const FGameplayAbilitySpec& AbilitySpec : ActivatableAbilities.Items)
+// 		{
+// PRAGMA_DISABLE_DEPRECATION_WARNINGS
+// 			ensureMsgf(AbilitySpec.Ability && AbilitySpec.Ability->GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced, TEXT("InitAbilityActorInfo: All Abilities should be Instanced (NonInstanced is being deprecated due to usability issues)."));
+// PRAGMA_ENABLE_DEPRECATION_WARNINGS
+// 	
+// 			TArray<UGameplayAbility*> Instances = AbilitySpec.GetAbilityInstances();
+// 			for (UGameplayAbility* AbilityInstance : Instances)
+// 			{
+// 				UCharonGameplayAbility* CharonAbilityInstance = Cast<UCharonGameplayAbility>(AbilityInstance);
+// 				if (CharonAbilityInstance)
+// 				{
+// 					// Ability instances may be missing for replays
+// 					//CharonAbilityInstance->OnPawnAvatarSet();
+// 					CharonAbilityInstance->OnAvatarSet();
+// 				}
+// 			}
+// 		}
+		
+		TryActivateAbilitiesOnSpawn();
 	}
 }
 
@@ -159,6 +183,18 @@ void UCharonAbilitySystemComponent::UnBindEventOnAttributeChange(const FDelegate
 	}
 }
 
+void UCharonAbilitySystemComponent::TryActivateAbilitiesOnSpawn()
+{
+	ABILITYLIST_SCOPE_LOCK();
+	for (const FGameplayAbilitySpec& AbilitySpec : ActivatableAbilities.Items)
+	{
+		if (const UCharonGameplayAbility* CharonAbilityCDO = Cast<UCharonGameplayAbility>(AbilitySpec.Ability))
+		{
+			CharonAbilityCDO->TryActivateAbilityOnSpawn(AbilityActorInfo.Get(), AbilitySpec);
+		}
+	}
+}
+
 void UCharonAbilitySystemComponent::CheckAttributeBinds()
 {
 	for(TTuple<FDelegateHandle, FGameplayAttribute> Tuple : AttributeBindHandles)
@@ -284,8 +320,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const UGameplayAbility* Instance = Spec.GetPrimaryInstance();
 		FPredictionKey OriginalPredictionKey = Instance ? Instance->GetCurrentActivationInfo().GetActivationPredictionKey() : Spec.ActivationInfo.GetActivationPredictionKey();
 
-		UE_LOG(LogTemp, Warning, TEXT("Prediction KEY1 : %s"), *OriginalPredictionKey.ToString());//
-		UE_LOG(LogTemp, Warning, TEXT("Prediction KEY2 : %s"), *Spec.ActivationInfo.GetActivationPredictionKey().ToString());//
+		// UE_LOG(LogTemp, Warning, TEXT("Prediction KEY1 : %s"), *OriginalPredictionKey.ToString());//
+		// UE_LOG(LogTemp, Warning, TEXT("Prediction KEY2 : %s"), *Spec.ActivationInfo.GetActivationPredictionKey().ToString());//
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Invoke the InputPressed event. This is not replicated here. If someone is listening, they may replicate the InputPressed event to the server.

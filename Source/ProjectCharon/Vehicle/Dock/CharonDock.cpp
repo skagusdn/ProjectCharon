@@ -50,8 +50,24 @@ AVehicle* ACharonDock::RentVehicle(int32 CrewId, TSubclassOf<AVehicle> VehicleCl
 
 void ACharonDock::ReturnRentalVehicle(int32 CrewId)
 {
+	if(!HasAuthority())
+	{
+		return;
+	}
 	
+	if(DockManager)
+	{
+		DockManager->ReturnRentalVehicle(CrewId);
+	}
 }
+
+// void ACharonDock::ReturnRentalVehicle(AVehicle* VehicleToReturn)
+// {
+// 	if(DockManager)
+// 	{
+// 		DockManager->ReturnRentalVehicle(VehicleToReturn);
+// 	}
+// }
 
 void ACharonDock::BeginPlay()
 {

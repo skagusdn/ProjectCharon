@@ -33,8 +33,8 @@ class PROJECTCHARON_API UCharonUIConfig : public UDataAsset
 
 public :
 	
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<UCharonRootLayout> RootLayoutClass;
+	// UPROPERTY(EditAnywhere)
+	// TSubclassOf<UCharonRootLayout> RootLayoutClass;
 
 	// // 일단 임시. 
 	// UPROPERTY(EditAnywhere)

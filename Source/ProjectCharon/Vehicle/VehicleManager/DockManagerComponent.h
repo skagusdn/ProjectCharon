@@ -42,6 +42,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	void ReturnRentalVehicle(const int32 CrewId);
+
+	UFUNCTION(BlueprintCallable)
+	int FindCrewIdOfVehicle(AVehicle* Vehicle);
 	
 	UFUNCTION(BlueprintCallable)
 	AVehicle* FindCrewVehicle(int32 CrewId);
@@ -58,9 +61,12 @@ protected:
 	void Server_UpdateCrewVehicles();
 	UFUNCTION(Client, Reliable)
 	void Client_UpdateCrewVehicles(const TArray<FVehicleEntry>& VehicleEntries);
+
+	UFUNCTION()
+	void HandleRentalVehicleDestroyed(AActor* DestroyedActor);
 	
-	UPROPERTY(BlueprintReadWrite)
-	TMap<int32, AVehicle*> CrewVehicles;
+	UPROPERTY()
+	TMap<int32, TWeakObjectPtr<AVehicle>> CrewVehicles;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<ACharonDock*> Docks;

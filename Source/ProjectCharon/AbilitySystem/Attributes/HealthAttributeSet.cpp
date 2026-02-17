@@ -32,31 +32,31 @@ void UHealthAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 	
 	OnHealthChanged.Broadcast(nullptr, nullptr, nullptr, EstimatedMagnitude, OldValue.GetCurrentValue(), CurrentHealth);
 
-	///////
-	if(GetOwningActor()){
-		if(GetOwningActor()-> HasAuthority())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Server - Health Changed %f"), GetHealth());	///				
-		}else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Client - Health Changed %f"), GetHealth());	///
-		}
-	}
-	///////
+	// ///////
+	// if(GetOwningActor()){
+	// 	if(GetOwningActor()-> HasAuthority())
+	// 	{
+	// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Server - Health Changed %f"), GetHealth());	///				
+	// 	}else
+	// 	{
+	// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Client - Health Changed %f"), GetHealth());	///
+	// 	}
+	// }
+	// ///////
 	
 	if (!bOutOfHealth && CurrentHealth <= 0.0f)
 	{
-		///////
-		if(GetOwningActor()){
-			if(GetOwningActor()-> HasAuthority())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Server - Out of Health First"));	///				
-			}else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Client - Out of Health First"));	///
-			}
-		}
-		///////
+		// ///////
+		// if(GetOwningActor()){
+		// 	if(GetOwningActor()-> HasAuthority())
+		// 	{
+		// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Server - Out of Health First"));	///				
+		// 	}else
+		// 	{
+		// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest OnRep Client - Out of Health First"));	///
+		// 	}
+		// }
+		// ///////
 		OnOutOfHealth.Broadcast(nullptr, nullptr, nullptr, EstimatedMagnitude, OldValue.GetCurrentValue(), CurrentHealth);
 	}
 
@@ -119,32 +119,32 @@ void UHealthAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffect
 			
 			if(GetHealth() <= 0 && !bOutOfHealth)
 			{
-				///////
-				if(GetOwningActor()){
-					if(GetOwningActor()-> HasAuthority())
-					{
-						UE_LOG(LogTemp, Warning, TEXT("HealthTest Server - Out of Health First"));	///				
-					}else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("HealthTest Client - Out of Health First"));	///
-					}
-				}
-				///////
+				// ///////
+				// if(GetOwningActor()){
+				// 	if(GetOwningActor()-> HasAuthority())
+				// 	{
+				// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest Server - Out of Health First"));	///				
+				// 	}else
+				// 	{
+				// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest Client - Out of Health First"));	///
+				// 	}
+				// }
+				// ///////
 				
 				OnOutOfHealth.Broadcast(Instigator, Causer, &Data.EffectSpec, Data.EvaluatedData.Magnitude, HealthBeforeAttributeChange, GetHealth());
 			}
 
-			///////
-			if(GetOwningActor()){
-				if(GetOwningActor()-> HasAuthority())
-				{
-					UE_LOG(LogTemp, Warning, TEXT("HealthTest Server - Out of Health :%s"), bOutOfHealth ? TEXT("true") : TEXT("false") );			
-				}else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("HealthTest Client - Out of Health :%s"), bOutOfHealth ? TEXT("true") : TEXT("false") );
-				}
-			}
-			///////
+			// ///////
+			// if(GetOwningActor()){
+			// 	if(GetOwningActor()-> HasAuthority())
+			// 	{
+			// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest Server - Out of Health :%s"), bOutOfHealth ? TEXT("true") : TEXT("false") );			
+			// 	}else
+			// 	{
+			// 		UE_LOG(LogTemp, Warning, TEXT("HealthTest Client - Out of Health :%s"), bOutOfHealth ? TEXT("true") : TEXT("false") );
+			// 	}
+			// }
+			// ///////
 		
 			bOutOfHealth = (GetHealth() <= 0);
 		}

@@ -38,8 +38,8 @@ public :
 
 	UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
 	UCharonUIConfig* GetDefaultUIConfig() const {return DefaultUIConfig;};
-	UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
-	TSubclassOf<UCharonUIPolicy> GetDefaultUIPolicyClass() {return DefaultUIPolicyClass;};
+	// UFUNCTION(BlueprintCallable, Category = "Charon|GameMode")
+	// TSubclassOf<UCharonUIPolicy> GetDefaultUIPolicyClass() {return DefaultUIPolicyClass;};
 	
 protected:
 	//virtual void RestartPlayer(AController* NewPlayer) override;
@@ -56,11 +56,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Charon|GameMode")
 	TObjectPtr<UCharonUIConfig> DefaultUIConfig;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Charon|GameMode")
-	TSubclassOf<UCharonUIPolicy> DefaultUIPolicyClass;
-
-	// //임시
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Charon|GameMode")
-	// TSubclassOf<UCharonGameLayout> DefaultRootLayout;
+	// TSubclassOf<UCharonUIPolicy> DefaultUIPolicyClass;
+
+
 	
 };

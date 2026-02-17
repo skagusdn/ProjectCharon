@@ -53,7 +53,8 @@ public :
 	void K2_UnBindEventOnAttributeChange(const FDelegateHandleWrapper EventHandle);
 	void UnBindEventOnAttributeChange(const FDelegateHandleWrapper EventHandle);
 	
-
+	void TryActivateAbilitiesOnSpawn();
+	
 	//void UnBindEventOnAttributeChange(FDelegateHandle EventHandle);
 	
 

@@ -27,31 +27,21 @@ void ACharonController::OnPossess(APawn* InPawn)
 	
 	if (ACharonPlayerState* PS = GetPlayerState<ACharonPlayerState>())
 	{
-		if(UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent())
+		// if(UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent())
+		// {
+		// 	ASC->InitAbilityActorInfo(PS, InPawn);
+		// }
+
+		// 플에이어 스테이트에 캐릭터 메시 저장 -> 베히클 탈때 쓸꺼. 추후 로직 바꿀 수 있음.
+		if(ACharacter* InCharacter = Cast<ACharacter>(InPawn))
 		{
-			ASC->InitAbilityActorInfo(PS, InPawn);
+			PS->SetCharacterMesh(InCharacter->GetMesh());
 		}
 	}
 
 	if(UCharonLocalPlayer* CharonLocalPlayer = Cast<UCharonLocalPlayer>(Player))
 	{
 		CharonLocalPlayer->OnPlayerPawnSet.Broadcast(CharonLocalPlayer, InPawn);
-	}
-	
-	// // VehicleManager에게 폰이 바꼈다고 알려주기 - 임시. 수정한다면 OnRep_Pawn도 고치기.
-	// // TODO : 플레이어 외형 관련 로직이 확정되면 이 부분 로직 바꾸기. 
-	// if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
-	// {
-	// 	VehicleManager->UpdateRiderMesh(GetPlayerState<APlayerState>());
-	// }
-
-	if(ACharonPlayerState* PS = GetPlayerState<ACharonPlayerState>())
-	{
-		if(ACharacter* InCharacter = Cast<ACharacter>(InPawn))
-		{
-			PS->SetCharacterMesh(InCharacter->GetMesh());
-		}
-		
 	}
 	
 }
@@ -67,6 +57,16 @@ void ACharonController::ReceivedPlayer()
 		if (PlayerState)
 		{
 			CharonLocalPlayer->OnPlayerStateSet.Broadcast(CharonLocalPlayer, PlayerState);
+			OnPlayerStateSet.Broadcast(this, PlayerState);
+		}
+
+		// UI Config 등록
+		if(UCharonUISubsystem* UISubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UCharonUISubsystem>())
+		{
+			if(UIConfig)
+			{
+				UISubsystem->RegisterUIConfigToPlayer(CharonLocalPlayer, UIConfig);
+			}
 		}
 	}
 }
@@ -100,9 +100,20 @@ void ACharonController::OnRep_PlayerState()
 		if (UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(Player))
 		{
 			LocalPlayer->OnPlayerStateSet.Broadcast(LocalPlayer, PlayerState);
+			OnPlayerStateSet.Broadcast(this, PlayerState);
 		}
 	}
 }
+
+// void ACharonController::InitPlayerState()
+// {
+// 	Super::InitPlayerState();
+//
+// 	if(PlayerState)
+// 	{
+// 		OnPlayerStateInitiated.Broadcast();
+// 	}
+// }
 
 void ACharonController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -111,29 +122,34 @@ void ACharonController::GetLifetimeReplicatedProps(TArray<class FLifetimePropert
 	DOREPLIFETIME(ACharonController, UIConfig);
 }
 
-void ACharonController::UpdateUIConfigFromGameMode()
+void ACharonController::SetUIConfig(UCharonUIConfig* InUIConfig)
 {
-	if(GetWorld() && GetWorld()->GetAuthGameMode())
+	if(HasAuthority())
 	{
-		if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
+		UCharonUIConfig* OldUIConfig = UIConfig;
+		UIConfig = InUIConfig;
+
+		// 리슨서버일 경우.
+		if(HasAuthority() && !IsRunningDedicatedServer())
 		{
-			UCharonUIConfig* OldUIConfig = UIConfig;
-			UIConfig = CharonGameMode->GetDefaultUIConfig();
-			if(HasAuthority() && !IsRunningDedicatedServer())
-			{
-				OnRep_UIConfig(OldUIConfig);
-			}
+			OnRep_UIConfig(OldUIConfig);
 		}
 	}
 }
 
-// void ACharonController::OnRep_Pawn()
+// void ACharonController::UpdateUIConfigFromGameMode()
 // {
-// 	Super::OnRep_Pawn();
-//
-// 	if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
+// 	if(GetWorld() && GetWorld()->GetAuthGameMode())
 // 	{
-// 		VehicleManager->UpdateRiderMesh(GetPlayerState<APlayerState>());
+// 		if(ACharonGameMode* CharonGameMode = Cast<ACharonGameMode>(GetWorld()->GetAuthGameMode()))
+// 		{
+// 			UCharonUIConfig* OldUIConfig = UIConfig;
+// 			UIConfig = CharonGameMode->GetDefaultUIConfig();
+// 			if(HasAuthority() && !IsRunningDedicatedServer())
+// 			{
+// 				OnRep_UIConfig(OldUIConfig);
+// 			}
+// 		}
 // 	}
 // }
 
@@ -174,9 +190,16 @@ void ACharonController::OnRep_UIConfig(const UCharonUIConfig* OldUIConfig)
 	{
 		if(UCharonLocalPlayer* LocalPlayer = Cast<UCharonLocalPlayer>(GetLocalPlayer()))
 		{
-			LocalPlayer->InitUIConfig();
+			//LocalPlayer->InitUIConfig();
+
+			//
+			if(UCharonUISubsystem* UISubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UCharonUISubsystem>())
+			{
+				UISubsystem->RegisterUIConfigToPlayer(LocalPlayer, UIConfig);
+			}
+			
 		}
-	}
+	} 
 }
 
 void ACharonController::ClientUpdateWorldTime_Implementation(float ClientTimestamp, float ServerTimestamp)

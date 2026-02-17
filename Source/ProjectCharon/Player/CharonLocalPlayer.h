@@ -35,5 +35,5 @@ public :
 	FDelegateHandle CallAndRegister_OnPlayerPawnSet(FPlayerPawnSetDelegate::FDelegate Delegate);
 	// Common Game 플러그인에서 가져온거. 끝~~~~~~~
 
-	void InitUIConfig();
+	//void InitUIConfig();
 };

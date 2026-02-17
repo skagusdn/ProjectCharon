@@ -10,6 +10,9 @@
 
 class UCharonUIConfig;
 class UCharonActivatableWidget;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerStateSetDelegate, APlayerController*, PlayerController, APlayerState*, PlayerState);
+
 /**
  * 
  */
@@ -29,10 +32,14 @@ class PROJECTCHARON_API ACharonController : public APlayerController
 	virtual void PostNetInit() override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-	void UpdateUIConfigFromGameMode();
-
+	//void UpdateUIConfigFromGameMode();
+	void SetUIConfig(UCharonUIConfig* InUIConfig);
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	UCharonUIConfig* GetUIConfig() const {return UIConfig;};
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerStateSetDelegate OnPlayerStateSet;
 	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
@@ -40,9 +47,10 @@ protected:
 	virtual void SetPawn(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 	virtual void OnRep_PlayerState() override;
+	//virtual void InitPlayerState() override;
 	//virtual void OnRep_Pawn() override;
 
-	
+
 	
 	/** Frequency that the client requests to adjust it's local clock. Set to zero to disable periodic updates. */
 	UPROPERTY(EditDefaultsOnly, Category=GameState)

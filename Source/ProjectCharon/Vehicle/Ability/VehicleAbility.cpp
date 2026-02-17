@@ -15,14 +15,25 @@ UVehicleAbility::UVehicleAbility()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 }
 
-void UVehicleAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+// void UVehicleAbility::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+// {
+// 	Super::OnGiveAbility(ActorInfo, Spec);
+//
+// 	if(AActor* AvatarActor = GetAvatarActorFromActorInfo())
+// 	{
+// 		AvatarVehicle = Cast<AVehicle>(AvatarActor);
+// 	}
+// }
+
+void UVehicleAbility::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
-	Super::OnGiveAbility(ActorInfo, Spec);
+	Super::OnAvatarSet(ActorInfo, Spec);
 
 	if(AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
 		AvatarVehicle = Cast<AVehicle>(AvatarActor);
 	}
+	
 }
 
 void UVehicleAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

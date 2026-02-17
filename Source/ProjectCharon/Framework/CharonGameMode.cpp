@@ -97,7 +97,8 @@ void ACharonGameMode::InitializeHUDForPlayer_Implementation(APlayerController* N
 
 	if(ACharonController* CharonPlayer = Cast<ACharonController>(NewPlayer))
 	{
-		CharonPlayer->UpdateUIConfigFromGameMode();
+		//CharonPlayer->UpdateUIConfigFromGameMode();
+		CharonPlayer->SetUIConfig(DefaultUIConfig);
 	}	
 }
 

@@ -36,24 +36,30 @@ UCLASS(Blueprintable, BlueprintType, Abstract)
 class PROJECTCHARON_API UCharonGameplayAbility : public UGameplayAbility
 {
 	GENERATED_BODY()
-
+	//friend class UCharonAbilitySystemComponent;
+	
 public :
 	UFUNCTION(BlueprintCallable)
 	ECharonAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; };
 	
+	// OnSpawn인 어빌리티 발동용. (어빌리티 부여되자마자 발동하게). Lyra꺼 긁어옴
+	void TryActivateAbilityOnSpawn(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) const;
 	
 protected :
 	//~UGameplayAbility interface
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~End of UGameplayAbility interface
+
+	// void OnAvatarSet();
+	
+	// /** Called when the ability system is initialized with new Avatar. */
+	// UFUNCTION(BlueprintImplementableEvent, DisplayName = "OnAvatarSet")
+	// void K2_OnAvatarSet();
 	
 	/** Called when this ability is granted to the ability system component. */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnAbilityAdded")
 	void K2_OnAbilityAdded();
-
-	// OnSpawn인 어빌리티 발동용. (어빌리티 부여되자마자 발동하게). Lyra꺼 긁어옴
-	void TryActivateAbilityOnSpawn(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) const;
 
 	/** 종료 시 부여한 어빌리티 제거 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)

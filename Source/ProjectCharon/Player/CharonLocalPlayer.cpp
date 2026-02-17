@@ -8,16 +8,12 @@
 
 UCharonLocalPlayer::UCharonLocalPlayer() : Super(FObjectInitializer::Get())
 {
-	// FPlayerControllerSetDelegate::FDelegate Delegate;
-	// Delegate.BindLambda(this, [This=this](UCharonLocalPlayer* InLocalPlayer, APlayerController* InPlayerController)->void
+	
+	// CallAndRegister_OnPlayerControllerSet(FPlayerControllerSetDelegate::FDelegate::CreateLambda(
+	// 	[This=this](UCharonLocalPlayer* InLocalPlayer, APlayerController* InPlayerController)->void
 	// {
 	// 	This->InitUIConfig();
-	// });
-	CallAndRegister_OnPlayerControllerSet(FPlayerControllerSetDelegate::FDelegate::CreateLambda(
-		[This=this](UCharonLocalPlayer* InLocalPlayer, APlayerController* InPlayerController)->void
-	{
-		This->InitUIConfig();
-	}));
+	// }));
 }
 
 FDelegateHandle UCharonLocalPlayer::CallAndRegister_OnPlayerControllerSet(
@@ -59,17 +55,17 @@ FDelegateHandle UCharonLocalPlayer::CallAndRegister_OnPlayerPawnSet(FPlayerPawnS
 	return OnPlayerPawnSet.Add(Delegate);
 }
 
-void UCharonLocalPlayer::InitUIConfig()
-{
-	if(ACharonController* CharonController = Cast<ACharonController>(GetPlayerController(GetWorld())))
-	{
-		if(UCharonUIConfig* UIConfig = CharonController->GetUIConfig())
-		{
-			if(UCharonUISubsystem* UISubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UCharonUISubsystem>())
-			{
-				UISubsystem-> RegisterUIConfigToPlayer(this, UIConfig);
-			}
-			
-		}
-	}
-}
+// void UCharonLocalPlayer::InitUIConfig()
+// {
+// 	if(ACharonController* CharonController = Cast<ACharonController>(GetPlayerController(GetWorld())))
+// 	{
+// 		if(UCharonUIConfig* UIConfig = CharonController->GetUIConfig())
+// 		{
+// 			if(UCharonUISubsystem* UISubsystem = GetWorld()->GetGameInstance()->GetSubsystem<UCharonUISubsystem>())
+// 			{
+// 				UISubsystem-> RegisterUIConfigToPlayer(this, UIConfig);
+// 			}
+// 			
+// 		}
+// 	}
+// }
