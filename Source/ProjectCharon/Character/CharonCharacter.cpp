@@ -3,22 +3,37 @@
 
 #include "CharonCharacter.h"
 
+#include "CharonCharacterMovementComponent.h"
 #include "LifeStateComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 
 
-// Sets default values
-ACharonCharacter::ACharonCharacter()
+
+// ACharonCharacter::ACharonCharacter()
+// {
+// 	PrimaryActorTick.bCanEverTick = true;
+// 	bReplicates = true;
+//
+// 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
+// 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
+// 	DefaultInputFunctions = nullptr;
+//
+// 	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
+// 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
+// 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnDeathFinished);
+// }
+
+ACharonCharacter::ACharonCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCharonCharacterMovementComponent>(ACharacter::CharacterMovementComponentName ))
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
-
+	
 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
 	DefaultInputFunctions = nullptr;
-
+	
 	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnDeathFinished);
@@ -209,6 +224,8 @@ void ACharonCharacter::PossessedBy(AController* NewController)
 //
 // 	InitCharonCharacter();
 // }
+
+
 
 
 // Called when the game starts or when spawned

@@ -82,6 +82,7 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BuoyancyData.Pontoons instead."))
 	TArray<FSphericalPontoon> Pontoons_DEPRECATED;
 
+	// 위치에서 가장 가까운 강 스플라인 키 업데이트
 	UE_API void GetWaterSplineKey(FVector Location, TMap<const UWaterBodyComponent*, float>& OutMap, TMap<const UWaterBodyComponent*, float>& OutSegmentMap) const;
 	UE_API float GetWaterHeight(FVector Position, const TMap<const UWaterBodyComponent*, float>& SplineKeyMap, float DefaultHeight, UWaterBodyComponent*& OutWaterBodyComponent, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves = true);
 	UE_API float GetWaterHeight(FVector Position, const TMap<const UWaterBodyComponent*, float>& SplineKeyMap, float DefaultHeight, bool bShouldIncludeWaves = true);
@@ -110,6 +111,7 @@ protected:
 	UE_API void ComputeBuoyancy(FSphericalPontoon& Pontoon, float ForwardSpeedKmh);
 	UE_API void ComputePontoonCoefficients();
 
+	// Buoyancy 컴포넌트가 접촉 중인 워터바디들
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWaterBodyComponent>> CurrentWaterBodyComponents;
 

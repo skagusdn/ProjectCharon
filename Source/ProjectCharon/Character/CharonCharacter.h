@@ -24,8 +24,9 @@ class PROJECTCHARON_API ACharonCharacter : public ACharacter, public IAbilitySys
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	ACharonCharacter();
+	
+	//ACharonCharacter();
+	ACharonCharacter(const FObjectInitializer& ObjectInitializer);
 
 	
 protected:

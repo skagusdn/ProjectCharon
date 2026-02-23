@@ -32,7 +32,7 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsInWater;
 
-
+	
 	
 	
 public:
