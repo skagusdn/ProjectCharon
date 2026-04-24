@@ -155,8 +155,10 @@ void ACharonCharacter::RequestExecuteInputFunction(FInputActionValue InputAction
 		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
 			InputActionValue.GetValueType(), InputFunctionSet, Tag, false);
 	}
-
-	InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, this);
+	else
+	{
+		InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, this);
+	}
 	
 }
 

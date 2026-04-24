@@ -20,7 +20,7 @@ class PROJECTCHARON_API USwimBuoyancyComponent : public UCharonBuoyancyComponent
 
 public:
 
-	USwimBuoyancyComponent();
+	USwimBuoyancyComponent(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	
@@ -42,11 +42,16 @@ protected:
 	
 
 public:
-	
+	UFUNCTION(BlueprintCallable)
+	bool GetIsSwimming() const;
 	/* OwnerActor가 얼마나 물에 잠겨있는지 리턴. 1이면 물 안, 0이면 물 밖.*/
 	UFUNCTION(BlueprintCallable)
 	float GetImmersionDepth();
 
+	// // 임시 부력
+	// UFUNCTION(BlueprintCallable)
+	// FVector GetSwimBuoyancy();
+	
 	/*  물에 잠겨있는 깊이 체크용 폰툰 인덱스. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 WaterCheckPontoonIndex;

@@ -10,9 +10,9 @@ AInputFunctionSet::AInputFunctionSet()
 	bAlwaysRelevant = true;
 }
 
-void AInputFunctionSet::AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent, const bool bNeedServerRPC)
+void AInputFunctionSet::AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, TArray<ETriggerEvent> TriggerEvents, const bool bNeedServerRPC)
 {
-	InputFunctionDelegateMap.Add(Tag, {Delegate, TriggerEvent, bNeedServerRPC});
+	InputFunctionDelegateMap.Add(Tag, {Delegate, TriggerEvents, bNeedServerRPC});
 }
 
 void AInputFunctionSet::ExecuteInputFunctionByTag(const FInputActionValue& Value, FGameplayTag Tag, ACharacter* Executor)

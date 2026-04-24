@@ -7,6 +7,7 @@
 #include "UObject/GarbageCollectionSchema.h"
 #include "CharonAbilitySystemComponent.generated.h"
 
+class UCharonAbilityTagRelationshipMapping;
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCharonAttributeChanged, float, float);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnCharonAttributeChanged_Dynamic, float, OldValue, float, NewValue);
 
@@ -55,8 +56,8 @@ public :
 	
 	void TryActivateAbilitiesOnSpawn();
 	
-	//void UnBindEventOnAttributeChange(FDelegateHandle EventHandle);
-	
+	/** 어빌리티 액션 태그 간 관계 설정 */
+	void SetTagRelationshipMapping(UCharonAbilityTagRelationshipMapping* NewMapping);
 
 	///////////////////테스트용
 	UFUNCTION(BlueprintCallable, meta=(DevelopmentOnly))
@@ -70,19 +71,27 @@ public :
 	void AbilityLocalInputTagPressed(FGameplayTag InputTag);
 	void AbilityLocalInputTagReleased(FGameplayTag InputTag);
 
+	// 따로 정의해둔, 어빌리티의 추가 요구사항 태그 가져오기 
+	void GetAdditionalActivationTagRequirements(const FGameplayTagContainer& AbilityTags, FGameplayTagContainer& OutActivationRequired, FGameplayTagContainer& OutActivationBlocked) const;
+	
 protected:
 
 	// 테스트를 위해 추가, 언제든 삭제 가능.
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
-
-	// 데이터 테이블로 어트리뷰트 셋 초기화.(기존 ASC는 OnRegister에서 이를 수행하더라)
-	void InitAttributesWithDefaultData();
-	
+	virtual void ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags, UGameplayAbility* RequestingAbility, bool bEnableBlockTags, const FGameplayTagContainer& BlockTags, bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags) override;
 	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
 	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;
 	
+	// 데이터 테이블로 어트리뷰트 셋 초기화.(기존 ASC는 OnRegister에서 이를 수행하더라)
+	void InitAttributesWithDefaultData();
+	
 	TOptional<FGameplayAttribute> FindAttribute(const FGameplayAttribute& AttributeToFind);
+
+	void OnNonAbilityRelationshipTagChanged(const FGameplayTag Tag, int32 TagCount);
 	
 	TMap<TObjectPtr<UObject>, TArray<FDelegateHandleWrapper>> AttributeBindHandlesOfSource;
 	TMap<FDelegateHandle,FGameplayAttribute> AttributeBindHandles;
+
+	UPROPERTY()
+	TObjectPtr<UCharonAbilityTagRelationshipMapping> TagRelationshipMapping;
 };

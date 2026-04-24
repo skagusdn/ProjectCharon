@@ -3,6 +3,107 @@
 
 #include "CharonBuoyancyComponent.h"
 
+UCharonBuoyancyComponent::UCharonBuoyancyComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+{
+	bUpdatePontoonsOutOfWater = false;
+}
+
+int32 UCharonBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, float ForwardSpeedKmh,
+	UPrimitiveComponent* PrimitiveComponent)
+{
+	AActor* Owner = GetOwner();
+	check(Owner);
+
+	int32 NumPontoonsInWater = 0;
+	if (bIsOverlappingWaterBody || bUpdatePontoonsOutOfWater)
+	{
+		int PontoonIndex = 0;
+		for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
+		{
+			if (PontoonConfiguration & (1 << PontoonIndex))
+			{
+				// 폰툰의 위치 : 폰툰 센터 소켓 설정을 쓸 경우 소켓 + 오프셋, 아니면 루트 컴포넌트 + 폰툰 상대 위치
+				if (Pontoon.bUseCenterSocket)
+				{
+					const FTransform& SimulatingComponentTransform = PrimitiveComponent->GetSocketTransform(Pontoon.CenterSocket);
+					Pontoon.CenterLocation = SimulatingComponentTransform.GetLocation() + Pontoon.Offset;
+					Pontoon.SocketRotation = SimulatingComponentTransform.GetRotation();
+				}
+				else
+				{
+					Pontoon.CenterLocation = PrimitiveComponent->GetComponentTransform().TransformPosition(Pontoon.RelativeLocation);
+				}
+				// 폰툰의 물 높이 구함
+				GetWaterSplineKey(Pontoon.CenterLocation, Pontoon.SplineInputKeys, Pontoon.SplineSegments);
+				const FVector PontoonBottom = Pontoon.CenterLocation - FVector(0, 0, Pontoon.Radius);
+				UWaterBodyComponent* TempWaterBodyComponent = Pontoon.CurrentWaterBodyComponent;
+				/*Pass in large negative default value so we don't accidentally assume we're in water when we're not.*/
+				Pontoon.WaterHeight = GetWaterHeight(PontoonBottom - FVector::UpVector * 100.f, Pontoon.SplineInputKeys, -100000.f, TempWaterBodyComponent, Pontoon.WaterDepth, Pontoon.WaterPlaneLocation, Pontoon.WaterPlaneNormal, Pontoon.WaterSurfacePosition, Pontoon.WaterVelocity, Pontoon.WaterBodyIndex);
+				Pontoon.CurrentWaterBodyComponent = TempWaterBodyComponent;
+
+				const bool bPrevIsInWater = Pontoon.bIsInWater;
+				const float ImmersionDepth = Pontoon.WaterHeight - PontoonBottom.Z;
+				/*check if the pontoon is currently in water*/
+				if (ImmersionDepth >= 0.f)
+				{
+					Pontoon.bIsInWater = true;
+					Pontoon.ImmersionDepth = ImmersionDepth;
+					NumPontoonsInWater++;
+				}
+				else
+				{
+					Pontoon.bIsInWater = false;
+					Pontoon.ImmersionDepth = 0.f;
+				}
+
+#if ENABLE_DRAW_DEBUG
+				if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
+				{
+					DrawDebugSphere(GetWorld(), Pontoon.CenterLocation, Pontoon.Radius, 16, FColor::Red, false, -1.f, 0, 1.f);
+				}
+#endif
+				ComputeBuoyancy(Pontoon, ForwardSpeedKmh);
+
+				if (Pontoon.bIsInWater && !bPrevIsInWater)
+				{
+					Pontoon.SplineSegments.Reset();
+					// BlueprintImplementables don't really work on the actor component level unfortunately, so call back in to the function defined on the actor itself.
+					OnPontoonEnteredWater(Pontoon);
+				}
+				if (!Pontoon.bIsInWater && bPrevIsInWater)
+				{
+					Pontoon.SplineSegments.Reset();
+					OnPontoonExitedWater(Pontoon);
+				}
+			}
+			PontoonIndex++;
+		}
+
+#if ENABLE_DRAW_DEBUG
+		if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
+		{
+			const float NumPoints = CVarWaterBuoyancyDebugPoints.GetValueOnAnyThread();
+			const float Size = CVarWaterBuoyancyDebugSize.GetValueOnAnyThread();
+			const float StartOffset = NumPoints * 0.5f;
+			const float Scale = Size / NumPoints;
+			TMap<const UWaterBodyComponent*, float> DebugSplineKeyMap;
+			TMap<const UWaterBodyComponent*, float> DebugSplineSegmentsMap;
+			for (int i = 0; i < NumPoints; ++i)
+			{
+				for (int j = 0; j < NumPoints; ++j)
+				{
+					FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - StartOffset) * Scale) + (FVector::ForwardVector * (j - StartOffset) * Scale);
+					GetWaterSplineKey(Location, DebugSplineKeyMap, DebugSplineSegmentsMap);
+					FVector Point(Location.X, Location.Y, GetWaterHeight(Location - FVector::UpVector * 200.f, DebugSplineKeyMap, GetOwner()->GetActorLocation().Z));
+					DrawDebugPoint(GetWorld(), Point, 5.f, IsOverlappingWaterBody() ? FColor::Green : FColor::Red, false, -1.f, 0);
+				}
+			}
+		}
+#endif
+	}
+	return NumPontoonsInWater;
+}
+
 void UCharonBuoyancyComponent::AddPontoons(float Radius, TArray<FVector> Locations)
 {
 	for (FVector location : Locations) {

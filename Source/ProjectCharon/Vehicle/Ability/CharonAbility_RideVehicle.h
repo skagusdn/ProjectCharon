@@ -37,7 +37,7 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	bool TryEnterVehicle(AVehicle* VehicleToEnter);
 	UFUNCTION(BlueprintCallable)
-	bool TryExitVehicle();
+	bool TryExitVehicle(bool bForcedExit = false);
 
 	
 	UPROPERTY(BlueprintReadOnly)

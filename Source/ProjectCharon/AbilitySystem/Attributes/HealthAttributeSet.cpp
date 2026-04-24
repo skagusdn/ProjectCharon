@@ -6,7 +6,7 @@
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
-UE_DEFINE_GAMEPLAY_TAG(TAG_Character_State_DamageImmunity, "Character.State.DamageImmunity");
+UE_DEFINE_GAMEPLAY_TAG(TAG_Status_DamageImmunity, "Status.Common.DamageImmunity");
 
 UHealthAttributeSet::UHealthAttributeSet()
 {
@@ -84,7 +84,7 @@ bool UHealthAttributeSet::PreGameplayEffectExecute(struct FGameplayEffectModCall
 		if(Data.EvaluatedData.Magnitude > 0.0f)
 		{
 			// 데미지 면역 상태일 경우.
-			if(Data.Target.HasMatchingGameplayTag(TAG_Character_State_DamageImmunity))
+			if(Data.Target.HasMatchingGameplayTag(TAG_Status_DamageImmunity))
 			{
 				Data.EvaluatedData.Magnitude = 0.0f;
 				return false;

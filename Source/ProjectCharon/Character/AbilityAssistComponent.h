@@ -69,7 +69,10 @@ protected:
 	void HandleAbilityCommitted(FAbilityCommitInfo AbilityCommitInfo);
 	UFUNCTION(Client, Reliable)
 	void Client_HandleAbilityCommitted(FAbilityCommitInfo AbilityCommitInfo);
-	
+
+	// // TagRelationShip 관련
+	// void InitTagRelationship();
+	// void OnRelatedTagAddedOrRemoved(FGameplayTag Tag);
 protected:
 	
 	UPROPERTY(Replicated)

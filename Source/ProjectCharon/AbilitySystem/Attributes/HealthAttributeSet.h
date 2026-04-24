@@ -8,7 +8,7 @@
 #include "NativeGameplayTags.h"
 #include "HealthAttributeSet.generated.h"
 
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Character_State_DamageImmunity);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Status_DamageImmunity);
 
 /**
  * 

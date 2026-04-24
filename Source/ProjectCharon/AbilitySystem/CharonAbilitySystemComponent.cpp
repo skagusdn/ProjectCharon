@@ -5,6 +5,7 @@
 
 #include "Abilities/CharonGameplayAbility.h"
 // "Engine/SpecularProfile.h"
+#include "CharonAbilityTagRelationshipMapping.h"
 #include "ProjectCharon.h"
 #include "Vehicle/Vehicle.h"
 //#include "Animation/AnimTrace.h"
@@ -195,6 +196,23 @@ void UCharonAbilitySystemComponent::TryActivateAbilitiesOnSpawn()
 	}
 }
 
+void UCharonAbilitySystemComponent::SetTagRelationshipMapping(UCharonAbilityTagRelationshipMapping* NewMapping)
+{
+	TagRelationshipMapping = NewMapping;
+
+	if(TagRelationshipMapping)
+	{
+		FGameplayTagContainer NonAbilityTags;
+		TagRelationshipMapping->GetNonAbilityRelationshipTags(&NonAbilityTags);
+
+		for(FGameplayTag Tag : NonAbilityTags)
+		{
+			RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::OnNonAbilityRelationshipTagChanged);
+		}
+	}
+	
+}
+
 void UCharonAbilitySystemComponent::CheckAttributeBinds()
 {
 	for(TTuple<FDelegateHandle, FGameplayAttribute> Tuple : AttributeBindHandles)
@@ -292,6 +310,24 @@ void UCharonAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilityS
 	UE_LOG(LogTemp, Display, TEXT("Ability - %s Has Granted"), *AbilitySpec.Ability.GetName());
 }
 
+void UCharonAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags,
+	UGameplayAbility* RequestingAbility, bool bEnableBlockTags, const FGameplayTagContainer& BlockTags,
+	bool bExecuteCancelTags, const FGameplayTagContainer& CancelTags)
+{
+	FGameplayTagContainer ModifiedBlockTags = BlockTags;
+	FGameplayTagContainer ModifiedCancelTags = CancelTags;
+
+	if(TagRelationshipMapping)
+	{
+		TagRelationshipMapping->GetAbilityTagsToBlockAndCancel(AbilityTags, &ModifiedBlockTags, &ModifiedCancelTags);
+	}
+	
+	Super::ApplyAbilityBlockAndCancelTags(AbilityTags, RequestingAbility, bEnableBlockTags, ModifiedBlockTags,
+	                                      bExecuteCancelTags, ModifiedCancelTags);
+
+	
+}
+
 void UCharonAbilitySystemComponent::InitAttributesWithDefaultData()
 {
 	// Init starting data
@@ -349,6 +385,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
+void UCharonAbilitySystemComponent::GetAdditionalActivationTagRequirements(const FGameplayTagContainer& AbilityTags,
+	FGameplayTagContainer& OutActivationRequired, FGameplayTagContainer& OutActivationBlocked) const
+{
+	if (TagRelationshipMapping)
+	{
+		TagRelationshipMapping->GetRequiredAndBlockedActivationTags(AbilityTags, &OutActivationRequired, &OutActivationBlocked);
+	}
+}
+
 TOptional<FGameplayAttribute> UCharonAbilitySystemComponent::FindAttribute(const FGameplayAttribute& AttributeToFind)
 {
 	TOptional<FGameplayAttribute> Ret;
@@ -365,4 +410,17 @@ TOptional<FGameplayAttribute> UCharonAbilitySystemComponent::FindAttribute(const
 	}
 	
 	return Ret;
+}
+
+void UCharonAbilitySystemComponent::OnNonAbilityRelationshipTagChanged(const FGameplayTag Tag, int32 TagCount)
+{
+	//태그가 추가된 경우
+	if(TagCount > 0)
+	{
+		ApplyAbilityBlockAndCancelTags(FGameplayTagContainer(Tag), nullptr, true,{}, true, {});
+		
+	} else //태그가 제거된 경우 블락 제거. 
+	{
+		ApplyAbilityBlockAndCancelTags(FGameplayTagContainer(Tag), nullptr, false,{}, false, {});
+	}
 }

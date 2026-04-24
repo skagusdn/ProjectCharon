@@ -73,7 +73,7 @@ public:
 	bool EnterVehicle(ACharacter* Rider);
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent)
-	bool ExitVehicle(ACharacter* Rider);
+	bool ExitVehicle(ACharacter* Rider, bool bForcedExit = false);
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	int32 FindRiderIdx(const ACharacter* Rider);
@@ -119,6 +119,10 @@ protected:
 	//탑승자의 메시를 Vehicle에 탈착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void DetachFromVehicle(ACharacter* Rider);
+	// 현재 캐릭터가 내릴만한 공간이 있는지.
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	bool CanDetachRider(ACharacter* Rider);
+	
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

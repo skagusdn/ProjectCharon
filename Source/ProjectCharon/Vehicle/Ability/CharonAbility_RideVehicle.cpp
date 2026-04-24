@@ -33,7 +33,7 @@ void UCharonAbility_RideVehicle::EndAbility(const FGameplayAbilitySpecHandle Han
 {
 	if(RidingVehicle != nullptr)
 	{
-		TryExitVehicle();
+		TryExitVehicle(true);
 	}
 	
 	
@@ -44,40 +44,7 @@ void UCharonAbility_RideVehicle::EndAbility(const FGameplayAbilitySpecHandle Han
 void UCharonAbility_RideVehicle::OnRidingVehicleDestroyed(AActor* DestroyedActor)
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-	//--------
-	
-	// AVehicle* DestroyedVehicle = Cast<AVehicle>(DestroyedActor);
-	// if(!DestroyedVehicle || DestroyedVehicle != RidingVehicle)
-	// {
-	// 	UE_LOG(LogCharon, Error, TEXT("OnRidingVehicle Destroyed - Vehicle Not Matched"));
-	// 	return;
-	// }
-	//
-	// if(!Rider)
-	// {
-	// 	UE_LOG(LogCharon,Error,TEXT("OnRidingVehicleDestroyed Failed : Rider is not valid."));
-	// 	return;
-	// }
-	//
-	// // 아마 시도는 하지만 파괴되는 액터기에 RPC 함수라던가 로직 중 일부는 제대로 작동 안할 수도 있음. 
-	// TryExitVehicle();
-	//
-	// if(UVehicleRiderComponent* RiderComponent = UVehicleRiderComponent::FindRiderComponent(Rider))
-	// {
-	// 	if(RiderComponent->GetRidingVehicle() == DestroyedVehicle)
-	// 	{
-	// 		RiderComponent->SetRidingVehicle(nullptr);	
-	// 	}
-	// 	else
-	// 	{
-	// 		UE_LOG(LogCharon, Error, TEXT("OnRidingVehicle Destroyed - Vehicle not matched with RiderComponent"));
-	// 	}
-	// }
-	//
-	// //RidingVehicle이 아닌 DestroyedVehicle을 쓴 이유는 TryExitVehicle에서 아마 초기화 될거라.
-	// // 그래도 혹시 모르니까 확실하게 nullptr 다시 넣어주기.
-	// DestroyedVehicle->OnDestroyed.RemoveAll(this);
-	// RidingVehicle = nullptr;
+
 }
 
 
@@ -122,7 +89,7 @@ bool UCharonAbility_RideVehicle::TryEnterVehicle(AVehicle* VehicleToEnter)
 	return true;
 }
 
-bool UCharonAbility_RideVehicle::TryExitVehicle()
+bool UCharonAbility_RideVehicle::TryExitVehicle(bool bForcedExit)
 {
 	if(RidingVehicle && Rider)
 	{
@@ -130,7 +97,7 @@ bool UCharonAbility_RideVehicle::TryExitVehicle()
 	
 		if(RiderIdx >= 0)
 		{
-			if(!RidingVehicle->ExitVehicle(Rider))
+			if(!RidingVehicle->ExitVehicle(Rider, bForcedExit))
 			{
 				UE_LOG(LogCharon,Warning,TEXT("TryExitVehicle Failed : Rider has denied to leave Vehicle"));
 				return false;

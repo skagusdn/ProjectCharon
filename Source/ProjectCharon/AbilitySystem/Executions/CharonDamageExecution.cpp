@@ -51,5 +51,7 @@ void UCharonDamageExecution::Execute_Implementation(const FGameplayEffectCustomE
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(UHealthAttributeSet::GetDamageAttribute(), EGameplayModOp::Additive, DamageAmount));
 	}
 
+	
+
 #endif
 }

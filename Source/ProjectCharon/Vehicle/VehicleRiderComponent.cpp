@@ -99,6 +99,17 @@ void UVehicleRiderComponent::Client_HandleVehicleAbilityCommitted_Implementation
 void UVehicleRiderComponent::HandleVehicleAbilityCommit(FAbilityCommitInfo AbilityCommitInfo)
 {
 	OnVehicleAbilityCommitted.Broadcast(AbilityCommitInfo);
+
+	// ///
+	// if(GetOwner()->HasAuthority())
+	// {
+	// 	UE_LOG(LogTemp, Display, TEXT("VehicleAbility Committed TEST SERVER %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
+	// }
+	// else
+	// {
+	// 	UE_LOG(LogTemp, Display, TEXT("VehicleAbility Committed TEST Client %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
+	// }
+	// ////
 }
 
 // void UVehicleRiderComponent::Server_OnVehicleAbilityActivated(UGameplayAbility* Ability)
@@ -155,7 +166,7 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 	{
 		bIsRidingVehicle = false;
 
-		// 베히클 어빌리티 커밋 콜백 바인딩 해제 -> 머라는겨
+		//베히클이 어빌리티 발동시켰을 때 호출되게 한 콜백함수 바인딩 해제
 		if(OldVehicle)
 		{
 			if(UAbilitySystemComponent* VehicleASC = OldVehicle->GetAbilitySystemComponent())
@@ -174,6 +185,11 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 		{
 			CharonRider->ResetAbilityConfig();
 		}
+	}
+
+	if(OldVehicle != RidingVehicle)
+	{
+		OnRidingVehicleChanged.Broadcast(RidingVehicle);	
 	}
 	
 }

@@ -42,13 +42,17 @@ void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputC
 	{
 		if(const UInputAction* InputAction = InputConfig->FindNativeInputActionForTag(Element.Key, false))
 		{
-			const ETriggerEvent TriggerEvent = Element.Value.TriggerEvent;
+			//const ETriggerEvent TriggerEvent = Element.Value.TriggerEvent;
+			TArray<ETriggerEvent> TriggerEvents = Element.Value.TriggerEvents;
 
-			ACharonCharacter* CharonCharacter =  Cast<ACharonCharacter>(Initiator);
-			BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, CharonCharacter, Element](const FInputActionValue& Value)
+			for(ETriggerEvent TriggerEvent : TriggerEvents)
 			{
-				CharonCharacter->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
-			}).GetHandle() );
+				ACharonCharacter* CharonCharacter =  Cast<ACharonCharacter>(Initiator);
+				BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, CharonCharacter, Element](const FInputActionValue& Value)
+				{
+					CharonCharacter->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
+				}).GetHandle() );
+			}
 		}
 	}
 	

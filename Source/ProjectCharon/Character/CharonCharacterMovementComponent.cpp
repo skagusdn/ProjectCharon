@@ -53,6 +53,7 @@ float UCharonCharacterMovementComponent::ImmersionDepth() const
 	//return Super::ImmersionDepth();
 }
 
+
 USwimBuoyancyComponent* UCharonCharacterMovementComponent::GetSwimBuoyancyComponent()
 {
 	if(SwimBuoyancyComponent)
@@ -76,7 +77,11 @@ void UCharonCharacterMovementComponent::PhysSwimming(float deltaTime, int32 Iter
 	float NetFluidFriction  = 0.f;
 	// ! GetSwimBuoyancyComponent로 SwimBuoyancyComponent초기화하는거니까 빼면 안됨!
 	float Depth = GetSwimBuoyancyComponent() ? ImmersionDepth() : 0.0f;
+
+	// Depth의 1초과분은 부력에만 적용. Depth는 다시 정규화.
 	float NetBuoyancy = Buoyancy * Depth;
+	Depth = FMath::Clamp(Depth, 0.f, 1.f);
+	
 	float OriginalAccelZ = GetGravitySpaceZ(Acceleration);
 	bool bLimitedUpAccel = false;
 	

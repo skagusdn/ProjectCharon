@@ -4,6 +4,7 @@
 #include "AbilityAssistComponent.h"
 
 #include "CharonGameplayTags.h"
+#include "AbilitySystem/CharonAbilityTagRelationshipMapping.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -79,6 +80,12 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 	
 	AbilitySystemComponent = InASC;
 	AbilitySystemComponent->InitAbilityActorInfo(InOwnerActor, GetOwner());
+
+	if(ensure(DefaultAbilityConfig) && DefaultAbilityConfig->TagRelationshipMapping)
+	{
+		InASC->SetTagRelationshipMapping(DefaultAbilityConfig->TagRelationshipMapping);
+	}
+	
 	//혹시 몰라서 if문 만들긴 했지만 Client는 위에서 컷되더라구.
 	if(GetOwner()->HasAuthority())
 	{
@@ -191,17 +198,47 @@ void UAbilityAssistComponent::Server_HandleAbilityCommitted(UGameplayAbility* Ab
 void UAbilityAssistComponent::HandleAbilityCommitted(FAbilityCommitInfo AbilityCommitInfo)
 {
 	OnAbilityCommitted.Broadcast(AbilityCommitInfo);
-	///
-	if(GetOwner()->HasAuthority())
-	{
-		UE_LOG(LogTemp, Display, TEXT("Ability Committed TEST SERVER %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Display, TEXT("Ability Committed TEST Client %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
-	}
-	////
+	// ///
+	// if(GetOwner()->HasAuthority())
+	// {
+	// 	UE_LOG(LogTemp, Display, TEXT("Ability Committed TEST SERVER %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
+	// }
+	// else
+	// {
+	// 	UE_LOG(LogTemp, Display, TEXT("Ability Committed TEST Client %s %f %f"), *AbilityCommitInfo.Ability.GetName(), AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown);
+	// }
+	// ////
 }
+
+// void UAbilityAssistComponent::InitTagRelationship()
+// {
+// 	UCharonAbilityTagRelationshipMapping* TagRelationship = DefaultAbilityConfig->TagRelationshipMapping; 
+// 	if(!AbilitySystemComponent || !DefaultAbilityConfig || !TagRelationship)
+// 	{
+// 		return;
+// 	}
+// 	
+// 	
+// 	AbilitySystemComponent->SetTagRelationshipMapping(TagRelationship);
+// 	
+// 	FGameplayTagContainer NonAbilityTags;
+// 	TagRelationship->GetNonAbilityRelationshipTags(&NonAbilityTags);
+//
+// 	for(FGameplayTag Tag : NonAbilityTags)
+// 	{
+// 		AbilitySystemComponent->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved).Add
+// 	}
+// 	
+// }
+
+// void UAbilityAssistComponent::OnRelatedTagAddedOrRemoved(FGameplayTag Tag)
+// {
+// 	UCharonAbilityTagRelationshipMapping* TagRelationship = DefaultAbilityConfig->TagRelationshipMapping;
+// 	ensure(AbilitySystemComponent && TagRelationship);
+//
+// 	AbilitySystemComponent->Tag
+// 	TagRelationship->GetAbilityTagsToBlockAndCancel(Tag, )
+// }
 
 void UAbilityAssistComponent::Client_HandleAbilityCommitted_Implementation(FAbilityCommitInfo AbilityCommitInfo)
 {

@@ -19,6 +19,8 @@ public:
 	UCharonCharacterMovementComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual float ImmersionDepth() const override;
+
+
 protected:
 
 	USwimBuoyancyComponent* GetSwimBuoyancyComponent();
@@ -26,6 +28,7 @@ protected:
 	
 	virtual void PhysSwimming(float deltaTime, int32 Iterations) override;
 
+	FVector SmoothedBuoyAccel = FVector::ZeroVector;
 public:
 	
 };

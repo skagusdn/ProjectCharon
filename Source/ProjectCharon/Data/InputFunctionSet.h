@@ -16,7 +16,8 @@ struct FInputActionDelegateWithTriggerEvent
 	GENERATED_BODY()
 	
 	FInputActionDelegate Delegate;
-	ETriggerEvent TriggerEvent = ETriggerEvent::Triggered;
+	//ETriggerEvent TriggerEvent = ETriggerEvent::Triggered;
+	TArray<ETriggerEvent> TriggerEvents = {ETriggerEvent::Triggered};
 	bool bNeedServerRPC = false;	
 };
 
@@ -31,7 +32,7 @@ public:
 	AInputFunctionSet();
 	
 	UFUNCTION(BlueprintCallable)
-	void AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, ETriggerEvent TriggerEvent = ETriggerEvent::Triggered, const bool bNeedServerRPC = false );
+	void AddEvent(FGameplayTag Tag, FInputActionDelegate Delegate, TArray<ETriggerEvent> TriggerEvents, const bool bNeedServerRPC = false );
 
 	UFUNCTION(BlueprintCallable)
 	void ExecuteInputFunctionByTag(const FInputActionValue& Value, FGameplayTag Tag, ACharacter* Executor);

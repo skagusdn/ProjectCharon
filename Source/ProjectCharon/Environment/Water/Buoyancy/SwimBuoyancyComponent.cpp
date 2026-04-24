@@ -5,15 +5,20 @@
 
 #include "Logging.h"
 //#include "MovieSceneTracksComponentTypes.h"
+#include "WaterBodyActor.h"
 #include "Components/SphereComponent.h"
 //#include "Subsystems/PropertyVisibilityOverrideSubsystem.h"
 
 
 // Sets default values for this component's properties
-USwimBuoyancyComponent::USwimBuoyancyComponent()
+USwimBuoyancyComponent::USwimBuoyancyComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	WaterCheckPontoonIndex = -1;
 	SwimCheckPontoonIndex = -1;
+
+	bDrawDebugPontoonShapes = false;
+	PrimaryComponentTick.bStartWithTickEnabled = true;// 틱이 제대로 안되는 것 같아서 시작부터 틱켜지게.
+	bUpdatePontoonsOutOfWater = true;
 }
 
 void USwimBuoyancyComponent::BeginPlay()
@@ -58,9 +63,53 @@ void USwimBuoyancyComponent::BeginPlay()
 		OnExitedWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::USwimBuoyancyComponent::CheckSwimPontoonExitedWater);
 		
 	}
-	
 
-	
+	//
+	if(GetWorld())
+	{
+		FTimerHandle TimerHandle;
+		FTimerDelegate TimerDelegate;
+		TimerDelegate.BindLambda([This = this]()->void
+		{
+			if(This->WaterCheckPontoonIndex > 0 && This->BuoyancyData.Pontoons.Num() > This->WaterCheckPontoonIndex)
+			{
+				FSphericalPontoon& WaterCheckPontoon = This->BuoyancyData.Pontoons[This->WaterCheckPontoonIndex];
+				if(This->bDrawDebugPontoonShapes)
+				{
+					if(USphereComponent* DebugSphere = This->DebugSphereComponents[This->WaterCheckPontoonIndex])
+					{
+						TArray<AActor*> OutActors;
+						DebugSphere->GetOverlappingActors(OutActors);
+
+						bool bOverlappingWaterBody = false;
+						for(AActor* Actor : OutActors)
+						{
+							if(Cast<AWaterBody>(Actor))
+							{
+								bOverlappingWaterBody = true;
+								break;
+							}
+						}
+
+						if(bOverlappingWaterBody)
+						{
+							UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon IS overlapping WaterBody"));	
+						}
+						else
+						{
+							UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon is NOT overlapping WaterBody"));
+						}
+					}
+				}
+				
+				UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f, LocalForce : %s"),
+					WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, This->GetImmersionDepth(),*WaterCheckPontoon.LocalForce.ToString());	
+			}
+			
+		});
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.f, true);
+	}
+	//
 	
 	
 }
@@ -261,6 +310,16 @@ void USwimBuoyancyComponent::NotifyDebugPontoonExitedWater(const FSphericalPonto
 	}
 }
 
+bool USwimBuoyancyComponent::GetIsSwimming() const
+{
+	if(SwimCheckPontoonIndex >= 0 && SwimCheckPontoonIndex < BuoyancyData.Pontoons.Num())
+	{
+		return BuoyancyData.Pontoons[SwimCheckPontoonIndex].bIsInWater;
+	}
+	return false;
+}
+
+
 #endif
 
 float USwimBuoyancyComponent::GetImmersionDepth()
@@ -278,12 +337,28 @@ float USwimBuoyancyComponent::GetImmersionDepth()
 
 		//일단 임시.
 		//폰툰의 immersionDepth 가 어떤식으로 작동하는지 자세하게는 모르지만 그냥 잠겨있는 깊이라고 가정하면,
-		//폰툰의 radius(반경) 기준으로.. 반경 맞지? 잠겨있는 깊이가 반경 넘으면 1, 물에 안닿이있으면 0.
-		return FMath::Min(1.f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius))));
+		//폰툰의 radius(반경) 기준으로.. 반경 맞지? 잠겨있는 깊이가 폰툰의 직경을 넘으면 1, 반경 넘으면 0.5, 물에 안닿이있으면 0.
+		// 를 취소하고 수정중
+		return FMath::Min(3.0f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius))));
 	}
 
 	return 0.0f;
 }
+
+// FVector USwimBuoyancyComponent::GetSwimBuoyancy()
+// {
+// 	if(WaterCheckPontoonIndex >= 0 && WaterCheckPontoonIndex < BuoyancyData.Pontoons.Num())
+// 	{
+// 		return BuoyancyData.Pontoons[WaterCheckPontoonIndex].LocalForce;	
+// 	}
+// 	return FVector::ZeroVector;
+// }
+
+// FString USwimBuoyancyComponent::GetDebugString()
+// {
+// 	return FString::Printf(TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f"),
+// 					WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, GetImmersionDepth());
+// }
 
 void USwimBuoyancyComponent::CheckSwimPontoonEnteredWater(const FSphericalPontoon& Pontoon)
 {

@@ -19,22 +19,7 @@ class AVehicle;
 
 //DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, UGameplayAbility*, CommittedAbility);
 
-
-// USTRUCT(BlueprintType)
-// struct FAbilityCommitInfo
-// {
-// 	GENERATED_BODY()
-//
-// 	UPROPERTY(BlueprintReadOnly)
-// 	TObjectPtr<UGameplayAbility> Ability = nullptr;
-//
-// 	UPROPERTY(BlueprintReadOnly)
-// 	float CooldownDuration = 0.f;
-//
-// 	UPROPERTY(BlueprintReadOnly)
-// 	float RemainingCooldown = 0.f;
-// };
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleChangedDelegate, AVehicle*, NewVeihlce);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, FAbilityCommitInfo, CommittedAbility);
 
 /* 캐릭터에서 Vehicle 탑승 처리하는 컴포넌트.
@@ -71,6 +56,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FVehicleAbilityCommittedDelegate OnVehicleAbilityCommitted;
+
+	UPROPERTY(BlueprintAssignable)
+	FVehicleChangedDelegate OnRidingVehicleChanged;
+	
 protected:
 
 	// UFUNCTION(Client, Reliable)

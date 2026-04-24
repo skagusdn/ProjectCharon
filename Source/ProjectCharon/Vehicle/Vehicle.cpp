@@ -62,7 +62,7 @@ void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 		for(ACharacter* Rider : RidersToExit)
 		{
-			ExitVehicle(Rider);
+			ExitVehicle(Rider, true);
 		}
 	}
 	
@@ -222,11 +222,20 @@ bool AVehicle::EnterVehicle_Implementation(ACharacter* Rider)
 	return Ret >= 0;
 }
 
-bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider)
+bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider, bool bForcedExit)
 {
-	if(!HasAuthority())
+	// 강제 여부를 추가 해놓은 이유 : 배가 파괴되거나 탑승 어빌리티가 종료되는 등 반드시
+	// 어빌리티를 종료시켜야할 때는 검사 없이 종료시키기 위해서.
+	
+	if(!HasAuthority() )
 	{
 		return false;;
+	}
+
+	// 내릴 공간이 없는데 강제 Exit이 아닌 경우.
+	if(!CanDetachRider(Rider) && !bForcedExit)
+	{
+		return false;
 	}
 	
 	const bool Ret = UnregisterRider(Rider);
