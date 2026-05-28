@@ -5,6 +5,8 @@
 #include "SplineComponentVisualizer.h"
 #include "WaterSplineComponentVisualizer.generated.h"
 
+#define UE_API WATEREDITOR_API
+
 class UWaterSplineComponent;
 
 class AActor;
@@ -20,8 +22,8 @@ struct FViewportClick;
 struct FConvexVolume;
 
 /** Selection state data that will be captured by scoped transactions.*/
-UCLASS(Transient)
-class WATEREDITOR_API UWaterSplineComponentVisualizerSelectionState : public USplineComponentVisualizerSelectionState
+UCLASS(MinimalAPI, Transient)
+class UWaterSplineComponentVisualizerSelectionState : public USplineComponentVisualizerSelectionState
 {
 	GENERATED_BODY()
 
@@ -62,7 +64,7 @@ protected:
 /** Base class for clickable water spline editing proxies */
 struct HWaterSplineVisProxy : public HComponentVisProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineVisProxy(const UActorComponent* InComponent)
 	: HComponentVisProxy(InComponent, HPP_Wireframe)
@@ -72,7 +74,7 @@ struct HWaterSplineVisProxy : public HComponentVisProxy
 /** Base class for clickable water spline editing proxies associated with a spline key */
 struct HWaterSplineKeyProxy : public HWaterSplineVisProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineKeyProxy(const UActorComponent* InComponent, int32 InKeyIndex)
 		: HWaterSplineVisProxy(InComponent)
@@ -85,7 +87,7 @@ struct HWaterSplineKeyProxy : public HWaterSplineVisProxy
 /** Proxy for a water velocity handle */
 struct HWaterSplineWaterVelocityProxy : public HWaterSplineKeyProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineWaterVelocityProxy(const UActorComponent* InComponent, int32 InKeyIndex)
 		: HWaterSplineKeyProxy(InComponent, InKeyIndex)
@@ -95,7 +97,7 @@ struct HWaterSplineWaterVelocityProxy : public HWaterSplineKeyProxy
 /** Proxy for a river width handle */
 struct HWaterSplineRiverWidthProxy : public HWaterSplineKeyProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineRiverWidthProxy(const UActorComponent* InComponent, int32 InKeyIndex)
 		: HWaterSplineKeyProxy(InComponent, InKeyIndex)
@@ -105,7 +107,7 @@ struct HWaterSplineRiverWidthProxy : public HWaterSplineKeyProxy
 /** Proxy for a water depth handle */
 struct HWaterSplineDepthProxy : public HWaterSplineKeyProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineDepthProxy(const UActorComponent* InComponent, int32 InKeyIndex)
 		: HWaterSplineKeyProxy(InComponent, InKeyIndex)
@@ -115,7 +117,7 @@ struct HWaterSplineDepthProxy : public HWaterSplineKeyProxy
 /** Proxy for a water shoreline audio intensity handle */
 struct HWaterSplineAudioIntensityProxy : public HWaterSplineKeyProxy
 {
-	DECLARE_HIT_PROXY();
+	DECLARE_HIT_PROXY( UE_API );
 
 	HWaterSplineAudioIntensityProxy(const UActorComponent* InComponent, int32 InKeyIndex)
 		: HWaterSplineKeyProxy(InComponent, InKeyIndex)
@@ -190,3 +192,5 @@ protected:
 	/** Action command list */
 	TSharedPtr<FUICommandList> WaterSplineComponentVisualizerActions;
 };
+
+#undef UE_API

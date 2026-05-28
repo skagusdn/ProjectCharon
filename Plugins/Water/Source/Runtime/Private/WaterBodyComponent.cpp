@@ -431,19 +431,11 @@ void UWaterBodyComponent::UpdateWaterZones(bool bAllowChangesDuringCook /* = fal
 				return;
 			}
 
-			// 수정 // 로직 교체 -> 워터 스플라인에서 범위 가져오기. 
-			FBox TempBox = CalcBounds(GetComponentToWorld()).GetBox();
-			if(GetWaterSpline() != nullptr)
-			{
-				UWaterSplineComponent* WaterSplineComponent = GetWaterSpline();
-				TempBox = WaterSplineComponent->CalcBounds(WaterSplineComponent->GetComponentToWorld()).GetBox();
-			}
-			const FBox Bounds3D = TempBox;
+			const FBox Bounds3D = CalcBounds(GetComponentToWorld()).GetBox();
 
 			const AActor* ActorOwner = GetTypedOuter<AActor>();
 			const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
-			//FoundZone = UWaterSubsystem::FindWaterZone(World, FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
-			FoundZone = UWaterSubsystem::FindWaterZone3D(World, Bounds3D, PreferredLevel); // 여기가 수정한 부분.
+			FoundZone = UWaterSubsystem::FindWaterZone(World, FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
 		}
 
 		if (OwningWaterZone != FoundZone)
@@ -513,6 +505,10 @@ FPostProcessVolumeProperties UWaterBodyComponent::GetPostProcessProperties() con
 	Ret.BlendWeight = UnderwaterPostProcessSettings.BlendWeight;
 	Ret.Priority = UnderwaterPostProcessSettings.Priority;
 	Ret.Settings = &CurrentPostProcessSettings;
+	Ret.Size = Bounds.GetBox().GetVolume();
+
+	// We can give this a singleton Guid, because only one water body is activated at a time, depending on player location.
+	Ret.VolumeGuid = FGuid(0xe0809956, 0xa2eb49f2, 0xb4f0aa6c, 0x143c89b1);
 	return Ret;
 }
 
@@ -625,6 +621,25 @@ bool UWaterBodyComponent::IsWorldLocationInExclusionVolume(const FVector& InWorl
 	}
 
 	return false;
+}
+
+TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> UWaterBodyComponent::TryQueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, const TOptional<float>& InSplineInputKey) const
+{
+	if (!IsRegistered())
+	{
+		return MakeError(EWaterBodyQueryError::WaterBodyNotRegistered);
+	}
+
+	if (WaterSplineMetadata == nullptr)
+	{
+		return MakeError(EWaterBodyQueryError::NullWaterSplineMetadata);
+	}
+
+	// TryQuery is implemented in such a way that it calls into the old virtual function so existing implementations
+	// are used until the old impl is removed and we can move the implementation into TryQuery.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return MakeValue(QueryWaterInfoClosestToWorldLocation(InWorldLocation, InQueryFlags, InSplineInputKey));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, const TOptional<float>& InSplineInputKey) const
@@ -851,7 +866,7 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 
 }
 
-void UWaterBodyComponent::GetWaterSurfaceInfoAtLocation(const FVector& InLocation, FVector& OutWaterSurfaceLocation, FVector& OutWaterSurfaceNormal, FVector& OutWaterVelocity, float& OutWaterDepth, bool bIncludeDepth /* = false */) const
+bool UWaterBodyComponent::GetWaterSurfaceInfoAtLocation(const FVector& InLocation, FVector& OutWaterSurfaceLocation, FVector& OutWaterSurfaceNormal, FVector& OutWaterVelocity, float& OutWaterDepth, bool bIncludeDepth /* = false */) const
 {
 	EWaterBodyQueryFlags QueryFlags =
 		EWaterBodyQueryFlags::ComputeLocation
@@ -863,15 +878,23 @@ void UWaterBodyComponent::GetWaterSurfaceInfoAtLocation(const FVector& InLocatio
 		QueryFlags |= EWaterBodyQueryFlags::ComputeDepth;
 	}
 
-	FWaterBodyQueryResult QueryResult = QueryWaterInfoClosestToWorldLocation(InLocation, QueryFlags);
-	OutWaterSurfaceLocation = QueryResult.GetWaterSurfaceLocation();
-	OutWaterSurfaceNormal = QueryResult.GetWaterSurfaceNormal();
-	OutWaterVelocity = QueryResult.GetVelocity();
+	const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = TryQueryWaterInfoClosestToWorldLocation(InLocation, QueryFlags);
+	if (!QueryResult.HasValue())
+	{
+		return false;
+	}
+
+	const FWaterBodyQueryResult& Query = QueryResult.GetValue();
+	OutWaterSurfaceLocation = Query.GetWaterSurfaceLocation();
+	OutWaterSurfaceNormal = Query.GetWaterSurfaceNormal();
+	OutWaterVelocity = Query.GetVelocity();
 
 	if (bIncludeDepth)
 	{
-		OutWaterDepth = QueryResult.GetWaterSurfaceDepth();
+		OutWaterDepth = Query.GetWaterSurfaceDepth();
 	}
+
+	return true;
 }
 
 float UWaterBodyComponent::GetWaterVelocityAtSplineInputKey(float InKey) const
@@ -1136,12 +1159,6 @@ ALandscapeProxy* UWaterBodyComponent::FindLandscape() const
 		}
 	}
 	return Landscape.Get();
-}
-
-// Deprecated
-void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterZoneRebuild)
-{
-	UpdateVisibility();
 }
 
 void UWaterBodyComponent::UpdateVisibility()
@@ -1720,6 +1737,7 @@ void UWaterBodyComponent::Serialize(FArchive& Ar)
 			// If a user _had_ overriden the material, it would have been set in UObject::Serialize.
 			if (WaterInfoMaterial == nullptr)
 			{
+				FCookLoadScope UsedInGameScope(ECookLoadType::UsedInGame);
 				WaterInfoMaterial = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterInfoMaterial();
 			}
 		}
@@ -1952,6 +1970,7 @@ bool UWaterBodyComponent::SetDynamicParametersOnWaterInfoMID(UMaterialInstanceDy
 
 float UWaterBodyComponent::GetWaveReferenceTime() const
 {
+	
 	if (HasWaves())
 	{
 		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))

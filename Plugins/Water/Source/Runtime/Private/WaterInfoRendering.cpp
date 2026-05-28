@@ -398,7 +398,7 @@ public:
 	IMPLEMENT_CUSTOM_RENDER_PASS(FWaterInfoRenderingDepthPass);
 
 	FWaterInfoRenderingDepthPass(const FIntPoint& InRenderTargetSize, const TMap<uint32, int32>& InLandscapeLODOverrides)
-		: FWaterInfoCustomRenderPassBase(TEXT("WaterInfoDepthPass"), FCustomRenderPassBase::ERenderMode::DepthPass, FCustomRenderPassBase::ERenderOutput::DeviceDepth, InRenderTargetSize)
+		: FWaterInfoCustomRenderPassBase(TEXT("WaterInfoDepthPass"), FCustomRenderPassBase::ERenderMode::DepthPass, FCustomRenderPassBase::ERenderOutput::SceneDepth, InRenderTargetSize)
 	{
 		if (!InLandscapeLODOverrides.IsEmpty())
 		{
@@ -408,7 +408,7 @@ public:
 
 	virtual void OnPreRender(FRDGBuilder& GraphBuilder) override
 	{
-		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2D(RenderTargetSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2D(RenderTargetSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 		RenderTargetTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("WaterDepthTexture"));
 		AddClearRenderTargetPass(GraphBuilder, RenderTargetTexture, FLinearColor::Black, Views[0]->UnscaledViewRect);
 	}
@@ -447,22 +447,24 @@ public:
 	IMPLEMENT_CUSTOM_RENDER_PASS(FWaterInfoRenderingDilationPass);
 
 	FWaterInfoRenderingDilationPass(const FIntPoint& InRenderTargetSize)
-		: FWaterInfoCustomRenderPassBase(TEXT("WaterInfoDilationPass"), FCustomRenderPassBase::ERenderMode::DepthPass, FCustomRenderPassBase::ERenderOutput::DeviceDepth, InRenderTargetSize)
+		: FWaterInfoCustomRenderPassBase(TEXT("WaterInfoDilationPass"), FCustomRenderPassBase::ERenderMode::DepthPass, FCustomRenderPassBase::ERenderOutput::SceneDepth, InRenderTargetSize)
 	{}
 
 	virtual void OnPreRender(FRDGBuilder& GraphBuilder) override
 	{
-		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2D(RenderTargetSize, WaterInfoRenderTarget->GetRenderTargetTexture()->GetDesc().Format, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2D(RenderTargetSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 		RenderTargetTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("WaterDilationTexture"));
 		AddClearRenderTargetPass(GraphBuilder, RenderTargetTexture, FLinearColor::Black, Views[0]->UnscaledViewRect);
 	}
 	
 	virtual void OnPostRender(FRDGBuilder& GraphBuilder) override
 	{
-		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(RenderTargetTexture->Desc, TEXT("WaterInfoMerged"));
+		const FRDGTextureDesc ResultTextureDesc = FRDGTextureDesc::Create2D(RenderTargetSize, WaterInfoRenderTarget->GetRenderTargetTexture()->GetDesc().Format, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		
+		FRDGTextureRef MergeTargetTexture = GraphBuilder.CreateTexture(ResultTextureDesc, TEXT("WaterInfoMerged"));
 		MergeWaterInfoAndDepth(GraphBuilder, *Views[0]->Family, *Views[0], MergeTargetTexture, DepthPass->GetRenderTargetTexture(), ColorPass->GetRenderTargetTexture(), RenderTargetTexture, Params);
 	
-		FRDGTextureRef FinalizedTexture = GraphBuilder.CreateTexture(RenderTargetTexture->Desc, TEXT("WaterInfoFinalized"));
+		FRDGTextureRef FinalizedTexture = GraphBuilder.CreateTexture(ResultTextureDesc, TEXT("WaterInfoFinalized"));
 		FinalizeWaterInfo(GraphBuilder, *Views[0]->Family, *Views[0], MergeTargetTexture, FinalizedTexture, Params);
 
 		FRDGTextureRef WaterInfoTexture = RegisterExternalTexture(GraphBuilder, WaterInfoRenderTarget->GetRenderTargetTexture(), TEXT("WaterInfoTexture"));

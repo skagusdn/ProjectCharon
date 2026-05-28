@@ -2,6 +2,8 @@
 #include "BakedShallowWaterSimulationComponent.h"
 #include "WaterBodyActor.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BakedShallowWaterSimulationComponent)
+
 void FShallowWaterSimulationGrid::SampleShallowWaterSimulationAtIndex(const FVector2D &QueryFloatIndex, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
 {
 	OutWaterHeight = 0;

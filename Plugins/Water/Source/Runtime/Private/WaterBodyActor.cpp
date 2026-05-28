@@ -194,14 +194,19 @@ void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, WaterWaves))
 	{
-		WaterBodyComponent->RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
+		// Avoid calling OnWaterBodyChanged on templates. When changing properties from the BP editor this prevents
+		// the CDO from generating and adding collision components to the Blueprint unintentionally
+		if (!IsTemplate())
+		{
+			WaterBodyComponent->RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
 
-		WaterBodyComponent->RequestGPUWaveDataUpdate();
+			WaterBodyComponent->RequestGPUWaveDataUpdate();
 
-		FOnWaterBodyChangedParams Params;
-		// Waves data affect the navigation : 
-		Params.bShapeOrPositionChanged = true;
-		WaterBodyComponent->OnWaterBodyChanged(Params);
+			FOnWaterBodyChangedParams Params;
+			// Waves data affect the navigation : 
+			Params.bShapeOrPositionChanged = true;
+			WaterBodyComponent->OnWaterBodyChanged(Params);
+		}
 	}
 }
 

@@ -16,20 +16,20 @@ class UWaterWavesBase : public UObject
 
 public:
 	/** Returns the maximum wave height that can be reached by those waves */
-	UE_API virtual float GetMaxWaveHeight() const PURE_VIRTUAL(UWaterWavesBase::GetMaxWaveHeight, return 0.0f;)
+	virtual float GetMaxWaveHeight() const PURE_VIRTUAL(UWaterWavesBase::GetMaxWaveHeight, return 0.0f;)
 
 	/** Return the underlying Water class type. This will jump through the potential UWaterWavesAssetReference to get to the actual wave data */
-	UE_API virtual const UWaterWaves* GetWaterWaves() const PURE_VIRTUAL(UWaterWavesBase::GetWaterWaves, return nullptr;)
-	UE_API virtual UWaterWaves* GetWaterWaves() PURE_VIRTUAL(UWaterWavesBase::GetWaterWaves, return nullptr;)
+	virtual const UWaterWaves* GetWaterWaves() const PURE_VIRTUAL(UWaterWavesBase::GetWaterWaves, return nullptr;)
+	virtual UWaterWaves* GetWaterWaves() PURE_VIRTUAL(UWaterWavesBase::GetWaterWaves, return nullptr;)
 
 	/** Computes the raw wave perturbation of the water height/normal */
-	UE_API virtual float GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const PURE_VIRTUAL(UWaterWavesBase::GetWaveHeightAtPosition, return 0.0f;)
+	virtual float GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const PURE_VIRTUAL(UWaterWavesBase::GetWaveHeightAtPosition, return 0.0f;)
 
 	/** Computes the raw wave perturbation of the water height only (simple version : faster computation) */
-	UE_API virtual float GetSimpleWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime) const PURE_VIRTUAL(UWaterWavesBase::GetSimpleWaveHeightAtPosition, return 0.0f;)
+	virtual float GetSimpleWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime) const PURE_VIRTUAL(UWaterWavesBase::GetSimpleWaveHeightAtPosition, return 0.0f;)
 
 	/** Computes the attenuation factor to apply to the raw wave perturbation. Attenuates : normal/wave height/max wave height. */
-	UE_API virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth, float InTargetWaveMaskDepth) const PURE_VIRTUAL(UWaterWavesBase::GetWaveAttenuationFactor, return 0.0f;)
+	virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth, float InTargetWaveMaskDepth) const PURE_VIRTUAL(UWaterWavesBase::GetWaveAttenuationFactor, return 0.0f;)
 
 #if WITH_EDITOR
 	UE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

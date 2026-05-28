@@ -75,6 +75,22 @@ struct FBuoyancySettings
 	uint32 SplineKeyCacheLimit = 256;
 };
 
+class FBuoyancyCollisionData
+{
+	public:
+		FBuoyancyCollisionData(UBuoyancySubsystem *InTheBuoyancySubsystem, TArray<const TSharedPtr<FBuoyancyWaterSplineData>> InWaterBodyCollisionData)
+		: TheBuoyancySubsystem(InTheBuoyancySubsystem)
+		, WaterBodyCollisionData(InWaterBodyCollisionData) 
+		{}
+		
+		FBuoyancyCollisionData() 
+		: TheBuoyancySubsystem(nullptr)
+		, WaterBodyCollisionData(TArray<const TSharedPtr<FBuoyancyWaterSplineData>>()) 
+		{}
+
+		UBuoyancySubsystem *TheBuoyancySubsystem;
+		TArray<const TSharedPtr<FBuoyancyWaterSplineData>> WaterBodyCollisionData;
+};
 
 //
 // Buoyancy Subsystem
@@ -110,6 +126,21 @@ public:
 #if WITH_BUOYANCY_MEMORY_TRACKING
 	UE_API SIZE_T GetAllocatedSize() const;
 #endif
+
+	// given a bounding box, perform an overlap test and filter for water bodies.  There could be some potential threading
+	// issues here since we are querying the FBuoyancyWaterSplineDataManager physics thread data presumably from the gt to
+	// do the overlap test.  We need a better way of communicating the buoyancy data so we can capture it on the gt, 
+	// then use it on the physics or other thread (ie: cloth).
+	UE_API bool FindOverlappingWaterBodies(
+		const FBox BoundingBox, TArray<const TSharedPtr<FBuoyancyWaterSplineData>> &WaterBodyPhysicsProxies);
+
+	// query a water body given a FBuoyancyWaterSplineData object representing a water body
+	// note this is designed to only work on the physics thread, but the FBuoyancyWaterSplineData data is 
+	// generated once and then only written to if water bodies change (uncommon).  In the future, we should consider
+	// restructuring usage such that there aren't potential threading issues, but it is problematic since Chaos and
+	// Cloth are evaluated on separate threads.
+	UE_API bool QueryWaterBody(const FVector& InputPosition,  const TSharedPtr<FBuoyancyWaterSplineData> WaterData,
+		FVector& WaterVel, FVector& WaterPlaneN, FVector& WaterPlanePos);
 
 protected:
 
@@ -222,13 +253,17 @@ class FBuoyancySubsystemSimCallback : public Chaos::TSimCallbackObject<
 public:
 
 	SIZE_T GetAllocatedSize() const;
+	FSplineKeyCacheGrid &GetSplineKeyCache() { return SplineKeyCache; }
 
+	bool QuerySpline(const FVector &QueryPos, const FBuoyancyWaterSplineData& WaterSpline, float &ClosestSplineKey,
+		FVector &ClosestPoint, FVector &ClosestPointDerivative, FVector &WaterN);
 private:
 
 	virtual void OnPreSimulate_Internal() override;
 	virtual void OnMidPhaseModification_Internal(Chaos::FMidPhaseModifierAccessor& Modifier) override;
 
 	void TrackInteractions(Chaos::FPBDRigidsSolver& PBDSolver, Chaos::FPBDRigidsEvolution& Evolution, Chaos::FMidPhaseModifierAccessor& MidPhaseAccessor);
+	
 	void TrackInteraction(Chaos::FPBDRigidsEvolution& Evolution, Chaos::FGeometryParticleHandle* WaterParticle, Chaos::FPBDRigidParticleHandle* RigidParticle, const FBuoyancyWaterSplineData& WaterSpline, Chaos::FMidPhaseModifier& MidPhase);
 	void ProcessInteractions(Chaos::FPBDRigidsEvolution& Evolution);
 	void ProcessAccurateInteraction(Chaos::FPBDRigidsEvolution& Evolution, FBuoyancyInteraction& Interaction, TSharedPtr<FBuoyancyWaterSampler> WaterSampler);

@@ -2,6 +2,8 @@
 
 #include "BuoyancyRuntimeSettings.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(BuoyancyRuntimeSettings)
+
 FName UBuoyancyRuntimeSettings::GetCategoryName() const
 {
 	return FName(TEXT("Plugins"));

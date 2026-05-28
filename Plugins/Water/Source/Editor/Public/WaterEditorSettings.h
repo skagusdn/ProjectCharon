@@ -9,6 +9,8 @@
 #include "WaterSplineMetadata.h"
 #include "WaterEditorSettings.generated.h"
 
+#define UE_API WATEREDITOR_API
+
 enum TextureGroup : int;
 
 class UMaterialInterface;
@@ -20,11 +22,11 @@ class AWaterLandscapeBrush;
 class AWaterZone;
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBrushActorDefaults
+struct FWaterBrushActorDefaults
 {
 	GENERATED_BODY()
 
-	FWaterBrushActorDefaults();
+	UE_API FWaterBrushActorDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	FWaterCurveSettings CurveSettings;
@@ -37,13 +39,13 @@ struct WATEREDITOR_API FWaterBrushActorDefaults
 };
 
 USTRUCT()
-struct WATEREDITOR_API FWaterZoneActorDefaults
+struct FWaterZoneActorDefaults
 {
 	GENERATED_BODY()
 
-	FWaterZoneActorDefaults();
+	UE_API FWaterZoneActorDefaults();
 
-	UMaterialInterface* GetFarDistanceMaterial() const;
+	UE_API UMaterialInterface* GetFarDistanceMaterial() const;
 
 	UPROPERTY(EditAnywhere, config, Category = Mesh)
 	float FarDistanceMeshExtent = 4000000.0f;
@@ -61,26 +63,26 @@ protected:
 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyDefaults
+struct FWaterBodyDefaults
 {
 	GENERATED_BODY()
 
-	FWaterBodyDefaults();
+	UE_API FWaterBodyDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = "Water Spline")
 	FWaterSplineCurveDefaults SplineDefaults;
 
 public: 
-	UMaterialInterface* GetWaterMaterial() const;
+	UE_API UMaterialInterface* GetWaterMaterial() const;
 	FSoftObjectPath GetWaterMaterialPath() const { return WaterMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetWaterStaticMeshMaterial() const;
+	UE_API UMaterialInterface* GetWaterStaticMeshMaterial() const;
 	FSoftObjectPath GetWaterStaticMeshMaterialPath() const { return WaterStaticMeshMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetWaterHLODMaterial() const;
+	UE_API UMaterialInterface* GetWaterHLODMaterial() const;
 	FSoftObjectPath GetWaterHLODMaterialPath() const { return WaterHLODMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetUnderwaterPostProcessMaterial() const;
+	UE_API UMaterialInterface* GetUnderwaterPostProcessMaterial() const;
 	FSoftObjectPath GetUnderwaterPostProcessMaterialPath() const { return UnderwaterPostProcessMaterial.ToSoftObjectPath(); }
 
 protected:
@@ -98,19 +100,19 @@ protected:
 };
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyRiverDefaults : public FWaterBodyDefaults
+struct FWaterBodyRiverDefaults : public FWaterBodyDefaults
 {
 	GENERATED_BODY()
 
-	FWaterBodyRiverDefaults();
+	UE_API FWaterBodyRiverDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	FWaterBrushActorDefaults BrushDefaults;
 
-	UMaterialInterface* GetRiverToOceanTransitionMaterial() const;
+	UE_API UMaterialInterface* GetRiverToOceanTransitionMaterial() const;
 	FSoftObjectPath GetRiverToOceanTransitionTransitionMaterialPath() const { return RiverToOceanTransitionMaterial.ToSoftObjectPath(); }
 
-	UMaterialInterface* GetRiverToLakeTransitionMaterial() const;
+	UE_API UMaterialInterface* GetRiverToLakeTransitionMaterial() const;
 	FSoftObjectPath GetRiverToLakeTransitionTransitionMaterialPath() const { return RiverToLakeTransitionMaterial.ToSoftObjectPath(); }
 
 protected:
@@ -123,11 +125,11 @@ protected:
 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyLakeDefaults : public FWaterBodyDefaults
+struct FWaterBodyLakeDefaults : public FWaterBodyDefaults
 {
 	GENERATED_BODY()
 	
-	FWaterBodyLakeDefaults();
+	UE_API FWaterBodyLakeDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	FWaterBrushActorDefaults BrushDefaults;
@@ -138,11 +140,11 @@ struct WATEREDITOR_API FWaterBodyLakeDefaults : public FWaterBodyDefaults
 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyOceanDefaults : public FWaterBodyDefaults
+struct FWaterBodyOceanDefaults : public FWaterBodyDefaults
 {
 	GENERATED_BODY()
 
-	FWaterBodyOceanDefaults();
+	UE_API FWaterBodyOceanDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	FWaterBrushActorDefaults BrushDefaults;
@@ -153,13 +155,13 @@ struct WATEREDITOR_API FWaterBodyOceanDefaults : public FWaterBodyDefaults
 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyCustomDefaults : public FWaterBodyDefaults
+struct FWaterBodyCustomDefaults : public FWaterBodyDefaults
 {
 	GENERATED_BODY()
 
-	FWaterBodyCustomDefaults();
+	UE_API FWaterBodyCustomDefaults();
 
-	UStaticMesh* GetWaterMesh() const;
+	UE_API UStaticMesh* GetWaterMesh() const;
 	FSoftObjectPath GetWaterMeshPath() const { return WaterMesh.ToSoftObjectPath(); }
 
 private:
@@ -169,11 +171,11 @@ private:
 
 
 USTRUCT()
-struct WATEREDITOR_API FWaterBodyIslandDefaults 
+struct FWaterBodyIslandDefaults 
 {
 	GENERATED_BODY()
 
-	FWaterBodyIslandDefaults();
+	UE_API FWaterBodyIslandDefaults();
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	FWaterBrushActorDefaults BrushDefaults;
@@ -234,11 +236,6 @@ public:
 
 	bool GetShouldUpdateWaterMeshDuringInteractiveChanges() const { return bUpdateWaterMeshDuringInteractiveChanges; }
 
-	UE_DEPRECATED(5.5, "Use GetShouldUpdateLandscapeDuringInteractiveChanges")
-	bool GetUpdateLandscapeDuringInteractiveChanges() const { return false; }
-	UE_DEPRECATED(5.5, "Use GetShouldUpdateWaterMeshDuringInteractiveChanges")
-	bool GetUpdateWaterMeshDuringInteractiveChanges() const { return bUpdateWaterMeshDuringInteractiveChanges; }
-	
 public:
 	/** The texture group to use for generated textures such as the combined velocity and height texture */
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
@@ -325,3 +322,5 @@ private:
 	UPROPERTY(EditAnywhere, config, Category = Brush, AdvancedDisplay)
 	TSoftObjectPtr<UMaterialInterface> DefaultRenderRiverSplineDepthsMaterial;
 };
+
+#undef UE_API

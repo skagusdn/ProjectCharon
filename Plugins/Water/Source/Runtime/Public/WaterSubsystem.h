@@ -39,7 +39,9 @@ struct FUnderwaterPostProcessVolume : public IInterface_PostProcessVolume
 {
 	FUnderwaterPostProcessVolume()
 		: PostProcessProperties()
-	{}
+	{
+		PostProcessProperties.VolumeGuid = FGuid(0x857a3d0e, 0x222e4c40, 0x833b5e81, 0x499b8d95);
+	}
 
 	virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) override
 	{
@@ -119,6 +121,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Water)
 	UE_API bool IsUnderwaterPostProcessEnabled() const;
+
+	UFUNCTION(BlueprintCallable, Category = Water)
+	static UE_API float GetUnderwaterCollisionTraceDistance();
+
+	UFUNCTION(BlueprintCallable, Category = Water)
+	static UE_API float GetUnderwaterPreciseTraceDistance();
 
 	UFUNCTION(BlueprintCallable, Category=Water)
 	static UE_API int32 GetShallowWaterMaxDynamicForces();
@@ -209,19 +217,19 @@ public:
 #endif // WITH_EDITOR
 
 private:
-	UE_API void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
-	UE_API void NotifyWaterVisibilityChangedInternal(IConsoleVariable* CVar);
-	UE_API void ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneView* SceneView);
-	UE_API void SetMPCTime(float Time, float PrevTime);
-	UE_API void AdjustUnderwaterWaterInfoQueryFlags(EWaterBodyQueryFlags& InOutFlags);
-	UE_API void ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType);
+	void NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar);
+	void NotifyWaterVisibilityChangedInternal(IConsoleVariable* CVar);
+	void ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneView* SceneView);
+	void SetMPCTime(float Time, float PrevTime);
+	void AdjustUnderwaterWaterInfoQueryFlags(EWaterBodyQueryFlags& InOutFlags);
+	void ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType);
 
-	UE_API void OnMarkRenderStateDirty(UActorComponent& Component);
+	void OnMarkRenderStateDirty(UActorComponent& Component);
 
-	UE_API void OnWaterTerrainActorChanged(const AActor* TerrainActor);
+	void OnWaterTerrainActorChanged(const AActor* TerrainActor);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	UE_API void ShowOnScreenDebugInfo(const FVector& InViewLocation, const FUnderwaterPostProcessDebugInfo& InDebugInfo);
+	void ShowOnScreenDebugInfo(const FVector& InViewLocation, const FUnderwaterPostProcessDebugInfo& InDebugInfo);
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 public:
@@ -273,10 +281,11 @@ private:
 	 * every actors components to find one when global events are triggered.
 	 */
 	TMultiMap<const AActor*, TWeakObjectPtr<UWaterTerrainComponent>> WaterTerrainActors;
+	FDelegateHandle OnMarkRenderStateDirtyHandle{};
 
 #if WITH_EDITOR
 	/** By default, there is no water subsystem allowed on preview worlds except when explicitly requested : */
-	static UE_API bool bAllowWaterSubsystemOnPreviewWorld;
+	static bool bAllowWaterSubsystemOnPreviewWorld;
 #endif // WITH_EDITOR
 };
 

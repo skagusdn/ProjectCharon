@@ -164,7 +164,7 @@ public:
 
 FWaterMeshSceneProxy::FWaterMeshSceneProxy(UWaterMeshComponent* Component)
 	: FPrimitiveSceneProxy(Component)
-	, MaterialRelevance(Component->GetWaterMaterialRelevance(GetScene().GetFeatureLevel()))
+	, MaterialRelevance(Component->GetWaterMaterialRelevance(GetScene().GetShaderPlatform()))
 	, WaterQuadTreeBuilder(Component->GetWaterQuadTreeBuilder())
 	, bIsLocalOnlyTessellationEnabled(Component->IsLocalOnlyTessellationEnabled())
 {
@@ -525,7 +525,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 				TraversalDesc.LODCount = WaterQuadTree.GetTreeDepth();
 				TraversalDesc.DensityCount = WaterQuadTreeConstants.DensityCount;
 				TraversalDesc.ForceCollapseDensityLevel = WaterQuadTreeConstants.ForceCollapseDensityLevel;
-				TraversalDesc.Frustum = View->ViewFrustum;
+				TraversalDesc.Frustum = View->GetCullingFrustum();
 				TraversalDesc.ObserverPosition = ObserverPosition;
 				TraversalDesc.PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
 				TraversalDesc.LODScale = WaterQuadTreeConstants.LODScale;
@@ -892,7 +892,7 @@ TArray<int32, TInlineAllocator<8>> FWaterMeshSceneProxy::GetViewToQuadTreeMappin
 #if RHI_RAYTRACING
 void FWaterMeshSceneProxy::SetupRayTracingInstances(FRHICommandListBase& RHICmdList, int32 NumInstances, uint32 DensityIndex)
 {
-	TArray<FRayTracingWaterData>& WaterDataArray = RayTracingWaterData[DensityIndex];
+	TIndirectArray<FRayTracingWaterData>& WaterDataArray = RayTracingWaterData[DensityIndex];
 
 	if (WaterDataArray.Num() > NumInstances)
 	{
@@ -902,7 +902,7 @@ void FWaterMeshSceneProxy::SetupRayTracingInstances(FRHICommandListBase& RHICmdL
 			WaterItem.Geometry.ReleaseResource();
 			WaterItem.DynamicVertexBuffer.Release();
 		}
-		WaterDataArray.SetNum(NumInstances);
+		WaterDataArray.RemoveAt(NumInstances, WaterDataArray.Num() - NumInstances);
 	}	
 
 	if (WaterDataArray.Num() < NumInstances)
@@ -920,12 +920,14 @@ void FWaterMeshSceneProxy::SetupRayTracingInstances(FRHICommandListBase& RHICmdL
 
 		for (int32 Item = StartIndex; Item < NumInstances; Item++)
 		{
-			FRayTracingWaterData& WaterData = WaterDataArray.AddDefaulted_GetRef();
+			FRayTracingWaterData* WaterData = new FRayTracingWaterData;
 
 			Initializer.DebugName = FName(DebugName, Item);
 
-			WaterData.Geometry.SetInitializer(Initializer);
-			WaterData.Geometry.InitResource(RHICmdList);
+			WaterData->Geometry.SetInitializer(Initializer);
+			WaterData->Geometry.InitResource(RHICmdList);
+
+			WaterDataArray.Add(WaterData);
 		}
 	}
 }
@@ -936,8 +938,16 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceColl
 	{
 		return;
 	}
+	
+	TConstArrayView<const FSceneView*> Views = Collector.GetViews();
+	const uint32 VisibilityMap = Collector.GetVisibilityMap();
 
-	const FSceneView& SceneView = *Collector.GetReferenceView();
+	// RT geometry will be generated based on first active view and then reused for all other views
+	// TODO: Expose a way for developers to control whether to reuse RT geometry or create one per-view
+	const int32 FirstActiveViewIndex = FMath::CountTrailingZeros(VisibilityMap);
+	checkf(Views.IsValidIndex(FirstActiveViewIndex), TEXT("There should be at least one active view when calling GetDynamicRayTracingInstances(...)."));
+
+	const FSceneView& SceneView = *Views[FirstActiveViewIndex]; // TODO: should use view-specific BLAS?
 	const FVector ObserverPosition = SceneView.ViewMatrices.GetViewOrigin();
 
 	const int32 QuadTreeKey = FindBestQuadTreeForView(&SceneView);
@@ -1074,6 +1084,7 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceColl
 				RayTracingInstance.Materials.Add(BaseMesh);
 
 				Collector.AddRayTracingGeometryUpdate(
+					FirstActiveViewIndex,
 					FRayTracingDynamicGeometryUpdateParams
 					{
 						RayTracingInstance.Materials,
@@ -1087,7 +1098,15 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceColl
 					}
 				);
 
-				Collector.AddRayTracingInstance(MoveTemp(RayTracingInstance));
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					if ((VisibilityMap & (1 << ViewIndex)) == 0)
+					{
+						continue;
+					}
+
+					Collector.AddRayTracingInstance(ViewIndex, RayTracingInstance);
+				}
 			}
 		}
 	}

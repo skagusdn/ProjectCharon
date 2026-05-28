@@ -4,8 +4,11 @@
 #include "WaterQuadTree.h"
 #include "WaterBodyTypes.h"
 #include "WaterModule.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
+#include "MaterialDomain.h"
 
-void FWaterQuadTreeBuilder::Init(const FBox2D& InWaterZoneBounds2D, const FIntPoint& InExtentInTiles, float InTileSize, FMaterialRenderProxy* InFarDistanceMaterial, float InFarDistanceMeshExtent, bool bInUseFarMeshWithoutOcean, bool bInIsGPUQuadTree)
+void FWaterQuadTreeBuilder::Init(const FBox2D& InWaterZoneBounds2D, const FIntPoint& InExtentInTiles, float InTileSize, const UMaterialInterface* InFarDistanceMaterial, float InFarDistanceMeshExtent, double InDefaultFarDistanceMeshHeight, bool bInUseFarMeshWithoutOcean, bool bInIsGPUQuadTree)
 {
 	WaterBodies.Reset();
 	WaterZoneBounds2D = InWaterZoneBounds2D;
@@ -13,6 +16,7 @@ void FWaterQuadTreeBuilder::Init(const FBox2D& InWaterZoneBounds2D, const FIntPo
 	TileSize = InTileSize;
 	FarDistanceMaterial = InFarDistanceMaterial;
 	FarDistanceMeshExtent = InFarDistanceMeshExtent;
+	DefaultFarDistanceMeshHeight = InDefaultFarDistanceMeshHeight;
 	bUseFarMeshWithoutOcean = bInUseFarMeshWithoutOcean;
 	bIsGPUQuadTree = bInIsGPUQuadTree;
 
@@ -41,7 +45,7 @@ bool FWaterQuadTreeBuilder::BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, co
 	WaterQuadTree.InitTree(WaterWorldBox, TileSize, ExtentInTiles, bIsGPUQuadTree);
 
 	// Will be updated with the ocean min bound, to be used to place the far mesh just under the ocean to avoid seams
-	float FarMeshHeight = 0.0f;
+	double FarMeshHeight = DefaultFarDistanceMeshHeight;
 	// Only use a far mesh when there is an ocean in the zone.
 	bool bHasOcean = false;
 	
@@ -87,9 +91,9 @@ bool FWaterQuadTreeBuilder::BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, co
 		}
 
 		FWaterBodyRenderData RenderData;
-		RenderData.Material = WaterBody.Material;
-		RenderData.RiverToLakeMaterial = WaterBody.RiverToLakeMaterial;
-		RenderData.RiverToOceanMaterial = WaterBody.RiverToOceanMaterial;
+		RenderData.Material = WaterBody.Material ? WaterBody.Material->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		RenderData.RiverToLakeMaterial = WaterBody.RiverToLakeMaterial ? WaterBody.RiverToLakeMaterial->GetRenderProxy() : nullptr;
+		RenderData.RiverToOceanMaterial = WaterBody.RiverToOceanMaterial ? WaterBody.RiverToOceanMaterial->GetRenderProxy() : nullptr;
 		RenderData.Priority = static_cast<int16>(FMath::Clamp(WaterBody.OverlapMaterialPriority, MinWaterBodyPriority, MaxWaterBodyPriority));
 		RenderData.WaterBodyIndex = static_cast<int16>(WaterBody.WaterBodyIndex);
 		RenderData.SurfaceBaseHeight = WaterBody.SurfaceBaseHeight;
@@ -176,7 +180,7 @@ bool FWaterQuadTreeBuilder::BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, co
 	{
 		// Far Mesh should stitch to the edge of the water zone
 		const FBox2D FarMeshBounds = WaterZoneBounds2D;
-		WaterQuadTree.AddFarMesh(FarDistanceMaterial, FarMeshBounds, FarDistanceMeshExtent, FarMeshHeight);
+		WaterQuadTree.AddFarMesh(FarDistanceMaterial->GetRenderProxy(), FarMeshBounds, FarDistanceMeshExtent, FarMeshHeight);
 	}
 
 	WaterQuadTree.Unlock(true);

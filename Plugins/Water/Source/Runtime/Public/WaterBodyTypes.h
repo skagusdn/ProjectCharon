@@ -68,6 +68,17 @@ struct FWaveInfo
 
 // ----------------------------------------------------------------------------------
 
+UENUM()
+enum class EWaterBodyQueryError : uint8
+{
+	UnknownError,
+	// Invalid to query the water surface info for a water body which is not yet registered to the parent water body actor.
+	WaterBodyNotRegistered,
+	// Invalid to query the water surface info for a water body which has a null WaterSplineMetadata.
+	// This should be impossible in normal lifetime but could be null during the early parts of the component lifecycle before registration.
+	NullWaterSplineMetadata,
+};
+
 /** Struct holding the result from water queries :  */
 struct FWaterBodyQueryResult
 {

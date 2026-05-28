@@ -771,12 +771,12 @@ bool AWaterZone::UpdateWaterInfoTexture()
 
 		// Loop through all used materials and ensure that compile jobs are submitted for all which do not have complete shader maps before early-ing out of the info update.
 		bool bHasIncompleteShaderMaps = false;
-		const ERHIFeatureLevel::Type FeatureLevel = World->Scene->GetFeatureLevel();
+		const EShaderPlatform ShaderPlatform = World->Scene->GetShaderPlatform();
 		for (UMaterialInterface* Material : UsedMaterials)
 		{
 			if (Material)
 			{
-				if (FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel))
+				if (FMaterialResource* MaterialResource = Material->GetMaterialResource(ShaderPlatform))
 				{
 					if (!MaterialResource->IsGameThreadShaderMapComplete())
 					{
@@ -871,36 +871,6 @@ bool AWaterZone::GetDynamicWaterInfoCenter(int32 PlayerIndex, FVector& OutCenter
 	}
 	
 	return bHasValidZoneLocation;
-}
-
-bool AWaterZone::GetDynamicWaterInfoBounds(int32 PlayerIndex, FBox& OutBounds) const
-{
-	const UWorld* World = GetWorld();
-
-	check(World != nullptr);
-
-	bool bHasValidZoneLocation = false;
-	FVector Center = GetActorLocation();
-
-	if (const FWaterViewExtension* WaterViewExtension = UWaterSubsystem::GetWaterViewExtension(World))
-	{
-		bHasValidZoneLocation = WaterViewExtension->GetZoneLocation(this, PlayerIndex, Center);
-	}
-	
-	const FVector WaterInfoHalfExtents = GetDynamicWaterInfoExtent() / 2.;
-	OutBounds = FBox(Center - WaterInfoHalfExtents, Center + WaterInfoHalfExtents);
-
-	return bHasValidZoneLocation;
-}
-
-FVector AWaterZone::GetDynamicWaterInfoCenter() const
-{
-	// The following index assume that there is no split screen and will request the position of the first player's water view.
-	// This call is a temporary fallback and is deprecated in favor of the overload which takes a specific player view.
-	constexpr int32 PlayerIndex = 0;
-	FVector Center;
-	GetDynamicWaterInfoCenter(PlayerIndex, Center);
-	return Center;
 }
 
 void AWaterZone::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)

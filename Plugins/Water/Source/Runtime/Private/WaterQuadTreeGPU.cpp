@@ -541,12 +541,12 @@ void FWaterQuadTreeGPU::Init(FRDGBuilder& GraphBuilder, const FInitParams& Param
 		FRHITextureCreateDesc QuadTreeTextureCreateDesc = FRHITextureCreateDesc::Create2D(TEXT("WaterQuadTree.QuadTree"), ResolutionPow2, PF_B8G8R8A8)
 			.SetNumMips(NumMipLevels)
 			.SetFlags(TexCreate_RenderTargetable | TexCreate_ShaderResource);
-		QuadTreeTexture = RHICreateTexture(QuadTreeTextureCreateDesc);
+		QuadTreeTexture = GraphBuilder.RHICmdList.CreateTexture(QuadTreeTextureCreateDesc);
 
 		FRHITextureCreateDesc ZBoundsTextureCreateDesc = FRHITextureCreateDesc::Create2D(TEXT("WaterQuadTree.ZBoundsTexture"), ResolutionPow2, PF_A2B10G10R10)
 			.SetNumMips(NumMipLevels)
 			.SetFlags(TexCreate_RenderTargetable | TexCreate_ShaderResource);
-		WaterZBoundsTexture = RHICreateTexture(ZBoundsTextureCreateDesc);
+		WaterZBoundsTexture = GraphBuilder.RHICmdList.CreateTexture(ZBoundsTextureCreateDesc);
 
 		WaterBodyRenderDataBuffer = GraphBuilder.ConvertToExternalBuffer(CreateStructuredBuffer<FWaterBodyRenderDataGPU>(GraphBuilder, TEXT("WaterQuadTree.WaterBodyRenderData"), Params.WaterBodyRenderData));
 

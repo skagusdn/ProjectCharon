@@ -161,7 +161,7 @@ void ABuoyancyManager::Update(FPhysScene* PhysScene, float DeltaTime)
 			PendingOutputs.Emplace(MoveTemp(AsyncOutputLatest));
 		}
 
-		const float ResultsTime = AsyncCallback->GetSolver()->GetPhysicsResultsTime_External() + DeltaTime;
+		const double ResultsTime = AsyncCallback->GetSolver()->GetPhysicsResultsTime_External() + DeltaTime;
 
 		// Find index of first non-consumable output (first one after current time)
 		int32 LastOutputIdx = 0;

@@ -30,12 +30,13 @@ public class ProjectCharon : ModuleRules
 				"CommonUI",
 				"NetCore",
 				"Slate",
-				"SlateCore"
+				"SlateCore",
+				
 	        }
         );
 	
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {"GameplayMessageRuntime"}
+			new string[] {"GameplayMessageRuntime", "WaterAdvanced"}
 		);
 
 		

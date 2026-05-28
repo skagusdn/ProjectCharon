@@ -50,28 +50,28 @@ public:
 	UE_API FVector ComputeShallowWaterSimulationNormalAtPosition(const FVector &QueryPos) const;
 	
 	/** Query shallow water grid cell values at a world position */
-	void FORCEINLINE QueryShallowWaterSimulationAtPosition(const FVector &QueryPos, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
+	void QueryShallowWaterSimulationAtPosition(const FVector &QueryPos, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
 	{
 		const FIntVector2 IndexPos = WorldToIndex(QueryPos);
 		QueryShallowWaterSimulationAtIndex(IndexPos, OutWaterVelocity, OutWaterHeight, OutWaterDepth);
 	}
 
 	/** Linear interpolate for shallow water grid cell values at a world position */
-	void FORCEINLINE SampleShallowWaterSimulationAtPosition(const FVector &QueryPos, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
+	void SampleShallowWaterSimulationAtPosition(const FVector &QueryPos, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
 	{
 		FVector2D FloatIndex = WorldToFloatIndex(QueryPos);
 		SampleShallowWaterSimulationAtIndex(FloatIndex, OutWaterVelocity, OutWaterHeight, OutWaterDepth);
 	}
 
 	/** Convert world space to integer index */
-	FIntVector2 FORCEINLINE WorldToIndex(const FVector &WorldPos) const
+	FIntVector2 WorldToIndex(const FVector &WorldPos) const
 	{
 		FVector2D FloatIndex = WorldToFloatIndex(WorldPos);
 		return FIntVector2(FloatIndex.X, FloatIndex.Y);
 	}
 
 	/** Convert world space to float index */
-	FVector2D FORCEINLINE WorldToFloatIndex(const FVector &WorldPos) const
+	FVector2D WorldToFloatIndex(const FVector &WorldPos) const
 	{
 		const FVector LocalPos = WorldPos - Position;
 		const FVector2D UnitPos = FVector2D(LocalPos.X, LocalPos.Y) / Size + .5;
@@ -79,7 +79,7 @@ public:
 	}
 
 	/** Convert a float index to world space */
-	FVector FORCEINLINE FloatIndexToWorld(const FVector2D &Index) const
+	FVector FloatIndexToWorld(const FVector2D &Index) const
 	{
 		const FVector2D UnitPos = (Index + .5) / FVector2D(NumCells.X, NumCells.Y);
 		const FVector2D LocalPos = (UnitPos - .5) * Size;
@@ -88,7 +88,7 @@ public:
 	}
 
 	/** Convert an integer index to world space */
-	FVector FORCEINLINE IndexToWorld(const FIntVector2 &Index) const
+	FVector IndexToWorld(const FIntVector2 &Index) const
 	{
 		return FloatIndexToWorld(FVector2D(Index.X, Index.Y));
 	}

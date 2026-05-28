@@ -3,10 +3,10 @@
 
 #include "VehicleManagerSubsystem.h"
 
-#include "CollectionManagerTypes.h"
+//#include "CollectionManagerTypes.h"
 #include "Logging.h"
-#include "GameFramework/Character.h"
-#include "GameFramework/GameModeBase.h"
+//#include "GameFramework/Character.h"
+//#include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerState.h"
 
 void UVehicleManagerSubsystem::UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp)

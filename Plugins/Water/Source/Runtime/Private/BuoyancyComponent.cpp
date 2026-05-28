@@ -443,7 +443,6 @@ int32 UBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, fl
 		{
 			if (PontoonConfiguration & (1 << PontoonIndex))
 			{
-				// 폰툰의 위치 : 폰툰 센터 소켓 설정을 쓸 경우 소켓 + 오프셋, 아니면 루트 컴포넌트 + 폰툰 상대 위치
 				if (Pontoon.bUseCenterSocket)
 				{
 					const FTransform& SimulatingComponentTransform = PrimitiveComponent->GetSocketTransform(Pontoon.CenterSocket);
@@ -454,7 +453,6 @@ int32 UBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, fl
 				{
 					Pontoon.CenterLocation = PrimitiveComponent->GetComponentTransform().TransformPosition(Pontoon.RelativeLocation);
 				}
-				// 폰툰의 물 높이 구함
 				GetWaterSplineKey(Pontoon.CenterLocation, Pontoon.SplineInputKeys, Pontoon.SplineSegments);
 				const FVector PontoonBottom = Pontoon.CenterLocation - FVector(0, 0, Pontoon.Radius);
 				UWaterBodyComponent* TempWaterBodyComponent = Pontoon.CurrentWaterBodyComponent;
@@ -621,7 +619,6 @@ float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const UWat
 	{
 		if (CurrentWaterBodyComponent)
 		{
-			//SplineKeyMap : CurrentWaterBodyComponents의 각 워터 바디에서 물 높이 구하려는 폰툰과 가장 가까운 스플라인 키 저장되어있음. 
 			const float SplineInputKey = SplineKeyMap.FindRef(CurrentWaterBodyComponent);
 
 			EWaterBodyQueryFlags QueryFlags =
@@ -635,22 +632,26 @@ float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const UWat
 				QueryFlags |= EWaterBodyQueryFlags::IncludeWaves;
 			}
 
-			FWaterBodyQueryResult QueryResult = CurrentWaterBodyComponent->QueryWaterInfoClosestToWorldLocation(Position, QueryFlags, SplineInputKey);
-			if (QueryResult.IsInWater() && QueryResult.GetImmersionDepth() > MaxImmersionDepth)
+			TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = CurrentWaterBodyComponent->TryQueryWaterInfoClosestToWorldLocation(Position, QueryFlags, SplineInputKey);
+			if (QueryResult.HasValue())
 			{
-				check(!QueryResult.IsInExclusionVolume());
-				WaterHeight = Position.Z + QueryResult.GetImmersionDepth();
-				OutWaterBodyComponent = CurrentWaterBodyComponent;
-				if (EnumHasAnyFlags(QueryResult.GetQueryFlags(), EWaterBodyQueryFlags::ComputeDepth))
+				const FWaterBodyQueryResult& Query = QueryResult.GetValue();
+				if (Query.IsInWater() && Query.GetImmersionDepth() > MaxImmersionDepth)
 				{
-					OutWaterDepth = QueryResult.GetWaterSurfaceDepth();
+					check(!Query.IsInExclusionVolume());
+					WaterHeight = Position.Z + Query.GetImmersionDepth();
+					OutWaterBodyComponent = CurrentWaterBodyComponent;
+					if (EnumHasAnyFlags(Query.GetQueryFlags(), EWaterBodyQueryFlags::ComputeDepth))
+					{
+						OutWaterDepth = Query.GetWaterSurfaceDepth();
+					}
+					OutWaterPlaneLocation = Query.GetWaterPlaneLocation();
+					OutWaterPlaneNormal = Query.GetWaterPlaneNormal();
+					OutWaterSurfacePosition = Query.GetWaterSurfaceLocation();
+					OutWaterVelocity = Query.GetVelocity();
+					OutWaterBodyIdx = CurrentWaterBodyComponent ? CurrentWaterBodyComponent->GetWaterBodyIndex() : 0;
+					MaxImmersionDepth = Query.GetImmersionDepth();
 				}
-				OutWaterPlaneLocation = QueryResult.GetWaterPlaneLocation();
-				OutWaterPlaneNormal = QueryResult.GetWaterPlaneNormal();
-				OutWaterSurfacePosition = QueryResult.GetWaterSurfaceLocation();
-				OutWaterVelocity = QueryResult.GetVelocity();
-				OutWaterBodyIdx = CurrentWaterBodyComponent ? CurrentWaterBodyComponent->GetWaterBodyIndex() : 0;
-				MaxImmersionDepth = QueryResult.GetImmersionDepth();
 			}
 		}
 	}

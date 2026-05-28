@@ -597,7 +597,10 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			Boxes, ConvexSets, WorldMeshBufferWidth, WorldBoxOverlap);
 
 		// Don't delete components unless we have to : this generates determinism issues because UOceanCollisionComponent has a UBodySetup with a GUID :
-		if ((CollisionBoxes.Num() != Boxes.Num()) || (CollisionHullSets.Num() != ConvexSets.Num()))
+		const bool bComponentCountEqual = CollisionBoxes.Num() == Boxes.Num() && CollisionHullSets.Num() == ConvexSets.Num();
+
+		// Some assets have saved empty collision box entries, reset if any are invalid
+		if (!bComponentCountEqual || CollisionBoxes.Contains(nullptr) || CollisionHullSets.Contains(nullptr))
 		{
 			Reset();
 		}

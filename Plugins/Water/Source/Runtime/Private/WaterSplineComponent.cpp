@@ -204,6 +204,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				float Param = GetInputKeyValueAtSplinePoint(Point);
 
 				SplineCurves.Scale.Points.Emplace(Param, FVector(WaterSplineDefaults.DefaultWidth, WaterSplineDefaults.DefaultDepth, 1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+				// Required for the direct write above. Unfortunate we do in loop body.
+				SynchronizeSplines();
 			}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -251,13 +253,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Result.Z = FMath::Clamp(Vec3.Z, Min, Max);
 				return Result;
 			};
-			FVector ArriveTangent = GetArriveTangentAtSplinePoint(Point, ESplineCoordinateSpace::Local);
-			FVector LeaveTangent = GetLeaveTangentAtSplinePoint(Point, ESplineCoordinateSpace::Local);
-			
+
 			constexpr double MaxTangentValue = 1.e10L;
-			ArriveTangent = ClampVec3(ArriveTangent, -MaxTangentValue, MaxTangentValue);
-			LeaveTangent = ClampVec3(LeaveTangent, -MaxTangentValue, MaxTangentValue);
-			SetTangentsAtSplinePoint(Point, ArriveTangent, LeaveTangent, ESplineCoordinateSpace::Local, false);
+
+			const FVector ArriveTangent = GetArriveTangentAtSplinePoint(Point, ESplineCoordinateSpace::Local);
+			const FVector LeaveTangent = GetLeaveTangentAtSplinePoint(Point, ESplineCoordinateSpace::Local);
+			
+			const FVector ClampedArriveTangent = ClampVec3(ArriveTangent, -MaxTangentValue, MaxTangentValue);
+			const FVector ClampedLeaveTangent = ClampVec3(LeaveTangent, -MaxTangentValue, MaxTangentValue);
+
+			// Only change if clamping is actually doing anything so that we don't unnecessarily force the point into custom tangent mode.
+			if (!ArriveTangent.Equals(ClampedArriveTangent) || !LeaveTangent.Equals(ClampedLeaveTangent))
+			{
+				SetTangentsAtSplinePoint(Point, ArriveTangent, LeaveTangent, ESplineCoordinateSpace::Local, false);
+			}
 		}
 	}
 

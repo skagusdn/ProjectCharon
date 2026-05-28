@@ -7,6 +7,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "EngineUtils.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(WaterTerrainComponent)
+
 TArray<UPrimitiveComponent*> UWaterTerrainComponent::GetTerrainPrimitives() const
 {
 	TArray<UPrimitiveComponent*> Result;

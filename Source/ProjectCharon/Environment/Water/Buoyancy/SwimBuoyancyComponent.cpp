@@ -259,6 +259,8 @@ void USwimBuoyancyComponent::PostEditChangeChainProperty(struct FPropertyChanged
 		// }
 	}
 }
+#endif
+
 
 void USwimBuoyancyComponent::NotifyDebugPontoonEnteredWater(const FSphericalPontoon& Pontoon)
 {
@@ -320,7 +322,6 @@ bool USwimBuoyancyComponent::GetIsSwimming() const
 }
 
 
-#endif
 
 float USwimBuoyancyComponent::GetImmersionDepth()
 {

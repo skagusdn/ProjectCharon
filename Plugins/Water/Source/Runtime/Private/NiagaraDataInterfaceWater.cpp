@@ -62,13 +62,13 @@ namespace NDIWaterPrivate
 				continue;
 			}
 
-			const FWaterBodyQueryResult CurrentQueryResult = WaterComponent->QueryWaterInfoClosestToWorldLocation(QueryLocation, QueryFlags);
-			if (CurrentQueryResult.IsInExclusionVolume())
+			const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> CurrentQueryResult = WaterComponent->TryQueryWaterInfoClosestToWorldLocation(QueryLocation, QueryFlags);
+			if (!CurrentQueryResult.HasValue() || CurrentQueryResult.GetValue().IsInExclusionVolume())
 			{
 				continue;
 			}
 
-			const FVector WaterLocation = CurrentQueryResult.GetWaterPlaneLocation();
+			const FVector WaterLocation = CurrentQueryResult.GetValue().GetWaterPlaneLocation();
 			const double DistanceSq = (WaterLocation - QueryLocation).SquaredLength();
 			if (!ClosestComponent || DistanceSq < ClosestWaterSq)
 			{
@@ -131,23 +131,33 @@ namespace NDIWaterPrivate
 					(bIncludeWaves ? EWaterBodyQueryFlags::IncludeWaves : EWaterBodyQueryFlags::None) |
 					(bIncludeWaves && bSimpleWaves ? EWaterBodyQueryFlags::SimpleWaves : EWaterBodyQueryFlags::None);
 
-				const FWaterBodyQueryResult QueryResult = Component->QueryWaterInfoClosestToWorldLocation(InstData->LWCConverter.ConvertSimulationPositionToWorld(QueryPosition), QueryFlags);
+				const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = Component->TryQueryWaterInfoClosestToWorldLocation(InstData->LWCConverter.ConvertSimulationPositionToWorld(QueryPosition), QueryFlags);
+				if (QueryResult.HasError())
+				{
+					UE_LOG(LogWater, Error, TEXT("WaterInfoQuery returned error :%s"), *UEnum::GetValueAsString(QueryResult.GetError()));
+				}
 
-				const FVector3f WaterPlaneLocation = InstData->LWCConverter.ConvertWorldToSimulationPosition(QueryResult.GetWaterPlaneLocation());
-				const FVector3f WaterSurfacePosition = InstData->LWCConverter.ConvertWorldToSimulationPosition(QueryResult.GetWaterSurfaceLocation());
+				if (!QueryResult.HasValue())
+				{
+					continue;
+				}
+				const FWaterBodyQueryResult& Query = QueryResult.GetValue();
+
+				const FVector3f WaterPlaneLocation = InstData->LWCConverter.ConvertWorldToSimulationPosition(Query .GetWaterPlaneLocation());
+				const FVector3f WaterSurfacePosition = InstData->LWCConverter.ConvertWorldToSimulationPosition(Query .GetWaterSurfaceLocation());
 
 				float DepthValue = bIncludeDepth ? InstData->SystemInstanceWaterDepth : 0.0f;
 				if (bDoDepthQuery)
 				{
-					DepthValue = QueryResult.GetWaterSurfaceDepth();
+					DepthValue = Query .GetWaterSurfaceDepth();
 				}
 
 				OutWaterPlanePosition.SetAndAdvance(WaterPlaneLocation);
-				OutWaterPlaneNormal.SetAndAdvance(FVector3f(QueryResult.GetWaterPlaneNormal()));
+				OutWaterPlaneNormal.SetAndAdvance(FVector3f(Query .GetWaterPlaneNormal()));
 				OutWaterSurfacePosition.SetAndAdvance(WaterSurfacePosition);
 				OutWaterDepth.SetAndAdvance(DepthValue);
-				OutWaterVelocity.SetAndAdvance(FVector3f(QueryResult.GetVelocity()));
-				OutInExclusionVolume.SetAndAdvance(QueryResult.IsInExclusionVolume());
+				OutWaterVelocity.SetAndAdvance(FVector3f(Query .GetVelocity()));
+				OutInExclusionVolume.SetAndAdvance(Query .IsInExclusionVolume());
 			}
 			else
 			{
@@ -380,9 +390,17 @@ bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagara
 		{
 			const FVector QueryLocation = SystemInstance->GetWorldTransform().GetTranslation();
 			const EWaterBodyQueryFlags QueryFlags = EWaterBodyQueryFlags::ComputeDepth;
-			const FWaterBodyQueryResult QueryResult = WaterBodyComponent->QueryWaterInfoClosestToWorldLocation(QueryLocation, QueryFlags);
 
-			InstData->SystemInstanceWaterDepth = QueryResult.IsInExclusionVolume() ? 0.0f : QueryResult.GetWaterSurfaceDepth();
+			const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = WaterBodyComponent->TryQueryWaterInfoClosestToWorldLocation(QueryLocation, QueryFlags);
+			if (QueryResult.HasValue())
+			{
+				InstData->SystemInstanceWaterDepth = QueryResult.GetValue().IsInExclusionVolume() ? 0.0f : QueryResult.GetValue().GetWaterSurfaceDepth();
+			}
+			else if (QueryResult.HasError())
+			{
+				UE_LOG(LogWater, Error, TEXT("NiagaraWaterDataInterface: attempting to compute the water body depth returned error: %s"), *UEnum::GetValueAsString(QueryResult.GetError()));
+			}
+
 		}
 	}
 
@@ -462,7 +480,18 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 				QueryFlags |= EWaterBodyQueryFlags::ComputeDepth;
 			}
 
-			QueryResult = Component->QueryWaterInfoClosestToWorldLocation(QueryPos, QueryFlags);
+			TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> Query = Component->TryQueryWaterInfoClosestToWorldLocation(QueryPos, QueryFlags);
+			if (Query.HasError())
+			{
+				UE_LOG(LogWater, Error, TEXT("WaterInfoQuery returned error :%s"), *UEnum::GetValueAsString(Query.GetError()));
+			}
+
+			if (!Query.HasValue())
+			{
+				continue;
+			}
+
+			QueryResult = Query.GetValue();
 
 			bIsValid = !QueryResult.IsInExclusionVolume();
 		}

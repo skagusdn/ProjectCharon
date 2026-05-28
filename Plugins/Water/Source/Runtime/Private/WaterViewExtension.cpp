@@ -449,7 +449,7 @@ void FWaterViewExtension::UpdateViewInfo(AWaterZone* WaterZone, const FSceneView
 	}
 }
 
-	void FWaterViewExtension::RenderWaterInfoTexture(FSceneViewFamily& InViewFamily, FSceneView& InView, const FWaterZoneInfo* WaterZoneInfo, FSceneInterface* Scene, const FVector& ZoneCenter)
+void FWaterViewExtension::RenderWaterInfoTexture(FSceneViewFamily& InViewFamily, FSceneView& InView, const FWaterZoneInfo* WaterZoneInfo, FSceneInterface* Scene, const FVector& ZoneCenter)
 {
 	const int32 WaterInfoRenderMethod = CVarWaterInfoRenderMethod.GetValueOnGameThread();
 

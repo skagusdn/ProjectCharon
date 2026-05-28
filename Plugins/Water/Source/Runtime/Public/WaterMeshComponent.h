@@ -50,7 +50,9 @@ public:
 	UE_API void Update();
 
 	/** Use this instead of GetMaterialRelevance, since this one will go over all materials from all tiles */
+	UE_DEPRECATED(5.7, "Please use GetWaterMaterialRelevance with EShaderPlatform argument and not ERHIFeatureLevel::Type")
 	UE_API FMaterialRelevance GetWaterMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const;
+	UE_API FMaterialRelevance GetWaterMaterialRelevance(EShaderPlatform InShaderPlatform) const;
 
 	const FWaterQuadTreeBuilder& GetWaterQuadTreeBuilder() const { return WaterQuadTreeBuilder; }
 
@@ -126,6 +128,10 @@ private:
 	/** Forces the water mesh to always render the far mesh, regardless if there is an ocean or not.*/
 	UPROPERTY(Category = "Rendering|FarDistance", EditAnywhere)
 	bool bUseFarMeshWithoutOcean = false;
+
+	/** Absolute world space height of the far mesh when there is no ocean.*/
+	UPROPERTY(Category = "Rendering|FarDistance", EditAnywhere)
+	double FarDistanceMeshHeightWithoutOcean = 0.0;
 
 	/** Dirty flag which will make sure the water mesh is updated properly */
 	bool bNeedsRebuild = true;

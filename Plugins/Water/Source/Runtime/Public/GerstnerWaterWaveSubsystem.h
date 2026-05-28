@@ -25,7 +25,7 @@ public:
 	WATER_API void Register(FWaterViewExtension* ViewExtension);
 	WATER_API void Unregister(FWaterViewExtension* ViewExtension);
 
-	WATER_API void RebuildGPUData() { bRebuildGPUData = true; }
+	void RebuildGPUData() { bRebuildGPUData = true; }
 
 	//~ Begin UObject Interface.	
 	WATER_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;

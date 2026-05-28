@@ -76,26 +76,26 @@ namespace BuoyancyAlgorithms
 	public:
 		FBuoyancyBoxShape(const Chaos::FAABB3& InLocalBox) : LocalBox(InLocalBox) {};
 		
-		void FORCEINLINE Initialize() {}
+		void Initialize() {}
 
-		int32 FORCEINLINE NumVertices() const override { return 8; }
-		int32 FORCEINLINE NumEdges() const override { return 12; }
-		int32 FORCEINLINE NumFaces() const override { return 6; }
-		int FORCEINLINE NumFaceVertices(const int Index) const override { return 4; }
-		int FORCEINLINE NumMaxIntersectionsPoints() const override { return 6; }
+		int32 NumVertices() const override { return 8; }
+		int32 NumEdges() const override { return 12; }
+		int32 NumFaces() const override { return 6; }
+		int NumFaceVertices(const int Index) const override { return 4; }
+		int NumMaxIntersectionsPoints() const override { return 6; }
 
-		Chaos::FVec3 FORCEINLINE GetVertex(int32 Index) const override { return LocalBox.GetVertex(Index); }
+		Chaos::FVec3 GetVertex(int32 Index) const override { return LocalBox.GetVertex(Index); }
 
-		void FORCEINLINE GetEdgeVertices(int EdgeIndex, int32& OutIndex0, int32& OutIndex1) const
+		void GetEdgeVertices(int EdgeIndex, int32& OutIndex0, int32& OutIndex1) const
 		{
 			const Chaos::FAABBEdge CurrEdge = LocalBox.GetEdge(EdgeIndex);
 			OutIndex0 = CurrEdge.VertexIndex0;
 			OutIndex1 = CurrEdge.VertexIndex1;
 		}
 
-		int32 FORCEINLINE GetFaceVertex(const int FaceIndex, const int FaceVertexIndex) const override { return LocalBox.GetFace(FaceIndex).VertexIndex[FaceVertexIndex]; }
-		int32 FORCEINLINE GetFaceEdge(const int FaceIndex, const int FaceEdgeIndex) const override { return LocalBox.GetFace(FaceIndex).EdgeIndex[FaceEdgeIndex]; }		
-		Chaos::FVec3 FORCEINLINE GetCenter() const override	{ return LocalBox.GetCenter(); }
+		int32 GetFaceVertex(const int FaceIndex, const int FaceVertexIndex) const override { return LocalBox.GetFace(FaceIndex).VertexIndex[FaceVertexIndex]; }
+		int32 GetFaceEdge(const int FaceIndex, const int FaceEdgeIndex) const override { return LocalBox.GetFace(FaceIndex).EdgeIndex[FaceEdgeIndex]; }		
+		Chaos::FVec3 GetCenter() const override	{ return LocalBox.GetCenter(); }
 
 	private:
 		const Chaos::FAABB3& LocalBox;
@@ -108,29 +108,29 @@ namespace BuoyancyAlgorithms
 
 		virtual void Initialize() override;
 
-		int32 FORCEINLINE NumVertices() const override { return Convex->NumVertices(); }
-		int32 FORCEINLINE NumEdges() const override { return Convex->NumEdges(); }
-		int32 FORCEINLINE NumFaces() const override { return Convex->GetFaces().Num(); }
-		int FORCEINLINE NumFaceVertices(const int Index) const override { return Convex->NumPlaneVertices(Index); }
+		int32 NumVertices() const override { return Convex->NumVertices(); }
+		int32 NumEdges() const override { return Convex->NumEdges(); }
+		int32 NumFaces() const override { return Convex->GetFaces().Num(); }
+		int NumFaceVertices(const int Index) const override { return Convex->NumPlaneVertices(Index); }
 		
 		// #todo(dmp): whats the best upper bound for max number of intersection points between a convex and plane?
-		int FORCEINLINE NumMaxIntersectionsPoints() const override { return Convex->NumVertices(); }
-		Chaos::FVec3 FORCEINLINE GetVertex(int32 Index) const override { return Convex->GetVertex(Index); }
+		int NumMaxIntersectionsPoints() const override { return Convex->NumVertices(); }
+		Chaos::FVec3 GetVertex(int32 Index) const override { return Convex->GetVertex(Index); }
 
-		void FORCEINLINE GetEdgeVertices(int EdgeIndex, int32& OutIndex0, int32& OutIndex1) const
+		void GetEdgeVertices(int EdgeIndex, int32& OutIndex0, int32& OutIndex1) const
 		{
 			OutIndex0 = Convex->GetEdgeVertex(EdgeIndex, 0);
 			OutIndex1 = Convex->GetEdgeVertex(EdgeIndex, 1);
 		}
 
-		int32 FORCEINLINE GetFaceVertex(const int FaceIndex, const int FaceVertexIndex) const override { return Convex->GetPlaneVertex(FaceIndex, FaceVertexIndex);	}
-		int32 FORCEINLINE GetFaceEdge(const int FaceIndex, const int FaceEdgeIndex) const override
+		int32 GetFaceVertex(const int FaceIndex, const int FaceVertexIndex) const override { return Convex->GetPlaneVertex(FaceIndex, FaceVertexIndex);	}
+		int32 GetFaceEdge(const int FaceIndex, const int FaceEdgeIndex) const override
 		{
 			const int32 HalfEdgeIndex = Convex->GetPlaneHalfEdge(FaceIndex, FaceEdgeIndex);
 			return HalfEdgeToEdge[HalfEdgeIndex];
 		}
 		
-		Chaos::FVec3 FORCEINLINE GetCenter() const override	{ return Convex->GetCenterOfMass();	}
+		Chaos::FVec3 GetCenter() const override	{ return Convex->GetCenterOfMass();	}
 
 	private:
 		const Chaos::FConvex* Convex;		
@@ -164,7 +164,7 @@ namespace BuoyancyAlgorithms
 	// Given an OOBB and a water level, generate another OOBB which is 1. entirely contained
 	// within the input OOBB and 2. entirely contains the portion of the OOBB which is submerged
 	// below the water level.
-	bool FORCEINLINE ComputeSubmergedBounds(const FVector& SurfacePointLocal, const FVector& SurfaceNormalLocal, const Chaos::FAABB3& RigidBox, Chaos::FAABB3& OutSubmergedBounds);
+	bool ComputeSubmergedBounds(const FVector& SurfacePointLocal, const FVector& SurfaceNormalLocal, const Chaos::FAABB3& RigidBox, Chaos::FAABB3& OutSubmergedBounds);
 
 	// Given a bounds object, recursively subdivide it in eighths to a fixed maximum depth and
 	// a fixed minimum smallest subdivision volume.
@@ -197,25 +197,25 @@ namespace BuoyancyAlgorithms
 
 	// find intersection points between a plane and aabbox
 	template <typename ShapeType>
-	void FORCEINLINE FindAllIntersectionPoints(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const ShapeType& BoxShape,
+	void FindAllIntersectionPoints(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const ShapeType& BoxShape,
 		const TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxVerticesPerShape>> &WorldVertexPosition,
 		TMap<int32, FVector>& EdgeToIntersectionPoint, int32& NumIntersections,
 		TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxIntersectionPointsPerShape>>& OutOrderedIntersectionPoints, FVector& OutIntersectionCenter);
 
 	// sort intersection points by angle
 	template <typename ShapeType>
-	void FORCEINLINE SortIntersectionPointsByAngle(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& IntersectionCenter, const ShapeType& BoxShape,
+	void SortIntersectionPointsByAngle(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& IntersectionCenter, const ShapeType& BoxShape,
 		const TMap<int, FVector>& EdgeToIntersectionPoint,
 		TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxIntersectionPointsPerShape>>& OutOrderedIntersectionPoints);
 
-	bool FORCEINLINE EdgePlaneIntersection(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& V0, const Chaos::FVec3& V1, Chaos::FVec3& IntersectionPoint);
+	bool EdgePlaneIntersection(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& V0, const Chaos::FVec3& V1, Chaos::FVec3& IntersectionPoint);
 
 	// compute area and volume of a tet from a triangle and center point on mesh
-	void FORCEINLINE ComputeTriangleAreaAndVolume(const FVector &V0, const FVector &V1, const FVector &V2,
+	void ComputeTriangleAreaAndVolume(const FVector &V0, const FVector &V1, const FVector &V2,
 		const FVector &MeshCenterPoint, FVector& OutTriangleBaryCenter, FVector& OutNormal, float& OutArea, float& OutVolume, bool DebugDraw = false);
 
 	// compute the force the fluid exerts on a triangle
-	void FORCEINLINE ComputeFluidForceForTriangle(const float WaterDrag,
+	void ComputeFluidForceForTriangle(const float WaterDrag,
 		const float DeltaSeconds, const float WaterDensity,
 		const Chaos::FPBDRigidParticleHandle* RigidParticle, const FVector WorldCoM,
 		const FVector &TriBaryCenter, const FVector &TriNormal, const float TriArea, const float TetVolume,
@@ -223,6 +223,6 @@ namespace BuoyancyAlgorithms
 		FVector& OutTotalWorldForce, FVector& OutTotalWorldTorque);
 
 	// compute the force the buoyancy exerts on a shape
-	void FORCEINLINE ComputeBuoyantForceForShape(const Chaos::FPBDRigidsEvolution& Evolution, const Chaos::FPBDRigidParticleHandle* RigidParticle, const float DeltaSeconds, const float WaterDensity,
+	void ComputeBuoyantForceForShape(const Chaos::FPBDRigidsEvolution& Evolution, const Chaos::FPBDRigidParticleHandle* RigidParticle, const float DeltaSeconds, const float WaterDensity,
 		const Chaos::FVec3& SubmergedCoM, const float SubmergedVol, const Chaos::FVec3& WaterN, Chaos::FVec3& OutWorldBuoyantForce, Chaos::FVec3& OutWorldBuoyantTorque);
 }

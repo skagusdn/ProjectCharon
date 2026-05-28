@@ -5,7 +5,7 @@
 
 class HHitProxy;
 class FStaticMeshRenderData;
-class FMaterialRenderProxy;
+class UMaterialInterface;
 struct FWaterQuadTree;
 enum class EWaterBodyType : uint8;
 
@@ -15,9 +15,9 @@ public:
 
 	struct FWaterBody
 	{
-		FMaterialRenderProxy* Material = nullptr;
-		FMaterialRenderProxy* RiverToLakeMaterial = nullptr;
-		FMaterialRenderProxy* RiverToOceanMaterial = nullptr;
+		const UMaterialInterface* Material = nullptr;
+		const UMaterialInterface* RiverToLakeMaterial = nullptr;
+		const UMaterialInterface* RiverToOceanMaterial = nullptr;
 		FStaticMeshRenderData* StaticMeshRenderData = nullptr;
 		FTransform LocalToWorld;
 		FBoxSphereBounds Bounds = FBoxSphereBounds();
@@ -35,7 +35,7 @@ public:
 #endif // WITH_WATER_SELECTION_SUPPORT
 	};
 
-	void Init(const FBox2D& InWaterZoneBounds2D, const FIntPoint& InExtentInTiles, float InTileSize, FMaterialRenderProxy* InFarDistanceMaterial, float InFarDistanceMeshExtent, bool bInUseFarMeshWithoutOcean, bool bInIsGPUQuadTree);
+	void Init(const FBox2D& InWaterZoneBounds2D, const FIntPoint& InExtentInTiles, float InTileSize, const UMaterialInterface* InFarDistanceMaterial, float InFarDistanceMeshExtent, double InDefaultFarDistanceMeshHeight, bool bInUseFarMeshWithoutOcean, bool bInIsGPUQuadTree);
 	void AddWaterBody(const FWaterBody& WaterBody);
 	bool BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, const FVector2D& GridPosition) const;
 #if WITH_WATER_SELECTION_SUPPORT
@@ -53,8 +53,9 @@ private:
 	FIntPoint ExtentInTiles = FIntPoint::ZeroValue;
 	float TileSize = 0.0f;
 	int32 TreeDepth = 0;
-	FMaterialRenderProxy* FarDistanceMaterial = nullptr;
+	const UMaterialInterface* FarDistanceMaterial = nullptr;
 	float FarDistanceMeshExtent = 0.0f;
+	double DefaultFarDistanceMeshHeight = 0.0;
 	bool bUseFarMeshWithoutOcean = false;
 	bool bIsGPUQuadTree = false;
 };

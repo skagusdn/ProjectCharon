@@ -21,6 +21,8 @@
 #include "WaterViewExtension.h"
 #include "Algo/MaxElement.h"
 #include "Algo/RemoveIf.h"
+#include "Algo/AnyOf.h"
+#include "VisualLogger/VisualLogger.h"
 
 #if WITH_EDITOR
 #include "WaterZoneActorDesc.h"
@@ -29,7 +31,7 @@
 extern UNREALED_API UEditorEngine* GEditor;
 #else
 #include "BuoyancyTypes.h"
-#endif // WITH_DITOR
+#endif // WITH_EDITOR
 
 #include "LandscapeComponent.h"
 #include "LandscapeProxy.h"
@@ -87,6 +89,30 @@ static FAutoConsoleVariableRef CVarVisualizeUnderwaterPostProcess(
 	ECVF_Default
 );
 
+static int32 EnableUnderwaterPostProcessVisualLogger = 0;
+static FAutoConsoleVariableRef CVarEnableUnderwaterPostProcessVisualLogger(
+	TEXT("r.Water.EnableUnderwaterPostProcessVisualLogger"),
+	EnableUnderwaterPostProcessVisualLogger,
+	TEXT("Enables underwater post process collision detection Visual Logger code"),
+	ECVF_Default
+);
+
+static float UnderwaterCollisionTraceDistance = 100.f;
+static FAutoConsoleVariableRef CVarUnderwaterCollisionTraceDistance(
+	TEXT("r.Water.UnderwaterCollisionTraceDistance"),
+	UnderwaterCollisionTraceDistance,
+	TEXT("Underwater post processing collision trace distance. Default is inflated to account for waves which will not be hit by trace"),
+	ECVF_Scalability
+);
+
+static float UnderwaterCollisionPreciseTraceDistance = 10.f;
+static FAutoConsoleVariableRef CVarUnderwaterCollisionPreciseTraceDistance(
+	TEXT("r.Water.UnderwaterCollisionPreciseTraceDistance"),
+	UnderwaterCollisionPreciseTraceDistance,
+	TEXT("Underwater precise collision trace distance. Verifies precise overlap between camera and volume when camera is underneath the water collision impact location"),
+	ECVF_Scalability
+);
+
 // Shallow water CVars : 
 static int32 ShallowWaterSim = 1;
 static FAutoConsoleVariableRef CVarShallowWaterSim(
@@ -133,6 +159,9 @@ struct FUnderwaterPostProcessDebugInfo
 	TArray<TWeakObjectPtr<UWaterBodyComponent>> OverlappedWaterBodyComponents;
 	TWeakObjectPtr<UWaterBodyComponent> ActiveWaterBodyComponent;
 	FWaterBodyQueryResult ActiveWaterBodyQueryResult;
+	bool bIsPostProcessingEnabled = false;
+	bool bIsUnderwaterPostProcessEnabled = false;
+	bool bIsPathTracingEnabled = false;
 };
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -317,8 +346,6 @@ void UWaterSubsystem::PostInitialize()
 		GEngine->OnActorMoved().AddUObject(this, &UWaterSubsystem::OnActorMoved);
 	}
 #endif // WITH_EDITOR
-
-	UActorComponent::MarkRenderStateDirtyEvent.AddUObject(this, &UWaterSubsystem::OnMarkRenderStateDirty);
 }
 
 void UWaterSubsystem::Deinitialize()
@@ -333,7 +360,10 @@ void UWaterSubsystem::Deinitialize()
 	}
 #endif // WITH_EDITOR
 
-	UActorComponent::MarkRenderStateDirtyEvent.RemoveAll(this);
+	if (OnMarkRenderStateDirtyHandle.IsValid())
+	{
+		UActorComponent::MarkRenderStateDirtyEvent.Remove(OnMarkRenderStateDirtyHandle);
+	}
 
 	FConsoleVariableDelegate NullCallback;
 	CVarShallowWaterSimulationRenderTargetSize->SetOnChangedCallback(NullCallback);
@@ -444,6 +474,16 @@ bool UWaterSubsystem::IsShallowWaterSimulationEnabled() const
 bool UWaterSubsystem::IsUnderwaterPostProcessEnabled() const
 {
 	return EnableUnderwaterPostProcess != 0;
+}
+
+float UWaterSubsystem::GetUnderwaterCollisionTraceDistance()
+{
+	return UnderwaterCollisionTraceDistance;
+}
+
+float UWaterSubsystem::GetUnderwaterPreciseTraceDistance()
+{
+	return UnderwaterCollisionPreciseTraceDistance;
 }
 
 int32 UWaterSubsystem::GetShallowWaterMaxDynamicForces()
@@ -781,6 +821,11 @@ void UWaterSubsystem::RegisterWaterTerrainComponent(UWaterTerrainComponent* InWa
 	{
 		 WaterTerrainActors.Add(TerrainActor,  InWaterTerrainComponent);
 	}
+
+	if (!WaterTerrainActors.IsEmpty() && !OnMarkRenderStateDirtyHandle.IsValid())
+	{
+		OnMarkRenderStateDirtyHandle = UActorComponent::MarkRenderStateDirtyEvent.AddUObject(this, &UWaterSubsystem::OnMarkRenderStateDirty);
+	}
 }
 
 void UWaterSubsystem::UnregisterWaterTerrainComponent(UWaterTerrainComponent* InWaterTerrainComponent)
@@ -789,6 +834,12 @@ void UWaterSubsystem::UnregisterWaterTerrainComponent(UWaterTerrainComponent* In
 	if (const AActor* TerrainActor = InWaterTerrainComponent->GetOwner())
 	{
 		WaterTerrainActors.RemoveSingle(TerrainActor, InWaterTerrainComponent);
+	}
+
+	if (WaterTerrainActors.IsEmpty() && ensure(OnMarkRenderStateDirtyHandle.IsValid()))
+	{
+		UActorComponent::MarkRenderStateDirtyEvent.Remove(OnMarkRenderStateDirtyHandle);
+		OnMarkRenderStateDirtyHandle.Reset();
 	}
 }
 
@@ -856,33 +907,48 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 	SCOPE_CYCLE_COUNTER(STAT_WaterIsUnderwater);
 
 	UWorld* World = GetWorld();
-	if ((World == nullptr) || (SceneView->Family->EngineShowFlags.PostProcessing == 0))
-	{
-		return;
-	}
+	const bool bIsPostProcessingEnabled = (SceneView->Family->EngineShowFlags.PostProcessing != 0);
+	const bool bIsUnderwaterPostProcessEnabled = IsUnderwaterPostProcessEnabled();
+	const bool bIsPathTracingEnabled = (SceneView->Family->EngineShowFlags.PathTracing != 0);
 
 	const float PrevDepthUnderwater = CachedDepthUnderwater;
 	CachedDepthUnderwater = -1;
+
+	// Set all that needs to be set before an eventual early-out
+	UnderwaterPostProcessVolume.PostProcessProperties.bIsEnabled = false;
+	UnderwaterPostProcessVolume.PostProcessProperties.Settings = nullptr;
+	SceneView->UnderwaterDepth = CachedDepthUnderwater;
+	SceneView->WaterIntersection = EViewWaterIntersection::OutsideWater;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	FUnderwaterPostProcessDebugInfo UnderwaterPostProcessDebugInfo;
+	UnderwaterPostProcessDebugInfo.bIsPostProcessingEnabled = bIsPostProcessingEnabled;
+	UnderwaterPostProcessDebugInfo.bIsUnderwaterPostProcessEnabled = bIsUnderwaterPostProcessEnabled;
+	UnderwaterPostProcessDebugInfo.bIsPathTracingEnabled = bIsPathTracingEnabled;
+	ON_SCOPE_EXIT { ShowOnScreenDebugInfo(ViewLocation, UnderwaterPostProcessDebugInfo); };
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	if ((World == nullptr) || !bIsPostProcessingEnabled || !bIsUnderwaterPostProcessEnabled || bIsPathTracingEnabled)
+	{
+		return;
+	}
 
 	// Compute distance from view origin to the corner of the near plane. This distance needs to be taken into account when computing whether the view intersects the water surface.
 	const FVector4f NearPlaneCornerViewSpace = FVector4f(SceneView->ViewMatrices.GetInvProjectionMatrix().TransformFVector4(FVector4(1.0f, 1.0f, (bool)ERHIZBuffer::IsInverted ? 1.0f : 0.0f, 1.0f)));
 	const float ViewToNearPlaneCornerDistance = FVector2f(NearPlaneCornerViewSpace / NearPlaneCornerViewSpace.W).Length();
 	bool bAnyDefinitelyUnderwater = false;
 	bool bAnyPossiblyUnderwater = false;
-
 	bool bUnderwaterForPostProcess = false;
 
-	// Trace just a small distance extra from the viewpoint to account for waves since the waves wont traced against
-	static const float TraceDistance = 100.f;
+	const bool bIsVisualLoggerEnabled = EnableUnderwaterPostProcessVisualLogger != 0;
+	const float TraceDistance = GetUnderwaterCollisionTraceDistance();
+	const float PreciseTraceDistance = GetUnderwaterPreciseTraceDistance();
 
 	// Always force simple collision traces
 	static FCollisionQueryParams TraceSimple(SCENE_QUERY_STAT(DefaultQueryParam), false);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	FUnderwaterPostProcessDebugInfo UnderwaterPostProcessDebugInfo;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
 	TArray<FHitResult> Hits;
+	TArray<FHitResult> PreciseViewHits;
 	TArray<FWaterBodyPostProcessQuery, TInlineAllocator<4>> WaterBodyQueriesToProcess;
 	const bool bWorldHasWater  = WaterBodyManager.HasAnyWaterBodies();
 	if (bWorldHasWater && World->SweepMultiByChannel(Hits, ViewLocation, ViewLocation + FVector(0, 0, TraceDistance), FQuat::Identity, UnderwaterTraceChannel, FCollisionShape::MakeSphere(TraceDistance), TraceSimple))
@@ -914,8 +980,63 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 			});
 		}
 
+		UE_IFVLOG(
+			if (bIsVisualLoggerEnabled)
+			{
+				// Visualize camera marker 
+				UE_VLOG_LOCATION(this, LogWater, Log, ViewLocation, /*Radius=*/10.f, FColor::Green, TEXT("Camera"));
+
+				// Visulize primary sweep capsule
+				const FVector SweepStart = ViewLocation;
+				const FVector SweepEnd = ViewLocation + FVector(0, 0, TraceDistance);
+				UE_VLOG_CAPSULE(this, LogWater, Log, SweepStart, /*HalfHeight=*/ 0.0f, /*Radius=*/TraceDistance, FQuat::Identity, FColor::Yellow, TEXT("Primary sweep sphere@start"));
+
+				// Visualize raw hit results
+				for (const FHitResult& Hit : Hits)
+				{
+					UE_VLOG_LOCATION(this, LogWater, Log, Hit.ImpactPoint, 8.f, FColor::Red, TEXT("Primary Hit"));
+
+					const float NormalLen = 50.f;
+					UE_VLOG_ARROW(this, LogWater, Log, Hit.ImpactPoint, Hit.ImpactPoint + Hit.ImpactNormal * NormalLen, FColor::Red, TEXT("Primary Normal"));
+				}
+			}
+		);
+
+		// Determine if view is under water (camera is below impact point)
+		const double& ViewLocationZ = ViewLocation.Z;
+		const float ViewTolerance = 1.0f;
+		const bool bIsViewLocationUnderImpactPoint = Algo::AnyOf(Hits, [&ViewLocationZ, &ViewTolerance](const FHitResult& Hit)
+		{
+			// Add a smaller tolerance to avoid flickering when the view location hovers around the impact point
+			return (Hit.ImpactPoint.Z + ViewTolerance) > ViewLocationZ;
+		});
+
+		if (bIsViewLocationUnderImpactPoint)
+		{
+			World->SweepMultiByChannel(PreciseViewHits, ViewLocation, ViewLocation, FQuat::Identity, UnderwaterTraceChannel, FCollisionShape::MakeSphere(PreciseTraceDistance), TraceSimple);
+
+			UE_IFVLOG(
+				if (bIsVisualLoggerEnabled)
+				{
+					// Visualize precise sphere capsule
+					UE_VLOG_CAPSULE(this, LogWater, Log, ViewLocation, /*HalfHeight=*/ 0.0f, /*Radius=*/PreciseTraceDistance, FQuat::Identity, FColor::Blue, TEXT("Precise sphere@start"));
+
+					// Visualize precise hit results
+					for (const FHitResult& PreciseHit : PreciseViewHits)
+					{
+						UE_VLOG_LOCATION(this, LogWater, Log, PreciseHit.ImpactPoint, 10.f, FColor::Blue, TEXT("Precise Hit"));
+
+						const float NormalLen = 30.f;
+						UE_VLOG_ARROW(this, LogWater, Log, PreciseHit.ImpactPoint, PreciseHit.ImpactPoint + PreciseHit.ImpactNormal * NormalLen, FColor::Blue, TEXT("Precise Normal"));
+					}
+				}
+			);
+		}
+
 		float MaxWaterLevel = TNumericLimits<float>::Lowest();
-		for (const FHitResult& Result : Hits)
+		// When the camera is above water use the extended sphere collision to ensure post processing gets applied in waves
+		TArray<FHitResult>& RefinedHits = bIsViewLocationUnderImpactPoint ? PreciseViewHits : Hits;
+		for (const FHitResult& Result : RefinedHits)
 		{
 			if (AWaterBody* WaterBodyActor = Result.HitObjectHandle.FetchActor<AWaterBody>())
 			{
@@ -931,18 +1052,18 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 						| EWaterBodyQueryFlags::IncludeWaves;
 					AdjustUnderwaterWaterInfoQueryFlags(QueryFlags);
 
-					FWaterBodyQueryResult QueryResult = WaterBodyComponent->QueryWaterInfoClosestToWorldLocation(ViewLocation, QueryFlags);
-					if (!QueryResult.IsInExclusionVolume())
+					TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = WaterBodyComponent->TryQueryWaterInfoClosestToWorldLocation(ViewLocation, QueryFlags);
+					if (QueryResult.HasValue() && !QueryResult.GetValue().IsInExclusionVolume())
 					{
 						// Calculate the surface max Z at the view XY location
-						float WaterSurfaceZ = QueryResult.GetWaterPlaneLocation().Z + QueryResult.GetWaveInfo().MaxHeight;
+						float WaterSurfaceZ = QueryResult.GetValue().GetWaterPlaneLocation().Z + QueryResult.GetValue().GetWaveInfo().MaxHeight;
 
 						// Only add the waterbody for processing if it has a higher surface than the previous waterbody (the Hits array is sorted by priority already)
 						// This also removed any duplicate waterbodies possibly returned by the sweep query
 						if (WaterSurfaceZ > MaxWaterLevel)
 						{
 							MaxWaterLevel = WaterSurfaceZ;
-							WaterBodyQueriesToProcess.Add(FWaterBodyPostProcessQuery(*WaterBodyComponent, ViewLocation, QueryResult));
+							WaterBodyQueriesToProcess.Add(FWaterBodyPostProcessQuery(*WaterBodyComponent, ViewLocation, QueryResult.GetValue()));
 						}
 					}
 				}
@@ -992,16 +1113,6 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 	{
 		SceneView->WaterIntersection = EViewWaterIntersection::OutsideWater;
 	}
-
-	if (!bUnderwaterForPostProcess || !IsUnderwaterPostProcessEnabled() || SceneView->Family->EngineShowFlags.PathTracing)
-	{
-		UnderwaterPostProcessVolume.PostProcessProperties.bIsEnabled = false;
-		UnderwaterPostProcessVolume.PostProcessProperties.Settings = nullptr;
-	}
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	ShowOnScreenDebugInfo(ViewLocation, UnderwaterPostProcessDebugInfo);
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)						
 }
 
 void UWaterSubsystem::SetMPCTime(float Time, float PrevTime)
@@ -1097,6 +1208,21 @@ void UWaterSubsystem::ShowOnScreenDebugInfo(const FVector& InViewLocation, const
 						FText::AsNumber(WaterBody->GetOverlapMaterialPriority())));
 				}
 			}
+		}
+
+		if (!InDebugInfo.bIsPostProcessingEnabled)
+		{
+			OutputStrings.Add(LOCTEXT("VisualizeActiveUnderwaterPostProcess_PostProcessingDisabled", "Post processing is disabled"));
+		}
+
+		if (!InDebugInfo.bIsUnderwaterPostProcessEnabled)
+		{
+			OutputStrings.Add(LOCTEXT("VisualizeActiveUnderwaterPostProcess_UnderwaterPostProcessDisabled", "Underwater post process is disabled"));
+		}
+
+		if (InDebugInfo.bIsPathTracingEnabled)
+		{
+			OutputStrings.Add(LOCTEXT("VisualizeActiveUnderwaterPostProcess_PathTracingEnabled", "Path tracing is enabled"));
 		}
 	}
 

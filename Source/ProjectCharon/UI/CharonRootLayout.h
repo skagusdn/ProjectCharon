@@ -7,7 +7,6 @@
 #include "Widgets/CommonActivatableWidgetContainer.h"
 #include "CommonUserWidget.h"
 #include "GameplayTagContainer.h"
-#include "SSimpleComboButton.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "CharonRootLayout.generated.h"

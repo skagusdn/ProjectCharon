@@ -178,13 +178,19 @@ bool UWaterMeshComponent::ShouldRenderSelected() const
 
 #endif // WITH_EDITOR
 
+// Deprecated 5.7
 FMaterialRelevance UWaterMeshComponent::GetWaterMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	return GetWaterMaterialRelevance(GetFeatureLevelShaderPlatform_Checked(InFeatureLevel));
+}
+
+FMaterialRelevance UWaterMeshComponent::GetWaterMaterialRelevance(EShaderPlatform InShaderPlatform) const
 {
 	// Combine the material relevance for all materials.
 	FMaterialRelevance Result;
 	for (UMaterialInterface* Mat : UsedMaterials)
 	{
-		Result |= Mat->GetRelevance_Concurrent(InFeatureLevel);
+		Result |= Mat->GetRelevance_Concurrent(InShaderPlatform);
 	}
 
 	return Result;
@@ -268,8 +274,8 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 	bool bAnyWaterMeshesNotReady = false;
 	const bool bIsGPUQuadTree = CVarWaterMeshGPUQuadTree.GetValueOnGameThread() != 0;
 	
-	FMaterialRenderProxy* FarDistanceMaterialProxy = IsMaterialUsedWithWater(FarDistanceMaterial) ? FarDistanceMaterial->GetRenderProxy() : nullptr;
-	WaterQuadTreeBuilder.Init(WaterZone->GetZoneBounds2D(), InExtentInTiles, InTileSize, FarDistanceMaterialProxy, FarDistanceMeshExtent, bUseFarMeshWithoutOcean, bIsGPUQuadTree);
+	UMaterialInterface* FarDistanceMaterialInterface = IsMaterialUsedWithWater(FarDistanceMaterial) ? FarDistanceMaterial.Get() : nullptr;
+	WaterQuadTreeBuilder.Init(WaterZone->GetZoneBounds2D(), InExtentInTiles, InTileSize, FarDistanceMaterialInterface, FarDistanceMeshExtent, FarDistanceMeshHeightWithoutOcean, bUseFarMeshWithoutOcean, bIsGPUQuadTree);
 
 	UsedMaterials.Empty();
 
@@ -288,7 +294,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		}
 
 		UWaterBodyInfoMeshComponent* WaterBodyInfoMeshComponent = WaterBodyComponent->GetWaterInfoMeshComponent();
-		UStaticMesh* StaticMesh = WaterBodyInfoMeshComponent ? WaterBodyInfoMeshComponent->GetStaticMesh() : nullptr;
+		UStaticMesh* StaticMesh = WaterBodyInfoMeshComponent ? WaterBodyInfoMeshComponent->GetStaticMesh().Get() : nullptr;
 		bAnyWaterMeshesNotReady |= StaticMesh && StaticMesh->IsCompiling();
 		FStaticMeshRenderData* StaticMeshRenderData = StaticMesh ? StaticMesh->GetRenderData() : nullptr;
 		if (!ensure(WaterBodyInfoMeshComponent) || !ensure(StaticMesh) || !StaticMeshRenderData)
@@ -298,7 +304,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 
 		bUsesFarDistanceMaterial = bUsesFarDistanceMaterial || (WaterBodyComponent->GetWaterBodyType() == EWaterBodyType::Ocean);
 
-		auto GetMaterialProxy = [&](UMaterialInstanceDynamic* MID, bool bUseFallback) -> FMaterialRenderProxy*
+		auto GetMaterialInterface = [&](UMaterialInstanceDynamic* MID, bool bUseFallback) -> UMaterialInterface*
 		{
 			UMaterialInterface* MaterialInterface = nullptr;
 			if (!MID || !IsMaterialUsedWithWater(MID))
@@ -313,7 +319,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 			if (MaterialInterface)
 			{
 				UsedMaterials.Add(MaterialInterface);
-				return MaterialInterface->GetRenderProxy();
+				return MaterialInterface;
 			}
 			return nullptr;
 		};
@@ -321,9 +327,9 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		const bool bIsRiver = WaterBodyComponent->GetWaterBodyType() == EWaterBodyType::River;
 
 		FWaterQuadTreeBuilder::FWaterBody WaterBody = {};
-		WaterBody.Material = GetMaterialProxy(WaterBodyComponent->GetWaterMaterialInstance(), true);
-		WaterBody.RiverToLakeMaterial = bIsRiver ? GetMaterialProxy(WaterBodyComponent->GetRiverToLakeTransitionMaterialInstance(), false) : nullptr;
-		WaterBody.RiverToOceanMaterial = bIsRiver ? GetMaterialProxy(WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(), false) : nullptr;
+		WaterBody.Material = GetMaterialInterface(WaterBodyComponent->GetWaterMaterialInstance(), true);
+		WaterBody.RiverToLakeMaterial = bIsRiver ? GetMaterialInterface(WaterBodyComponent->GetRiverToLakeTransitionMaterialInstance(), false) : nullptr;
+		WaterBody.RiverToOceanMaterial = bIsRiver ? GetMaterialInterface(WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(), false) : nullptr;
 		WaterBody.StaticMeshRenderData = StaticMeshRenderData;
 		WaterBody.LocalToWorld = WaterBodyComponent->GetComponentTransform();
 		WaterBody.Bounds = WaterBodyComponent->Bounds;
@@ -530,7 +536,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		return true;
 	});
 
-	if (bUsesFarDistanceMaterial && FarDistanceMaterialProxy && (FarDistanceMeshExtent > 0.0f))
+	if (bUsesFarDistanceMaterial && FarDistanceMaterialInterface && (FarDistanceMeshExtent > 0.0f))
 	{
 		UsedMaterials.Add(FarDistanceMaterial);
 	}
@@ -610,6 +616,7 @@ void UWaterMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, ForceCollapseDensityLevel)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, FarDistanceMaterial)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, FarDistanceMeshExtent)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, FarDistanceMeshHeightWithoutOcean)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, bUseFarMeshWithoutOcean))
 		{
 			MarkWaterMeshGridDirty();

@@ -200,7 +200,7 @@ private:
 
 #if RHI_RAYTRACING
 	// Per density array of ray tracing geometries.
-	TArray<TArray<FRayTracingWaterData>> RayTracingWaterData;	
+	TArray<TIndirectArray<FRayTracingWaterData>> RayTracingWaterData;	
 #endif
 
 	

@@ -29,7 +29,7 @@ enum class EWaterZoneRebuildFlags
 ENUM_CLASS_FLAGS(EWaterZoneRebuildFlags);
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaterInfoTextureCreated, const UTextureRenderTarget2D*, WaterInfoTexture);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaterInfoTextureCreated, const UTextureRenderTarget2D*, WaterInfoTexture);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaterInfoTextureArrayCreated, const UTextureRenderTarget2DArray*, WaterInfoTextureArray);
 
 UCLASS(MinimalAPI, Blueprintable, HideCategories=(Physics, Replication, Input, Collision))
@@ -80,15 +80,6 @@ public:
 
 	bool IsLocalOnlyTessellationEnabled() const { return bEnableLocalOnlyTessellation; }
 
-	UE_DEPRECATED(5.5, "In 5.5 the dynamic water info is now per player view. Either call GetAllDynamicWaterInfoCenters or use the per-player index version")
-	UE_API FVector GetDynamicWaterInfoCenter() const;
-
-	UE_DEPRECATED(5.5, "In 5.5 the dynamic water info is now per player view. Either call GetAllDynamicWaterInfoCenters or use the per-player index version")
-	UE_API FBox GetDynamicWaterInfoBounds() const;
-
-	UE_DEPRECATED(5.5, "It is no longer possible to manually set the local tessellation center. This is controlled per view by the water view extension.")
-	void SetLocalTessellationCenter(const FVector& NewCenter) {}
-
 	UE_API virtual void BeginPlay() override;
 	UE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	UE_API virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
@@ -112,14 +103,6 @@ public:
 	UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	TObjectPtr<UTextureRenderTarget2DArray> WaterInfoTextureArray;
 
-	// //수정. 
-	// /*
-	//  * 물의 Z속도까지 넣은 텍스처
-	//  * 좀 짜치는 방식이지만 CharonWaterManager에 업데이트를 맡기는 걸로 하자. 
-	//  */
-	// UPROPERTY( VisibleAnywhere, BlueprintReadOnly, Category = Water)
-	// TObjectPtr<UTextureRenderTarget2D> WaterXYZVelocityTexture; //
-
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	int32 WaterInfoTextureArrayNumSlices = 1;
 
@@ -132,19 +115,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category=Rendering)
 	UE_API void SetFarMeshMaterial(UMaterialInterface* InFarMaterial);
-
-
-#if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(5.5, "WaterInfoTexture is deprecated, please use WaterInfoTextureArray instead.")
-	UPROPERTY(Transient, meta = (DeprecatedProperty, DeprecationMessage = "Use WaterInfoTextureArray instead."))
-	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture_DEPRECATED;
-#endif
-
-#if WITH_EDITOR 
-	UE_DEPRECATED(5.5, "GetOnWaterInfoTextureCreated is deprecated, please use GetOnWaterInfoTextureArrayCreated instead.")
-	FOnWaterInfoTextureCreated& GetOnWaterInfoTextureCreated() { return OnWaterInfoTextureCreated_DEPRECATED; }
-#endif
-
+	
 //private: 수정
 protected:
 
@@ -281,9 +252,6 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> WaterVelocityTexture_DEPRECATED;
-
-	UPROPERTY()
-	FOnWaterInfoTextureCreated OnWaterInfoTextureCreated_DEPRECATED;
 
 	UPROPERTY()
 	FVector TessellatedWaterMeshExtent_DEPRECATED;

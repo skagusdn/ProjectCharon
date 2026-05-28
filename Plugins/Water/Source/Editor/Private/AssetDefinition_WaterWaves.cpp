@@ -5,6 +5,8 @@
 #include "WaterWaves.h"
 #include "WaterEditorModule.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AssetDefinition_WaterWaves)
+
 #define LOCTEXT_NAMESPACE "WaterWaves"
 
 FText UAssetDefinition_WaterWaves::GetAssetDisplayName() const

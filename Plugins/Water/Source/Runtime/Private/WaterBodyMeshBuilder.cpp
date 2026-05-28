@@ -592,7 +592,7 @@ void FWaterBodyMeshBuilder::UpdateStaticMesh(UStaticMesh* WaterMesh, const FMesh
 	CommitParams.bUseHashAsGuid = true;
 	WaterMesh->CommitMeshDescription(0,CommitParams);
 
-	WaterMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+	WaterMesh->SetImportVersion(EImportStaticMeshVersion::LastVersion);
 }
 
 UStaticMesh* FWaterBodyMeshBuilder::CreateUStaticMesh(UObject* Outer, FName MeshName) const

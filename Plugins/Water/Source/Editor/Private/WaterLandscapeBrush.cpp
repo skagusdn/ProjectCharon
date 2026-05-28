@@ -481,7 +481,7 @@ void AWaterLandscapeBrush::SetTargetLandscape(ALandscape* InTargetLandscape)
 			OwningLandscape->RemoveBrush(this);
 		}
 
-		if (InTargetLandscape && InTargetLandscape->CanHaveLayersContent())
+		if (InTargetLandscape && !InTargetLandscape->IsTemplate())
 		{
 			static const FName WaterLayerName = FName("Water");
 			
@@ -557,7 +557,7 @@ AWaterLandscapeBrush::EWaterBrushStatus AWaterLandscapeBrush::CheckWaterBrushSta
 	if (GetWorld() && !IsTemplate())
 	{
 		ALandscape* Landscape = GetOwningLandscape();
-		if (Landscape == nullptr || !Landscape->CanHaveLayersContent())
+		if (Landscape == nullptr)
 		{
 			return EWaterBrushStatus::MissingLandscapeWithEditLayers;
 		}
@@ -580,8 +580,8 @@ void AWaterLandscapeBrush::CheckForErrors()
 	case EWaterBrushStatus::MissingLandscapeWithEditLayers:
 		FMessageLog("MapCheck").Error()
 			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NonEditLayersLandscape", "The water brush requires a Landscape with Edit Layers enabled.")))
-			->AddToken(FMapErrorToken::Create(TEXT("WaterBrushNonEditLayersLandscape")));
+			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NoLandscape", "The water brush requires an edit layer Landscape.")))
+			->AddToken(FMapErrorToken::Create(TEXT("WaterBrushNoLandscape")));
 	case EWaterBrushStatus::MissingFromLandscapeEditLayers:
 		FMessageLog("MapCheck").Error()
 			->AddToken(FUObjectToken::Create(this))

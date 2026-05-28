@@ -78,11 +78,6 @@ TSharedRef<FEditorViewportClient> SWaterWavesEditorViewport::MakeEditorViewportC
 	return EditorViewportClient.ToSharedRef();
 }
 
-TSharedPtr<SWidget> SWaterWavesEditorViewport::MakeViewportToolbar()
-{
-	return SNew(SCommonEditorViewportToolbarBase, SharedThis(this));
-}
-
 TSharedPtr<SWidget> SWaterWavesEditorViewport::BuildViewportToolbar()
 {
 	// Register the viewport toolbar if another viewport hasn't already (it's shared).

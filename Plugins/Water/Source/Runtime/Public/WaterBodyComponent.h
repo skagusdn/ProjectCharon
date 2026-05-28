@@ -12,6 +12,7 @@
 #include "BakedShallowWaterSimulationComponent.h"
 #include "WaterZoneActor.h"
 #include "WaterBodyTypes.h"
+#include "Templates/ValueOrError.h"
 
 class AWaterBody;
 class UStaticMesh;
@@ -166,7 +167,7 @@ public:
 	WATER_API virtual FBox GetCollisionComponentBounds() const;
 
 	/** Returns the type of body */
-	WATER_API virtual EWaterBodyType GetWaterBodyType() const PURE_VIRTUAL(UWaterBodyComponent::GetWaterBodyType, return EWaterBodyType::Transition; )
+	virtual EWaterBodyType GetWaterBodyType() const PURE_VIRTUAL(UWaterBodyComponent::GetWaterBodyType, return EWaterBodyType::Transition; )
 
 	/** Returns collision half-extents */
 	virtual FVector GetCollisionExtents() const { return FVector::ZeroVector; }
@@ -299,10 +300,13 @@ public:
 	- InQueryFlags: flags to indicate which info is to be computed
 	- InSplineInputKey: (optional) location on the spline, in case it has already been computed.
 	*/
+	WATER_API virtual TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> TryQueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, const TOptional<float>& InSplineInputKey = TOptional<float>()) const;
+
+	UE_DEPRECATED(5.7, "Deprecated in favor of TryQueryWaterInfoClosestToWorldLocation to ensure caller correctly handles the cases where this function fails")
 	WATER_API virtual FWaterBodyQueryResult QueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, const TOptional<float>& InSplineInputKey = TOptional<float>()) const;
 
 	UFUNCTION(BlueprintCallable, Category = WaterBody)
-	WATER_API void GetWaterSurfaceInfoAtLocation(const FVector& InLocation, FVector& OutWaterSurfaceLocation, FVector& OutWaterSurfaceNormal, FVector& OutWaterVelocity, float& OutWaterDepth, bool bIncludeDepth = false) const;
+	WATER_API bool GetWaterSurfaceInfoAtLocation(const FVector& InLocation, FVector& OutWaterSurfaceLocation, FVector& OutWaterSurfaceNormal, FVector& OutWaterVelocity, float& OutWaterDepth, bool bIncludeDepth = false) const;
 
 	/** Spline query helper. It's faster to get the spline key once then query properties using that key, rather than querying repeatedly by location etc. */
 	WATER_API float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const;
@@ -372,9 +376,6 @@ public:
 
 	/** Returns true if the location is within one of this water body's exclusion volumes */
 	WATER_API bool IsWorldLocationInExclusionVolume(const FVector& InWorldLocation) const;
-
-	UE_DEPRECATED(5.5, "Use UpdateComponentVisibility")
-	WATER_API virtual void UpdateComponentVisibility(bool bAllowWaterZoneRebuild);
 
 	/** Updates the bVisible/bHiddenInGame flags on the component and eventually the child renderable components (e.g. custom water body) */
 	WATER_API void UpdateVisibility();
@@ -697,7 +698,7 @@ protected:
 	UPROPERTY(Category = BakedSimulation, AdvancedDisplay, VisibleAnywhere)
 	TWeakObjectPtr<UBakedShallowWaterSimulationComponent> BakedShallowWaterSim;
 
-	/**  Override to disable use of the baked shallow water simulation for collisons and other uses */
+	/**  Override to disable use of the baked shallow water simulation for collisions and other uses */
 	UPROPERTY(Category = BakedSimulation, AdvancedDisplay, EditAnywhere)
 	bool bUseBakedSimForQueriesAndPhysics = true;
 

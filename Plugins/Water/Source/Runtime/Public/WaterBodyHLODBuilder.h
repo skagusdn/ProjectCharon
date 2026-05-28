@@ -13,7 +13,7 @@ class UWaterBodyHLODBuilder : public UHLODBuilder
 
 public:
 #if WITH_EDITOR
-	virtual uint32 ComputeHLODHash(const UActorComponent* InSourceComponent) const override;
+	virtual bool ComputeHLODHash(FHLODHashBuilder& HashBuilder, const UActorComponent* InSourceComponent) const override;
 
 	/**
 	 * Components created with this method need to be properly outered & assigned to your target actor.

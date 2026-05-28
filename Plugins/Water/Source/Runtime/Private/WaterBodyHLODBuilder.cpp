@@ -22,6 +22,8 @@
 #include "Engine/HLODProxy.h"
 #include "SceneView.h"
 
+#include "WorldPartition/HLOD/HLODHashBuilder.h"
+
 #endif
 
 UWaterBodyHLODBuilder::UWaterBodyHLODBuilder(const FObjectInitializer& ObjectInitializer)
@@ -45,23 +47,20 @@ static double GetPixelToWorldUnit(const double InDistanceZ)
 	return WorldPos.X;
 }
 
-uint32 UWaterBodyHLODBuilder::ComputeHLODHash(const UActorComponent* InSourceComponent) const
+bool UWaterBodyHLODBuilder::ComputeHLODHash(FHLODHashBuilder& HashBuilder, const UActorComponent* InSourceComponent) const
 {
-	FArchiveCrc32 Ar;
-
-	if (const UWaterBodyComponent* WaterBodyComponent = Cast<UWaterBodyComponent>(InSourceComponent))
+	const UWaterBodyComponent* WaterBodyComponent = Cast<UWaterBodyComponent>(InSourceComponent);
+	if (!WaterBodyComponent)
 	{
-		uint32 TransformHash = UHLODProxy::GetCRC(WaterBodyComponent->GetComponentTransform());
-		Ar << TransformHash;
-		
-		FMeshDescription HLODMesh = WaterBodyComponent->GetHLODMeshDescription();
-		Ar << HLODMesh;
-
-		UMaterialInterface* HLODMaterial = WaterBodyComponent->GetHLODMaterial();
-		Ar << HLODMaterial;
+		return false;
 	}
+	
+	HashBuilder.HashField(WaterBodyComponent->GetComponentTransform(), TEXT("Transform"));
+	HashBuilder.HashField(WaterBodyComponent->GetHLODMeshDescription(), TEXT("HLODMesh"));
 
-	return Ar.GetCrc();
+	HashBuilder << WaterBodyComponent->GetHLODMaterial();
+
+	return true;
 }
 
 TArray<UActorComponent*> UWaterBodyHLODBuilder::Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const
@@ -108,7 +107,7 @@ TArray<UActorComponent*> UWaterBodyHLODBuilder::Build(const FHLODBuildContext& I
 			StaticMesh->AddSourceModel();
 			StaticMesh->CreateMeshDescription(0, HLODMesh);
 			StaticMesh->CommitMeshDescription(0);
-			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+			StaticMesh->SetImportVersion(EImportStaticMeshVersion::LastVersion);
 		}
 		
 		// Material

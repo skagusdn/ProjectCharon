@@ -177,7 +177,7 @@ public:
 	UGerstnerWaterWaves();
 	
 	/** Returns the maximum wave height that can be reached by those waves */
-	WATER_API virtual float GetMaxWaveHeight() const override { return MaxWaveHeight; }
+	virtual float GetMaxWaveHeight() const override { return MaxWaveHeight; }
 
 	/** Computes the raw wave perturbation of the water height/normal */
 	WATER_API virtual float GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const override;
@@ -200,7 +200,7 @@ protected:
 	float MaxWaveHeight;
 
 public:
-	WATER_API const TArray<FGerstnerWave>& GetGerstnerWaves() const { return GerstnerWaves; }
+	const TArray<FGerstnerWave>& GetGerstnerWaves() const { return GerstnerWaves; }
 
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 #if WITH_EDITOR

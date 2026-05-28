@@ -118,9 +118,18 @@ void SetValues(FWaterSplineMetadataDetails& Details, TArray<FInterpCurvePoint<T>
 
 	Details.SplineComp->UpdateSpline();
 	Details.SplineComp->bSplineHasBeenEdited = true;
-	static FProperty* SplineCurvesProperty = FindFProperty<FProperty>(USplineComponent::StaticClass(), USplineComponent::GetSplinePropertyName());
 	EPropertyChangeType::Type PropertyChangeType = WaterSplineMetadataDetailsLocals::IsTextCommitValueSet(CommitInfo) ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive;
-	FComponentVisualizer::NotifyPropertyModified(Details.SplineComp, SplineCurvesProperty, PropertyChangeType);
+	
+	static TArray<FProperty*> SplineProperties;
+	if (SplineProperties.IsEmpty())
+	{
+		for (const FName& Property : USplineComponent::GetSplinePropertyNames())
+		{
+			SplineProperties.Add(FindFProperty<FProperty>(USplineComponent::StaticClass(), Property));
+		}
+	}
+
+	FComponentVisualizer::NotifyPropertiesModified(Details.SplineComp, SplineProperties, PropertyChangeType);
 	Details.Update(Details.SplineComp, Details.SelectedKeys);
 
 	GEditor->RedrawLevelEditingViewports(true);
