@@ -51,6 +51,17 @@ struct FShallowWaterChunk
 
 	UPROPERTY()
 	FVector2D ChunkWorldSize; // 이 청크의 실제 월드 크기 (마진/오버랩이 적용된 크기)
+	
+	// 🚨 CPU 물리 연산용: 마진이 잘려나간 순수 알맹이 데이터
+	UPROPERTY()
+	TArray<FVector4> BakedPhysicsData;
+
+	UPROPERTY()
+	int32 BaseResX = 0;
+	
+	UPROPERTY()
+	int32 BaseResY = 0;
+	
 
 	// --------------------------------------------------------
 	// 2. 나이아가라 시뮬레이션 코어
@@ -122,6 +133,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation", meta = (DisplayName = "Source Width"))
 	float SourceSize;
 
+	// (추가) 청크 분할 개수를 에디터에서 설정 (예: X:2, Y:2)
+	UPROPERTY(EditAnywhere, Category = "Simulation", meta = (DisplayName = "Chunk Grid Dimensions"))
+	FIntPoint ChunkGridDimensions; 
+	
 	UPROPERTY(EditAnywhere, Category = "Simulation", meta = (DisplayName = "Speed"))
 	float SimSpeed = 10.f;
 
@@ -182,13 +197,13 @@ public:
 	UPROPERTY()
 	bool bUseVirtualTextures = true;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	FVector2D SimRes;
 
 	UPROPERTY()
 	float  SimDx;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTexture2D> BakedWaterSurfaceTexture;
 	
 	UPROPERTY()
@@ -244,8 +259,8 @@ public:
 	UE_API void AddActorsToRawArray(const TArray<TSoftObjectPtr<AActor>>& ActorsArray, TArray<AActor*>& BottomContourActorsRawPtr);
 
 	UE_API void AddTaggedActorsToArray(TArray<FName>& TagsToUse, TArray<AActor*>& BottomContourActorsRawPtr);
-
-	UE_API void Bake();
+	
+	void Bake();
 
 	UE_API void InitializeVirtualTexture(TObjectPtr<UTexture2D> InTexture);
 
@@ -268,6 +283,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleDefaultsOnly, Category = "Shallow Water")
 	TObjectPtr<const UTextureRenderTarget2DArray> WaterInfoTexture;
 
+	// 바뀐 시스템에서 RT 애들은 안씀. 문제가 될 수도 있으니 일단 남겨놓음. 
 	UPROPERTY(BlueprintReadOnly, VisibleDefaultsOnly, Category = "Shallow Water")
 	TObjectPtr<UTextureRenderTarget2D> BakedWaterSurfaceRT;
 
@@ -291,10 +307,10 @@ private:
 	UPROPERTY()
 	TSet <TSoftObjectPtr<AWaterBody>> AllWaterBodies;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	FVector2D WorldGridSize;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	FVector SystemPos;
 	
 	UPROPERTY()
@@ -310,14 +326,17 @@ private:
 ////////// 내가 수정한 것들
 public:
 
-	
+	//////////// watersurfacetexture 테스트 중
+	UPROPERTY(EditAnywhere, Category = "MyTest")
+	AActor* MyTestWaterSurfaceActor;
+	//////////// watersurfacetexture 테스트 끝
 protected:
 	
-	UPROPERTY(EditAnywhere, Category = "MyTest")
-	bool bDoesTest = false;
+	// UPROPERTY(EditAnywhere, Category = "MyTest")
+	// bool bDoesTest = false;
 	
-	UPROPERTY(EditAnywhere, Category = "MyTest")
-	int TestIndex = 0;
+	// UPROPERTY(EditAnywhere, Category = "MyTest")
+	// int TestIndex = 0;
 	
 	UPROPERTY()
 	TArray<FShallowWaterChunk> ShallowWaterChunks;
@@ -327,6 +346,19 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	float AlignedOverlapMargin;
+	
+	UPROPERTY()
+	FVector2D BaseChunkSize;
+	
+	UPROPERTY()
+	FVector2D BaseChunkRes;
+	
+	// UPROPERTY()
+	// float ExpectedSimDx;
+	
+	// 테스트용
+	UPROPERTY(EditAnywhere, Category = "MyTest")
+	UTextureRenderTarget2D* BakedWaterSurfaceRTForCheck;
 	
 	FBoxSphereBounds InitializeCaptureDI(UNiagaraComponent* TargetSimSystem, const FName &DIName, TArray<AActor*> RawActorPtrArray);
 	
