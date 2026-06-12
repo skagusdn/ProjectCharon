@@ -46,6 +46,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShallowWaterRiverActor)
 
+static int DirX[] = {0,1,0,-1,0};
+static int DirY[] = {0,0,1,0,-1};
+
 bool bShallowWaterRiverDebugVisualize = false;
 FAutoConsoleVariableRef CVarShallowWaterRiverDebugVisualize(TEXT("r.ShallowWater.RiverDebugVisualize"), bShallowWaterRiverDebugVisualize, TEXT(""));
 
@@ -138,8 +141,378 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(const FName& D
 	return FBoxSphereBounds(BottomContourCombinedWorldBoundsBuilder);	
 }
 
+void UShallowWaterRiverComponent::InitSequentialBake(bool bIsFirstPass)
+{
+	if (ShallowWaterChunks.IsEmpty()) return;
+	
+	if (bIsFirstPass)
+	{
+		CurrentBakePass = 0;
+		CurrentTargetChunkIndex = -1;
+	}
+	
+	BakingQueue.Empty();
+	
+	if(bIsFirstPass)
+	{
+		// 거리, 검사 여부 배열 초기화
+        	ChunkDistanceFromSource.Empty();
+        	ChunkBeenSimulated.Empty();
+        	ChunkDistanceFromSource.AddZeroed(ShallowWaterChunks.Num());
+        	ChunkBeenSimulated.AddZeroed(ShallowWaterChunks.Num());
+        	
+        	for (int32 i = 0; i < ShallowWaterChunks.Num(); ++i)
+        	{
+        		ChunkDistanceFromSource[i] = 9999999; // 초기화
+        		ChunkBeenSimulated[i] = false;
+        
+        		if (IsChunkOverlappingSource(ShallowWaterChunks[i]))
+        		{
+        			SourceChunkIndices.Add(i);
+        			ChunkDistanceFromSource[i] = 0;
+        		}
+        	}
+        
+        	// 2. 전체 청크에 대해 'Source까지의 그리드 거리' 계산 (맨해튼 거리)
+        	for (int32 i = 0; i < ShallowWaterChunks.Num(); ++i)
+        	{
+        		for (int32 SourceIdx : SourceChunkIndices)
+        		{
+        			int32 DistX = FMath::Abs(ShallowWaterChunks[i].GridIndex.X - ShallowWaterChunks[SourceIdx].GridIndex.X);
+        			int32 DistY = FMath::Abs(ShallowWaterChunks[i].GridIndex.Y - ShallowWaterChunks[SourceIdx].GridIndex.Y);
+                    
+        			ChunkDistanceFromSource[i] = FMath::Min(ChunkDistanceFromSource[i], DistX + DistY);
+        		}
+        	}
+	}	
+	
+	// 3. 소스 청크들을 큐에 넣고 첫 시작 준비
+	for (int32 SourceIdx : SourceChunkIndices)
+	{
+		BakingQueue.Add(SourceIdx);
+	}
+	
+	bIsSequentialBaking = true;
+	CurrentBakingFrameCount = 0;
+	
+}
+
+void UShallowWaterRiverComponent::TickBake()
+{
+	if (!bIsSequentialBaking || ShallowWaterChunks.IsEmpty())
+	{
+		return;
+	}
+	
+	CurrentBakingFrameCount++;
+	
+	while (!BakingQueue.IsEmpty() && ChunkBeenSimulated[BakingQueue[BakingQueue.Num() - 1]])
+	{
+		BakingQueue.RemoveAt(BakingQueue.Num() - 1);
+	}
+	
+	if (CurrentTargetChunkIndex < 0 && BakingQueue.IsEmpty())
+	{
+		/////////////////
+		UE_LOG(LogTemp, Warning, TEXT("야돈 To Next Pass : %d"), CurrentBakePass+1); //
+		
+		CurrentBakePass++;
+		if (CurrentBakePass >= MaxBakePasses)
+		{
+			// 모든 패스가 끝남! 시뮬레이션 최종 종료
+			bIsSequentialBaking = false;
+			UE_LOG(LogTemp, Warning, TEXT("Sequential Baking Finished!"));
+			// 여기서 Bake() 호출 혹은 사용자 수동 Bake 대기
+			return;
+		}
+		// 큐가 비었지만 아직 패스가 남았다면? 초기화 후 다시 시작
+		InitSequentialBake(false); // Source 다시 큐에 넣고 상태 리셋
+		return;
+	}
+
+	// 시간 다 지났거나 현재 타겟이 없을 때
+	if (CurrentTargetChunkIndex < 0 || CurrentBakingFrameCount > FramesForChunkBaking)
+	{
+		if (CurrentTargetChunkIndex >= 0)
+		{
+			// 1. 타깃과 이웃 시스템 끄기 (일시정지)
+			ActivateChunkAndNeighbors(CurrentTargetChunkIndex, false);
+        
+			// 2. 경계면 물 검사 및 이웃 큐 추가
+			CheckBoundariesAndQueueNeighbors(CurrentTargetChunkIndex);	
+		}
+		
+		// 🚨 큐 정렬: Source까지의 거리가 가장 가까운 놈이 최우선! (내림차순, 배열은 뒤에 있는게 빼기 좋으니깐.)
+		BakingQueue.Sort([this](const int32& A, const int32& B)
+		{
+			return ChunkDistanceFromSource[A] > ChunkDistanceFromSource[B];
+		});
+
+		/////////////////
+		UE_LOG(LogTemp, Warning, TEXT("야돈 Pop Chunk- %d"), CurrentTargetChunkIndex); //
+
+		// 큐의 맨 앞(최우선 순위) 청크 꺼내기
+		
+		CurrentTargetChunkIndex = BakingQueue.IsEmpty() ? -1 : BakingQueue[BakingQueue.Num() - 1];
+		if (CurrentTargetChunkIndex >= 0)
+		{
+			ChunkBeenSimulated[CurrentTargetChunkIndex] = true;
+			BakingQueue.RemoveAt(BakingQueue.Num() - 1);
+			
+			//테스트. 활성화 제외해봄.
+			ActivateChunkAndNeighbors(CurrentTargetChunkIndex, true);
+		}
+		
+		CurrentBakingFrameCount = 0;
+
+		/////////////////
+		UE_LOG(LogTemp, Warning, TEXT("야돈 Baking Chunk- %d Started Simulation"), CurrentTargetChunkIndex); //
+		for (int32 ChunkIdx : BakingQueue)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("야돈, Chunk:%d is in Queue"), ChunkIdx);
+		}
+		//////////
+
+		// 타깃과 그 주변 청크 활성화!
+	}
+	
+}
+
+
+
+void UShallowWaterRiverComponent::ActivateChunkAndNeighbors(int32 CenterChunkIndex, bool bActive)
+{
+	FShallowWaterChunk& Chunk = ShallowWaterChunks[CenterChunkIndex];
+	int32 cx = Chunk.GridIndex.X;
+	int32 cy = Chunk.GridIndex.Y;
+
+	for (int i = 0; i < 5; i++)
+	{
+		int nx = cx + DirX[i];
+		int ny = cy + DirY[i];
+		
+		
+		if (nx < 0 || nx >= ChunkGridDimensions.X || ny < 0 || ny >= ChunkGridDimensions.Y)
+		{
+			continue;
+		}
+		
+		int ChunkIdx = ny * ChunkGridDimensions.X + nx;
+		
+		if (ShallowWaterChunks.Num() > ChunkIdx && ShallowWaterChunks[ChunkIdx].RiverSimSystem)
+		{
+			if (bActive)
+			{
+				/////////////////
+				UE_LOG(LogTemp, Warning, TEXT("야돈 Activate Chunk:%d"), ChunkIdx); //
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->Activate();
+			}
+			else
+			{
+				/////////////////
+				UE_LOG(LogTemp, Warning, TEXT("야돈 Deactivate Chunk:%d"), ChunkIdx); //
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->Deactivate();
+			}
+		}
+	}
+	
+	
+	/////////
+	for (FShallowWaterChunk& CheckChunk : ShallowWaterChunks)
+	{
+		if (CheckChunk.RiverSimSystem->IsActive())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("야돈 Chunk(%d,%d) is Alive"), CheckChunk.GridIndex.X, CheckChunk.GridIndex.Y); //
+		}
+	}
+	/////
+}
+
+void UShallowWaterRiverComponent::CheckBoundariesAndQueueNeighbors(int32 CenterChunkIndex)
+{
+	FShallowWaterChunk& CenterChunk = ShallowWaterChunks[CenterChunkIndex];
+    
+    if (!CenterChunk.SimGridRT)
+    {
+    	UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::CheckBoundariesAndQueueNeighbors, SimGridRT없음 "));
+	    return;
+    }
+
+    TArray<FFloat16Color> RawPixels;
+    CenterChunk.SimGridRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(RawPixels);
+    
+    int32 RTResX = CenterChunk.SimGridRT->SizeX;
+    int32 RTResY = CenterChunk.SimGridRT->SizeY;
+
+    // 4방향 물 존재 여부 플래그
+    bool bWaterTop = false, bWaterBottom = false, bWaterLeft = false, bWaterRight = false;
+
+    // 외곽선 픽셀만 검사 (Margin 제외하고 알맹이의 끝단 검사 권장)
+    // for (int32 y = 0; y < RTResY; ++y)
+    // {
+    //     for (int32 x = 0; x < RTResX; ++x)
+    //     {
+    //         if (x == 0 || x == RTResX - 1 || y == 0 || y == RTResY - 1)
+    //         {
+    //             int32 ReadIdx = (y * RTResX) + x;
+    //             if (RawPixels.IsValidIndex(ReadIdx) && RawPixels[ReadIdx].G.GetFloat() > 1e-4f) // Depth(G) 검사
+    //             {
+    //                 if (y == RTResY - 1) bWaterTop = true;
+    //                 if (y == 0)          bWaterBottom = true;
+    //                 if (x == RTResX - 1) bWaterRight = true;
+    //                 if (x == 0)          bWaterLeft = true;
+    //             }
+    //         }
+    //     }
+    // }
+
+	for (int y = MarginCells ; y < RTResY - MarginCells ; y++)
+	{
+		int x = MarginCells;
+		int ReadIdx = (y * RTResX) + x;
+		bWaterLeft |= RawPixels.IsValidIndex(ReadIdx) && RawPixels[ReadIdx].G.GetFloat() > 1e-4f;
+		
+		x = RTResX - MarginCells;
+		ReadIdx = (y * RTResX) + x;
+		bWaterRight |= RawPixels.IsValidIndex(ReadIdx) && RawPixels[ReadIdx].G.GetFloat() > 1e-4f;
+	}
+	for (int x = MarginCells ; x < RTResX - MarginCells ; x++)
+	{
+		int y = MarginCells;
+		int ReadIdx = (y * RTResX) + x;
+		bWaterBottom |= RawPixels.IsValidIndex(ReadIdx) && RawPixels[ReadIdx].G.GetFloat() > 1e-4f;
+		
+		y = RTResY - MarginCells;
+		ReadIdx = (y * RTResX) + x;
+		bWaterTop |= RawPixels.IsValidIndex(ReadIdx) && RawPixels[ReadIdx].G.GetFloat() > 1e-4f;
+	}
+	
+	
+    int32 CX = CenterChunk.GridIndex.X;
+    int32 CY = CenterChunk.GridIndex.Y;
+
+    // 이웃을 찾아 큐에 넣기 (타깃된 적 없고, 경계에 물이 닿았을 때만)
+    auto TryQueueNeighbor = [&](int32 NX, int32 NY, bool bHasWater) 
+	{
+        if (!bHasWater)
+        {
+	        return;
+        };
+
+        for (int32 i = 0; i < ShallowWaterChunks.Num(); ++i)
+        {
+            if (ShallowWaterChunks[i].GridIndex.X == NX && ShallowWaterChunks[i].GridIndex.Y == NY)
+            {
+                // 타깃된 적 없으며, 큐에 중복으로 들어있지 않으면 추가
+                if (!ChunkBeenSimulated[i] && !BakingQueue.Contains(i))
+                {
+                	/////////////////
+                	UE_LOG(LogTemp, Warning, TEXT("야돈 Adding Chunk:%d to Queue by Chunk:%d"), i ,CurrentTargetChunkIndex); //
+                    BakingQueue.Add(i);
+                }
+                break;
+            }
+        }
+    };
+
+    TryQueueNeighbor(CX, CY + 1, bWaterTop);
+    TryQueueNeighbor(CX, CY - 1, bWaterBottom);
+    TryQueueNeighbor(CX - 1, CY, bWaterLeft);
+    TryQueueNeighbor(CX + 1, CY, bWaterRight);
+	
+	/////////////////
+	UE_LOG(LogTemp, Warning, TEXT("야돈 Checking Boundaries of Chunk:%d // Top/Bottom/Left/Right : %d/%d/%d/%d"), CenterChunkIndex, 
+		bWaterTop, bWaterBottom, bWaterLeft, bWaterRight); //
+	
+	
+	
+}
+
+bool UShallowWaterRiverComponent::IsChunkOverlappingSource(const FShallowWaterChunk& Chunk)
+{
+	// 1. Chunk의 2D AABB 정보 설정
+    FVector2D ChunkCenter(Chunk.SystemPos.X, Chunk.SystemPos.Y);
+    FVector2D ChunkExtents(Chunk.ChunkWorldSize.X * 0.5f, Chunk.ChunkWorldSize.Y * 0.5f);
+    FBox2D ChunkBox(ChunkCenter - ChunkExtents, ChunkCenter + ChunkExtents);
+
+    // Chunk의 4개 모서리 + 중심점 (Z는 0으로 무시)
+    TArray<FVector> ChunkPoints = {
+        FVector(ChunkCenter.X, ChunkCenter.Y, 0), // 중심점
+        FVector(ChunkCenter.X - ChunkExtents.X, ChunkCenter.Y - ChunkExtents.Y, 0),
+        FVector(ChunkCenter.X + ChunkExtents.X, ChunkCenter.Y - ChunkExtents.Y, 0),
+        FVector(ChunkCenter.X + ChunkExtents.X, ChunkCenter.Y + ChunkExtents.Y, 0),
+        FVector(ChunkCenter.X - ChunkExtents.X, ChunkCenter.Y + ChunkExtents.Y, 0)
+    };
+
+    for (int32 i = 0; i < SourcePosArray.Num(); ++i)
+    {
+        FVector Pos = SourcePosArray[i];
+        FVector Size = FVector(SourceSizeArray[i]);
+        float Angle = SourceAngleArray[i];
+
+        // HLSL의 AxisAngleQuat 계산과 완벽히 동일 (Z축 회전)
+        FQuat SourceRot = FQuat(FVector(0, 0, 1), Angle);
+        FTransform SourceTransform(SourceRot, Pos);
+
+        FVector SourceExtents = Size * 0.5f;
+
+        // 검사 A: 청크의 점들이 Source 박스 내부에 있는지 검사 (HLSL 로직의 C++ 버전)
+        bool bOverlaps = false;
+        for (const FVector& Pt : ChunkPoints)
+        {
+            // WorldToLocal 변환 (HLSL의 Inverse Transform과 동일한 기능)
+            FVector LocalPt = SourceTransform.InverseTransformPosition(Pt);
+            
+            // X, Y가 절반 크기(Extents) 안에 들어오면 겹친 것!
+            if (FMath::Abs(LocalPt.X) <= SourceExtents.X && 
+                FMath::Abs(LocalPt.Y) <= SourceExtents.Y)
+            {
+                bOverlaps = true;
+                break;
+            }
+        }
+
+        if (bOverlaps) return true;
+
+        // 검사 B: 반대로 Source의 모서리들이 청크(AABB) 내부에 있는지 검사 (소스가 청크보다 작을 때를 대비)
+        TArray<FVector> SourceLocalCorners = {
+            FVector(-SourceExtents.X, -SourceExtents.Y, 0),
+            FVector( SourceExtents.X, -SourceExtents.Y, 0),
+            FVector( SourceExtents.X,  SourceExtents.Y, 0),
+            FVector(-SourceExtents.X,  SourceExtents.Y, 0)
+        };
+
+        for (const FVector& LocalCorner : SourceLocalCorners)
+        {
+            // LocalToWorld 변환
+            FVector WorldCorner = SourceTransform.TransformPosition(LocalCorner);
+            if (ChunkBox.IsInside(FVector2D(WorldCorner.X, WorldCorner.Y)))
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void UShallowWaterRiverComponent::TestTempCheckChunkSystems()
+{
+	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	{
+		if (Chunk.RiverSimSystem->IsActive())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("라이츄 Chunk %d Is Alive"), Chunk.GridIndex.Y * Chunk.GridIndex.X + Chunk.GridIndex.X );	
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("라이츄 Chunk %d Is Dead"), Chunk.GridIndex.Y * Chunk.GridIndex.X + Chunk.GridIndex.X );
+		}
+	}
+}
+
 FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(UNiagaraComponent* TargetSimSystem,
-	const FName& DIName, TArray<AActor*> RawActorPtrArray)
+                                                                  const FName& DIName, TArray<AActor*> RawActorPtrArray)
 {
 	UNiagaraFunctionLibrary::SetSceneCapture2DDataInterfaceManagedMode(TargetSimSystem, DIName,
 				ESceneCaptureSource::SCS_SceneDepth,
@@ -234,11 +607,14 @@ void UShallowWaterRiverComponent::PostLoad()
 	{
 		// RiverSimSystem->ReinitializeSystem();
 		// RiverSimSystem->Activate();
-		for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-		{
-			Chunk.RiverSimSystem->ReinitializeSystem();
-			Chunk.RiverSimSystem->Activate();
-		}
+		
+		
+		// ReInitialize에 activate가 포함되어 있었네?
+		// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		// {
+		// 	Chunk.RiverSimSystem->ReinitializeSystem();
+		// 	//Chunk.RiverSimSystem->Activate();
+		// }
 	}
 
 	bRenderStateTickInitialize = false;
@@ -273,19 +649,25 @@ void UShallowWaterRiverComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		// {
 		// 	UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::TickComponent() - null Niagara sim when trying to activate. Please reset."));
 		// }
-		for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		
+		// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		// {
+		// 	if (Chunk.RiverSimSystem)
+		// 	{
+		// 		Chunk.RiverSimSystem->Activate();
+		// 	}
+		// 	else
+		// 	{
+		// 		UE_LOG(LogShallowWater, Warning,
+		// 		       TEXT(
+		// 			       "UShallowWaterRiverComponent::TickComponent() - null Niagara sim when trying to activate. Please reset."
+		// 		       ));
+		// 	}
+		// }
+		
+		if (bIsSequentialBaking)
 		{
-			if (Chunk.RiverSimSystem)
-			{
-				Chunk.RiverSimSystem->Activate();
-			}
-			else
-			{
-				UE_LOG(LogShallowWater, Warning,
-				       TEXT(
-					       "UShallowWaterRiverComponent::TickComponent() - null Niagara sim when trying to activate. Please reset."
-				       ));
-			}
+			TickBake();
 		}
 	}
 	else
@@ -317,13 +699,15 @@ void UShallowWaterRiverComponent::BeginPlay()
 	// 	RiverSimSystem->ReinitializeSystem();
 	// 	RiverSimSystem->Activate();
 	// }
+	
+	// TODO : 여기 뭔가 수정해야될듯.
 	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 	{
 		if (Chunk.RiverSimSystem != nullptr && bReadBakedSim)
 		{
 			Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
-			Chunk.RiverSimSystem->ReinitializeSystem();
-			Chunk.RiverSimSystem->Activate();
+			//Chunk.RiverSimSystem->ReinitializeSystem();
+			//Chunk.RiverSimSystem->Activate();
 		}
 	}
 }
@@ -1026,9 +1410,9 @@ void UShallowWaterRiverComponent::Rebuild()
 	// }
 	
 	
-	// 안전한 검색을 위해 그리드 크기만큼 포인터 배열을 임시 공간으로 확보 (이웃 탐색용)
-	TArray<FShallowWaterChunk*> GridMap;
-	GridMap.AddZeroed(GridSizeX * GridSizeY);
+	// // 안전한 검색을 위해 그리드 크기만큼 포인터 배열을 임시 공간으로 확보 (이웃 탐색용)
+	// TArray<FShallowWaterChunk*> GridMap;
+	// GridMap.AddZeroed(GridSizeX * GridSizeY);
 	
 	// 기존 청크 초기화
 	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
@@ -1064,8 +1448,10 @@ void UShallowWaterRiverComponent::Rebuild()
 
 			// 나이아가라 시스템 스폰
 			NewChunk.RiverSimSystem = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
+			NewChunk.RiverSimSystem->SetAutoActivate(false); //
 			NewChunk.RiverSimSystem->bUseAttachParentBound = false;
 			NewChunk.RiverSimSystem->SetWorldLocation(NewChunk.SystemPos);
+			
 			
 			if (GetWorld() && GetWorld()->bIsWorldInitialized)
 			{
@@ -1079,8 +1465,8 @@ void UShallowWaterRiverComponent::Rebuild()
 			}
 			
 			int32 ChunkIdx = ShallowWaterChunks.Add(NewChunk);
-			// 이웃 탐색용 맵에 주소 기록
-			GridMap[Y * GridSizeX + X] = &ShallowWaterChunks[ChunkIdx];
+			// // 이웃 탐색용 맵에 주소 기록
+			// GridMap[Y * GridSizeX + X] = &ShallowWaterChunks[ChunkIdx];
 		}
 	}
 	
@@ -1148,7 +1534,8 @@ void UShallowWaterRiverComponent::Rebuild()
 					"User.DilatedBottomCaptureUnder", DilatedBottomContourActorsRawPtr);
 
 				// reinitialize and set variables on the system
-				WaterChunk.RiverSimSystem->ReinitializeSystem();
+				//WaterChunk.RiverSimSystem->ReinitializeSystem();
+				WaterChunk.RiverSimSystem->DestroyInstanceNotComponent();//
 
 				WaterChunk.RiverSimSystem->SetVariableFloat(FName("LandscapeCaptureOffset"),
 															LandscapeBottomContourBounds.Origin.Z +
@@ -1178,7 +1565,8 @@ void UShallowWaterRiverComponent::Rebuild()
 		{
 			for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 			{
-				Chunk.RiverSimSystem->ReinitializeSystem();
+				//Chunk.RiverSimSystem->ReinitializeSystem();
+				Chunk.RiverSimSystem->DestroyInstanceNotComponent();
 			}
 		}
 	}
@@ -1231,9 +1619,13 @@ void UShallowWaterRiverComponent::Rebuild()
 	float FinalSourceHeight = 2. * CombinedBounds.BoxExtent.Z + Overshoot;
 
 	// Get sources	
-	TArray<FVector> SourcePosArray;
-	TArray<FVector3f> FullSourceSizeArray;
-	TArray<float> FullSourceAngleArray;
+	// TArray<FVector> SourcePosArray;
+	// TArray<FVector3f> FullSourceSizeArray;
+	// TArray<float> FullSourceAngleArray;
+	SourcePosArray.Empty();
+	SourceSizeArray.Empty();
+	SourceAngleArray.Empty();
+	
 	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : SourceRiverWaterBodies)
 	{
 		FVector CurrSourcePos;
@@ -1274,14 +1666,14 @@ void UShallowWaterRiverComponent::Rebuild()
 
 
 		SourcePosArray.Add(FullSourcePos);
-		FullSourceSizeArray.Add(FVector3f(FullSourceSize));
-		FullSourceAngleArray.Add(FullSourceAngle);				
+		SourceSizeArray.Add(FVector3f(FullSourceSize));
+		SourceAngleArray.Add(FullSourceAngle);				
 	}
 	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 	{
 		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayPosition(Chunk.RiverSimSystem, "User.SourcePosArray",SourcePosArray);
-		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Chunk.RiverSimSystem, "User.SourceSizeArray", FullSourceSizeArray);
-		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(Chunk.RiverSimSystem, "User.SourceAngleArray", FullSourceAngleArray);
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(Chunk.RiverSimSystem, "User.SourceSizeArray", SourceSizeArray);
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(Chunk.RiverSimSystem, "User.SourceAngleArray", SourceAngleArray);
 	}
 
 	
@@ -1348,10 +1740,10 @@ void UShallowWaterRiverComponent::Rebuild()
 		int32 Y = Chunk.GridIndex.Y;
 
 		// 이웃 청크 포인터 초기화
-		FShallowWaterChunk* NeighborTop    = (Y + 1 < GridSizeY) ? GridMap[(Y + 1) * GridSizeX + X] : nullptr;
-		FShallowWaterChunk* NeighborBottom = (Y - 1 >= 0)        ? GridMap[(Y - 1) * GridSizeX + X] : nullptr;
-		FShallowWaterChunk* NeighborLeft   = (X - 1 >= 0)        ? GridMap[Y * GridSizeX + (X - 1)] : nullptr;
-		FShallowWaterChunk* NeighborRight  = (X + 1 < GridSizeX) ? GridMap[Y * GridSizeX + (X + 1)] : nullptr;
+		FShallowWaterChunk* NeighborTop    = (Y + 1 < GridSizeY) ? &ShallowWaterChunks[(Y + 1) * GridSizeX + X] : nullptr;
+		FShallowWaterChunk* NeighborBottom = (Y - 1 >= 0)        ? &ShallowWaterChunks[(Y - 1) * GridSizeX + X] : nullptr;
+		FShallowWaterChunk* NeighborLeft   = (X - 1 >= 0)        ? &ShallowWaterChunks[Y * GridSizeX + (X - 1)] : nullptr;
+		FShallowWaterChunk* NeighborRight  = (X + 1 < GridSizeX) ? &ShallowWaterChunks[Y * GridSizeX + (X + 1)] : nullptr;
 		
 		// 나이아가라 기본 공간 변수 전달
 		Chunk.RiverSimSystem->SetVariableVec2(FName("WorldGridSize"), Chunk.ChunkWorldSize);
@@ -1361,7 +1753,7 @@ void UShallowWaterRiverComponent::Rebuild()
 		Chunk.RiverSimSystem->SetVariableFloat(FName("OverlapMargin"), AlignedOverlapMargin);
 		Chunk.RiverSimSystem->SetVariableVec2(FName("GridIndex"), FVector2D(X, Y));
 		
-		Chunk.RiverSimSystem->Activate();
+		//Chunk.RiverSimSystem->Activate();
 		
 		// 해상도는 기존 로직(비율 계산)을 청크 크기에 맞춰 재적용
 		FVector2D LocalSimRes = FVector2D(BaseChunkRes.X + (MarginCells * 2), BaseChunkRes.Y + (MarginCells * 2));
@@ -1391,22 +1783,6 @@ void UShallowWaterRiverComponent::Rebuild()
 		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("NormalRT"), Chunk.NormalRT);
 
 		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
-		
-		// // bake를 쓰기 위한 임시 
-		// if (!bDoesTest && Chunk.GridIndex == 0)
-		// {
-		// 	BakedWaterSurfaceRT = Chunk.SimGridRT;
-		// 	BakedFoamRT = Chunk.FoamRT;
-		// 	BakedWaterSurfaceNormalRT = Chunk.NormalRT;
-		//
-		// 	
-		// 	if (BakedWaterSurfaceTexture != nullptr && BakedFoamTexture != nullptr && BakedWaterSurfaceNormalTexture != nullptr)
-		// 	{
-		// 		Chunk.RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), BakedWaterSurfaceTexture);
-		// 		Chunk.RiverSimSystem->SetVariableTexture(FName("BakedFoamTexture"), BakedFoamTexture);
-		// 		Chunk.RiverSimSystem->SetVariableTexture(FName("BakedWaterSurfaceNormalTexture"), BakedWaterSurfaceNormalTexture);
-		// 	}
-		// }
 		
 		
 		// 🚨 [이웃 데이터 공유] 상하좌우 독립적으로 검증 및 바인딩
@@ -1491,6 +1867,12 @@ void UShallowWaterRiverComponent::Rebuild()
 #endif
 
 	bIsInitialized = true;
+	
+	// 🚨 모든 세팅이 끝난 직후, 순차 베이킹 시스템을 초기화합니다.
+	if (RenderState == EShallowWaterRenderState::LiveSim)
+	{
+		InitSequentialBake(true);
+	}
 	
 	////////////// Test 수정 끝
 }
@@ -2393,7 +2775,8 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 			Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
 		
 			Chunk.RiverSimSystem->SetVariableTextureRenderTarget("OceanNormalRT", NormalDetailRT);
-			Chunk.RiverSimSystem->ReinitializeSystem();
+			//Chunk.RiverSimSystem->ReinitializeSystem();
+			Chunk.RiverSimSystem->DestroyInstanceNotComponent();
 		}
 	}
 	

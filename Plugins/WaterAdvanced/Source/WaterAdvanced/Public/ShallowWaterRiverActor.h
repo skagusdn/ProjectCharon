@@ -103,6 +103,13 @@ struct FShallowWaterChunk
 	UPROPERTY()
 	bool bNeedsColdStart; // 비활성화 상태에서 방금 켜져서 초기화(Baked 데이터 주입 등)가 필요한지 여부
 
+	// // 단계적 청크 별 시뮬레이션 용
+	// UPROPERTY()
+	// int32 DistanceToSource = 999999; // 소스 청크로부터의 그리드 거리
+	//
+	// UPROPERTY()
+	// bool bHasBeenTargetThisPass = false; // 이번 사이클(Pass)에서 타깃이 된 적 있는지 여부
+	
 	FShallowWaterChunk()
 		: GridIndex(ForceInitToZero)
 		, SystemPos(ForceInitToZero)
@@ -353,8 +360,42 @@ protected:
 	UPROPERTY()
 	FVector2D BaseChunkRes;
 	
-	// UPROPERTY()
-	// float ExpectedSimDx;
+	// 청크에서 Source 까지의 거리(청크 거리)
+	TArray<int32> ChunkDistanceFromSource;
+	
+	// 청크 시뮬레이션이 진행되었는지 여부
+	TArray<bool> ChunkBeenSimulated;
+	
+	UPROPERTY(EditAnywhere, Category = "Simulation|Bake")
+	int32 FramesForChunkBaking = 100;
+	
+	UPROPERTY(EditAnywhere, Category = "Simulation|Bake")
+	int32 MaxBakePasses = 1;// 큐가 비었을 때 처음부터 다시 진행할 반복(Pass) 횟수
+	
+	bool bIsSequentialBaking = false;
+	int32 CurrentBakePass = 0;
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	int32 CurrentTargetChunkIndex = -1;
+	int32 CurrentBakingFrameCount = 0;
+	
+	TArray<int32> BakingQueue;
+	
+	// 소스 데이터
+	TArray<FVector> SourcePosArray;
+	TArray<FVector3f> SourceSizeArray;
+	TArray<float> SourceAngleArray;
+	
+	TArray<int32> SourceChunkIndices; // 소스가 속해있는 청크
+	
+	// --- 청크 분할 시뮬레이션 용 함수 --- TODO : 에디터온니 로 덮기
+	void InitSequentialBake(bool bIsFirstPass);
+	void TickBake();
+	void ActivateChunkAndNeighbors(int32 CenterChunkIndex, bool bActive);
+	void CheckBoundariesAndQueueNeighbors(int32 CenterChunkIndex);
+	bool IsChunkOverlappingSource(const FShallowWaterChunk& Chunk);
+	
+	// 임시 테스트용, 모든 청크 나이아가라 시스템 살아있나 체크.
+	void TestTempCheckChunkSystems();
 	
 	// 테스트용
 	UPROPERTY(EditAnywhere, Category = "MyTest")
