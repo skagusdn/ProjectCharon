@@ -337,6 +337,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MyTest")
 	AActor* MyTestWaterSurfaceActor;
 	//////////// watersurfacetexture 테스트 끝
+	
+	// 임시 테스트용
+	UFUNCTION(BlueprintCallable, Category = "MyTest", CallInEditor)
+	void TestTempCheckChunkSystems();
+	
 protected:
 	
 	// UPROPERTY(EditAnywhere, Category = "MyTest")
@@ -391,11 +396,11 @@ protected:
 	void InitSequentialBake(bool bIsFirstPass);
 	void TickBake();
 	void ActivateChunkAndNeighbors(int32 CenterChunkIndex, bool bActive);
+	//void UpdateChunkSimStates(int32 CenterChunkIndex);
 	void CheckBoundariesAndQueueNeighbors(int32 CenterChunkIndex);
 	bool IsChunkOverlappingSource(const FShallowWaterChunk& Chunk);
 	
-	// 임시 테스트용, 모든 청크 나이아가라 시스템 살아있나 체크.
-	void TestTempCheckChunkSystems();
+	
 	
 	// 테스트용
 	UPROPERTY(EditAnywhere, Category = "MyTest")
