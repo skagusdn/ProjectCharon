@@ -52,15 +52,15 @@ struct FShallowWaterChunk
 	UPROPERTY()
 	FVector2D ChunkWorldSize; // 이 청크의 실제 월드 크기 (마진/오버랩이 적용된 크기)
 	
-	// 🚨 CPU 물리 연산용: 마진이 잘려나간 순수 알맹이 데이터
-	UPROPERTY()
-	TArray<FVector4> BakedPhysicsData;
-
-	UPROPERTY()
-	int32 BaseResX = 0;
-	
-	UPROPERTY()
-	int32 BaseResY = 0;
+	// // 🚨 CPU 물리 연산용: 마진이 잘려나간 순수 알맹이 데이터
+	// UPROPERTY()
+	// TArray<FVector4> BakedPhysicsData;
+	//
+	// UPROPERTY()
+	// int32 BaseResX = 0;
+	//
+	// UPROPERTY()
+	// int32 BaseResY = 0;
 	
 
 	// --------------------------------------------------------
@@ -86,7 +86,7 @@ struct FShallowWaterChunk
 	TObjectPtr<UTexture2D> BakedWaterSurfaceTexture;
 	
 	UPROPERTY()
-	TObjectPtr<UTexture2D> BakedFoamTexture;
+	TObjectPtr<UTexture2D> BakedFoamTexture; // TODO : 쓰고 있나 이 Baked 애들? 체크. 
 
 	UPROPERTY()
 	TObjectPtr<UTexture2D> BakedWaterSurfaceNormalTexture;
@@ -361,9 +361,13 @@ protected:
 	
 	UPROPERTY()
 	FVector2D BaseChunkSize;
-	
 	UPROPERTY()
 	FVector2D BaseChunkRes;
+	UPROPERTY()
+	FVector2D ChunkSize;
+	UPROPERTY()
+	FVector2D ChunkRes;
+	
 	
 	// 청크에서 Source 까지의 거리(청크 거리)
 	TArray<int32> ChunkDistanceFromSource;
@@ -406,7 +410,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "MyTest")
 	UTextureRenderTarget2D* BakedWaterSurfaceRTForCheck;
 	
-	FBoxSphereBounds InitializeCaptureDI(UNiagaraComponent* TargetSimSystem, const FName &DIName, TArray<AActor*> RawActorPtrArray);
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	TObjectPtr<UTexture2D> TestVisibleTexture;
+	
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	TObjectPtr<UTextureRenderTarget2D> TestVisibleRT;
+	
+	
+	FBoxSphereBounds InitializeCaptureDI(UNiagaraComponent* TargetSimSystem, const FName &DIName, TArray<AActor*> RawActorPtrArray, FIntPoint CaptureResolution, float OrthoWidth);
 	
 	
 	

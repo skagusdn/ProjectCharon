@@ -156,7 +156,8 @@ void UShallowWaterRiverComponent::InitSequentialBake(bool bIsFirstPass)
 		ChunkBeenSimulated.Empty();
 		ChunkDistanceFromSource.AddZeroed(ShallowWaterChunks.Num());
 		ChunkBeenSimulated.AddZeroed(ShallowWaterChunks.Num());
-
+		SourceChunkIndices.Empty();
+		
 		for (int32 i = 0; i < ShallowWaterChunks.Num(); ++i)
 		{
 			ChunkDistanceFromSource[i] = 9999999; // 초기화
@@ -256,11 +257,14 @@ void UShallowWaterRiverComponent::TickBake()
 		
 		/////////////////
 		UE_LOG(LogTemp, Warning, TEXT("야돈 Baking Chunk: %d Started Simulation"), CurrentTargetChunkIndex); //
-		for (int32 ChunkIdx : BakingQueue)
+		
+		FString Str = "";
+		for (int32 ChunkIndex : BakingQueue)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("야돈, Chunk:%d is in Queue"), ChunkIdx);
+			Str += FString::Printf(TEXT("%d "), ChunkIndex);
 		}
-		//////////
+		UE_LOG(LogTemp, Warning, TEXT("야돈 / 현재 큐에 있는 청크 : %s"), *Str); //
+		/////////////////
 		
 		if (CurrentTargetChunkIndex >= 0)
 		{
@@ -358,9 +362,13 @@ void UShallowWaterRiverComponent::ActivateChunkAndNeighbors(int32 CenterChunkInd
 				/////////////////
 				UE_LOG(LogTemp, Warning, TEXT("야돈 Activate Chunk:%d"), ChunkIdx); //
 				// 연산을 해야 하면 Cached 연산을 끄고(false), 쉬어야 하면 켬(true)
-				ShallowWaterChunks[i].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), false);
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), false);
 				// 거품 생성 여부도 동일하게 제어
-				ShallowWaterChunks[i].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), true);
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), true);
+				
+				// 테스트 - 중간 저장한 텍스처를 불러옴.
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), ShallowWaterChunks[ChunkIdx].BakedWaterSurfaceTexture);
+				
 				ShallowWaterChunks[ChunkIdx].RiverSimSystem->ReinitializeSystem();
 				//ShallowWaterChunks[ChunkIdx].RiverSimSystem->Activate();
 			}
@@ -368,10 +376,22 @@ void UShallowWaterRiverComponent::ActivateChunkAndNeighbors(int32 CenterChunkInd
 			{
 				/////////////////
 				UE_LOG(LogTemp, Warning, TEXT("야돈 Deactivate Chunk:%d"), ChunkIdx); //
-				//ShallowWaterChunks[ChunkIdx].RiverSimSystem->Deactivate();
-				ShallowWaterChunks[i].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
-				ShallowWaterChunks[i].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), false);
-				ShallowWaterChunks[ChunkIdx].RiverSimSystem->ReinitializeSystem();
+				
+				// 테스트 - 중간 저장을 위해 텍스처 형식으로 구움.
+				UTexture2D * BakedTexture = ShallowWaterChunks[ChunkIdx].SimGridRT->ConstructTexture2D(this, FString::Printf(TEXT("ChunkBakedTexture%d"), ChunkIdx ), RF_Public);
+				ShallowWaterChunks[ChunkIdx].BakedWaterSurfaceTexture = BakedTexture;
+				if (ChunkIdx == 1)
+				{
+					TestVisibleTexture = BakedTexture;
+					TestVisibleRT = ShallowWaterChunks[ChunkIdx].SimGridRT;
+				}
+				////////////////
+				
+				
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->DeactivateImmediate();
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
+				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), false);
+				//ShallowWaterChunks[ChunkIdx].RiverSimSystem->ReinitializeSystem();
 			}
 		}
 	}
@@ -608,15 +628,15 @@ void UShallowWaterRiverComponent::TestTempCheckChunkSystems()
 }
 
 FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(UNiagaraComponent* TargetSimSystem,
-                                                                  const FName& DIName, TArray<AActor*> RawActorPtrArray)
+                                                                  const FName& DIName, TArray<AActor*> RawActorPtrArray, FIntPoint CaptureResolution, float OrthoWidth)
 {
 	UNiagaraFunctionLibrary::SetSceneCapture2DDataInterfaceManagedMode(TargetSimSystem, DIName,
 				ESceneCaptureSource::SCS_SceneDepth,
-				FIntPoint(ResolutionMaxAxis, ResolutionMaxAxis),
+				CaptureResolution,
 				ETextureRenderTargetFormat::RTF_R32f,
 				ECameraProjectionMode::Orthographic,
 				90.0f,
-				FMath::Max(WorldGridSize.X, WorldGridSize.Y),
+				OrthoWidth,
 				true,
 				false,
 				RawActorPtrArray);
@@ -701,16 +721,16 @@ void UShallowWaterRiverComponent::PostLoad()
 	}
 	else
 	{
-		RiverSimSystem->ReinitializeSystem();
-		RiverSimSystem->Activate();
+		// RiverSimSystem->ReinitializeSystem();
+		// RiverSimSystem->Activate();
 		
 		
-		// ReInitialize에 activate가 포함되어 있었네?
-		for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-		{
-			Chunk.RiverSimSystem->ReinitializeSystem();
-			Chunk.RiverSimSystem->Activate();
-		}
+		// // ReInitialize에 activate가 포함되어 있었네?
+		// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		// {
+		// 	Chunk.RiverSimSystem->ReinitializeSystem();
+		// 	Chunk.RiverSimSystem->Activate();
+		// }
 	}
 
 	bRenderStateTickInitialize = false;
@@ -1480,6 +1500,7 @@ void UShallowWaterRiverComponent::Rebuild()
 	// 3. 목표 크기를 픽셀 단위(정수)로 변환 (여기서 소수점 오차를 한 번 끊어냄)
 	BaseChunkRes.X = FMath::RoundToInt(TempChunkSize.X / SimDx);
 	BaseChunkRes.Y = FMath::RoundToInt(TempChunkSize.Y / SimDx);
+	ChunkRes = FVector2D(BaseChunkRes.X + 2*MarginCells, BaseChunkRes.Y + 2*MarginCells); 
 	
 	SimRes.X = BaseChunkRes.X * GridSizeX;
 	SimRes.Y = BaseChunkRes.Y * GridSizeY;
@@ -1487,13 +1508,14 @@ void UShallowWaterRiverComponent::Rebuild()
 	// 4. 결정된 정수 픽셀을 바탕으로 "완벽하게 스냅된 월드 크기"를 역산
 	BaseChunkSize.X = BaseChunkRes.X * SimDx;
 	BaseChunkSize.Y = BaseChunkRes.Y * SimDx;
+	ChunkSize = BaseChunkSize + FVector2D(AlignedOverlapMargin * 2.0f, AlignedOverlapMargin * 2.0f);
 	
 	WorldGridSize.X = BaseChunkSize.X * GridSizeX;
 	WorldGridSize.Y = BaseChunkSize.Y * GridSizeY;
 	
 	// 5. 오버랩 마진 계산
 	AlignedOverlapMargin = SimDx * MarginCells;
-	int32 ResolutionMaxAxisIncludeMargin = FMath::Max(BaseChunkRes.X, BaseChunkRes.Y) + (MarginCells * 2);
+	
 	
 	// 6. 스냅된 크기를 바탕으로 전체 기준점(SystemPos)과 좌측 하단 시작점 재계산
 	//FVector BottomLeftOrigin = CombinedBounds.Origin - FVector(CombinedBounds.BoxExtent.X, CombinedBounds.BoxExtent.Y, CombinedBounds.BoxExtent.Z);
@@ -1523,7 +1545,7 @@ void UShallowWaterRiverComponent::Rebuild()
 			FShallowWaterChunk NewChunk;
 			NewChunk.GridIndex = FIntPoint(X, Y);
 			// 🚨 핵심: 실제 시뮬레이션 영역(ChunkWorldSize)은 마진을 더해 확장함
-			NewChunk.ChunkWorldSize = BaseChunkSize + FVector2D(AlignedOverlapMargin * 2.0f, AlignedOverlapMargin * 2.0f);
+			NewChunk.ChunkWorldSize = ChunkSize;
 
 			// 청크의 중심 좌표 계산
 			FVector ChunkCenterOffset = FVector(
@@ -1599,48 +1621,51 @@ void UShallowWaterRiverComponent::Rebuild()
 			AddActorsToRawArray(DilatedBottomContourActors, DilatedBottomContourActorsRawPtr);
 			AddTaggedActorsToArray(DilatedBottomContourTags, DilatedBottomContourActorsRawPtr);
 
-			for (FShallowWaterChunk& WaterChunk : ShallowWaterChunks)
+			float ChunkOrthoWidth = FMath::Max(ChunkSize.X, ChunkSize.Y);
+			FIntPoint ChunkOrthoRes = FIntPoint(ChunkRes.X, ChunkRes.Y);
+			
+			for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 			{
 				FBoxSphereBounds LandscapeBottomContourBounds = InitializeCaptureDI(
-					WaterChunk.RiverSimSystem, "User.LandscapeBottomCapture", LandscapeBottomContourActorsRawPtr);
+					Chunk.RiverSimSystem, "User.LandscapeBottomCapture", LandscapeBottomContourActorsRawPtr, ChunkOrthoRes, ChunkOrthoWidth);
 				
 				// undilated captures
 				FBoxSphereBounds CombinedBottomContourBounds = InitializeCaptureDI(
-					WaterChunk.RiverSimSystem, "User.BottomCapture", BottomContourActorsRawPtr);
+					Chunk.RiverSimSystem, "User.BottomCapture", BottomContourActorsRawPtr, ChunkOrthoRes, ChunkOrthoWidth );
 				FBoxSphereBounds CombinedBottomContourBoundsUnder = InitializeCaptureDI(
-					WaterChunk.RiverSimSystem, "User.BottomCaptureUnder", BottomContourActorsRawPtr);
+					Chunk.RiverSimSystem, "User.BottomCaptureUnder", BottomContourActorsRawPtr, ChunkOrthoRes, ChunkOrthoWidth);
 
 				// Dilated capture
 				FBoxSphereBounds DilatedCombinedBottomContourBounds = InitializeCaptureDI(
-					WaterChunk.RiverSimSystem,
-					"User.DilatedBottomCapture", DilatedBottomContourActorsRawPtr);
+					Chunk.RiverSimSystem,
+					"User.DilatedBottomCapture", DilatedBottomContourActorsRawPtr, ChunkOrthoRes, ChunkOrthoWidth);
 				FBoxSphereBounds DilatedCombinedBottomContourBoundsUnder = InitializeCaptureDI(
-					WaterChunk.RiverSimSystem,
-					"User.DilatedBottomCaptureUnder", DilatedBottomContourActorsRawPtr);
+					Chunk.RiverSimSystem,
+					"User.DilatedBottomCaptureUnder", DilatedBottomContourActorsRawPtr, ChunkOrthoRes, ChunkOrthoWidth);
 
 				// reinitialize and set variables on the system
-				WaterChunk.RiverSimSystem->ReinitializeSystem();
-				//WaterChunk.RiverSimSystem->DestroyInstanceNotComponent();//
+				//WaterChunk.RiverSimSystem->ReinitializeSystem();
+				Chunk.RiverSimSystem->DestroyInstanceNotComponent();//
 
-				WaterChunk.RiverSimSystem->SetVariableFloat(FName("LandscapeCaptureOffset"),
+				Chunk.RiverSimSystem->SetVariableFloat(FName("LandscapeCaptureOffset"),
 															LandscapeBottomContourBounds.Origin.Z +
 															LandscapeBottomContourBounds.BoxExtent.Z +
 															BottomContourCaptureOffset);
 
-				WaterChunk.RiverSimSystem->SetVariableFloat(FName("CaptureOffset"),
+				Chunk.RiverSimSystem->SetVariableFloat(FName("CaptureOffset"),
 															CombinedBottomContourBounds.Origin.Z +
 															CombinedBottomContourBounds.BoxExtent.Z +
 															BottomContourCaptureOffset);
-				WaterChunk.RiverSimSystem->SetVariableFloat(FName("DilatedCaptureOffset"),
+				Chunk.RiverSimSystem->SetVariableFloat(FName("DilatedCaptureOffset"),
 															DilatedCombinedBottomContourBounds.Origin.Z +
 															DilatedCombinedBottomContourBounds.BoxExtent.Z +
 															BottomContourCaptureOffset);
 
-				WaterChunk.RiverSimSystem->SetVariableFloat(FName("CaptureOffsetUnder"),
+				Chunk.RiverSimSystem->SetVariableFloat(FName("CaptureOffsetUnder"),
 															CombinedBottomContourBounds.Origin.Z -
 															CombinedBottomContourBounds.BoxExtent.Z -
 															BottomContourCaptureOffset);
-				WaterChunk.RiverSimSystem->SetVariableFloat(FName("DilatedCaptureOffsetUnder"),
+				Chunk.RiverSimSystem->SetVariableFloat(FName("DilatedCaptureOffsetUnder"),
 															DilatedCombinedBottomContourBounds.Origin.Z -
 															DilatedCombinedBottomContourBounds.BoxExtent.Z -
 															BottomContourCaptureOffset);
@@ -1650,8 +1675,8 @@ void UShallowWaterRiverComponent::Rebuild()
 		{
 			for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 			{
-				Chunk.RiverSimSystem->ReinitializeSystem();
-				//Chunk.RiverSimSystem->DestroyInstanceNotComponent();
+				//Chunk.RiverSimSystem->ReinitializeSystem();
+				Chunk.RiverSimSystem->DestroyInstanceNotComponent();
 			}
 		}
 	}
@@ -1819,6 +1844,27 @@ void UShallowWaterRiverComponent::Rebuild()
 	}
 	
 	///// 렌더타깃등 각종 파라미터 세팅
+	
+	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	{
+		Chunk.SimGridRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+		Chunk.SimGridRT->RenderTargetFormat = RTF_RGBA16f; // 16비트 Float 포맷 지정 (음수와 소수점 보존)
+		Chunk.SimGridRT->ClearColor = FLinearColor(0, 0, 0, 0);
+		Chunk.SimGridRT->InitAutoFormat(1, 1);
+		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("SimGridRT"), Chunk.SimGridRT);
+		
+		Chunk.FoamRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+		Chunk.FoamRT->RenderTargetFormat = RTF_RGBA16f;
+		Chunk.FoamRT->InitAutoFormat(1, 1);
+		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("FoamRT"), Chunk.FoamRT);
+	
+		Chunk.NormalRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+		Chunk.NormalRT->RenderTargetFormat = RTF_RGBA16f;
+		Chunk.NormalRT->InitAutoFormat(1, 1);
+		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("NormalRT"), Chunk.NormalRT);
+
+	}
+	
 	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 	{
 		int32 X = Chunk.GridIndex.X;
@@ -1830,9 +1876,10 @@ void UShallowWaterRiverComponent::Rebuild()
 		FShallowWaterChunk* NeighborLeft   = (X - 1 >= 0)        ? &ShallowWaterChunks[Y * GridSizeX + (X - 1)] : nullptr;
 		FShallowWaterChunk* NeighborRight  = (X + 1 < GridSizeX) ? &ShallowWaterChunks[Y * GridSizeX + (X + 1)] : nullptr;
 		
+		
 		// 나이아가라 기본 공간 변수 전달
 		Chunk.RiverSimSystem->SetVariableVec2(FName("WorldGridSize"), Chunk.ChunkWorldSize);
-		Chunk.RiverSimSystem->SetVariableInt(FName("ResolutionMaxAxis"), ResolutionMaxAxisIncludeMargin);
+		Chunk.RiverSimSystem->SetVariableInt(FName("ResolutionMaxAxis"), FMath::Max(ChunkRes.X, ChunkRes.Y));
 		Chunk.RiverSimSystem->SetVariableVec2(FName("BaseGridSize"), BaseChunkSize); // 마진 없는 원래 크기
 		Chunk.RiverSimSystem->SetVariableInt(FName("MarginCells"), MarginCells);
 		Chunk.RiverSimSystem->SetVariableFloat(FName("OverlapMargin"), AlignedOverlapMargin);
@@ -1851,22 +1898,7 @@ void UShallowWaterRiverComponent::Rebuild()
 		Chunk.RiverSimSystem->SetVariableFloat(FName("RemoveOutsideSplineAmount"), RemoveOutsideSplineAmount);
 		Chunk.RiverSimSystem->SetVariableFloat(FName("SplineHeightMatchingAmount"), MatchSplineHeightAmount);
 	
-		Chunk.SimGridRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
-		Chunk.SimGridRT->RenderTargetFormat = RTF_RGBA16f; // 16비트 Float 포맷 지정 (음수와 소수점 보존)
-		Chunk.SimGridRT->ClearColor = FLinearColor(0, 0, 0, 0);
-		Chunk.SimGridRT->InitAutoFormat(1, 1);
-		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("SimGridRT"), Chunk.SimGridRT);
-	
-		Chunk.FoamRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
-		Chunk.FoamRT->RenderTargetFormat = RTF_RGBA16f;
-		Chunk.FoamRT->InitAutoFormat(1, 1);
-		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("FoamRT"), Chunk.FoamRT);
-	
-		Chunk.NormalRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
-		Chunk.NormalRT->RenderTargetFormat = RTF_RGBA16f;
-		Chunk.NormalRT->InitAutoFormat(1, 1);
-		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("NormalRT"), Chunk.NormalRT);
-
+		
 		// 이제 그냥 디폴트로 ReadCachedSim true로.
 		//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
 		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
@@ -2092,13 +2124,13 @@ void UShallowWaterRiverComponent::Bake()
 		ChunkRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(RawPixels);
 		int32 RTResX = ChunkRT->SizeX;
 
-		// 물리 데이터 배열은 메인 SimGridRT를 처리할 때 한 번만 초기화
-		if (bExtractPhysics)
-		{
-			Chunk.BaseResX = BaseChunkRes.X;
-			Chunk.BaseResY = BaseChunkRes.Y;
-			Chunk.BakedPhysicsData.SetNumZeroed(BaseChunkRes.X * BaseChunkRes.Y);
-		}
+		// // 물리 데이터 배열은 메인 SimGridRT를 처리할 때 한 번만 초기화
+		// if (bExtractPhysics)
+		// {
+		// 	Chunk.BaseResX = BaseChunkRes.X;
+		// 	Chunk.BaseResY = BaseChunkRes.Y;
+		// 	Chunk.BakedPhysicsData.SetNumZeroed(BaseChunkRes.X * BaseChunkRes.Y);
+		// }
 
 		int32 GlobalOffsetX = Chunk.GridIndex.X * BaseChunkRes.X;
 		int32 GlobalOffsetY = Chunk.GridIndex.Y * BaseChunkRes.Y;
@@ -2870,8 +2902,8 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 			Chunk.RiverSimSystem->SetVariableBool(FName("RenderSecondary"), ChunkIndex != CurrentTargetChunkIndex);//
 		
 			Chunk.RiverSimSystem->SetVariableTextureRenderTarget("OceanNormalRT", NormalDetailRT);
-			Chunk.RiverSimSystem->ReinitializeSystem();
-			//Chunk.RiverSimSystem->DestroyInstanceNotComponent();
+			//Chunk.RiverSimSystem->ReinitializeSystem();
+			Chunk.RiverSimSystem->DestroyInstanceNotComponent();
 		}
 	}
 	
