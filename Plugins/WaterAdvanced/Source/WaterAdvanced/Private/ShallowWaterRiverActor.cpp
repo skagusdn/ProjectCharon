@@ -141,9 +141,12 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(const FName& D
 	return FBoxSphereBounds(BottomContourCombinedWorldBoundsBuilder);	
 }
 
-void UShallowWaterRiverComponent::InitSequentialBake(bool bIsFirstPass)
+void UShallowWaterRiverComponent::InitSequentialSimulation(bool bIsFirstPass)
 {
-	if (ShallowWaterChunks.IsEmpty()) return;
+	if (ShallowWaterChunks.IsEmpty() || RenderState != EShallowWaterRenderState::LiveSim)
+	{
+		return;
+	}
 	
 	BakingQueue.Empty();
 	
@@ -194,9 +197,9 @@ void UShallowWaterRiverComponent::InitSequentialBake(bool bIsFirstPass)
 	
 }
 
-void UShallowWaterRiverComponent::TickBake()
+void UShallowWaterRiverComponent::TickSimulate()
 {
-	if (!bIsSequentialBaking || ShallowWaterChunks.IsEmpty())
+	if (!bIsSequentialBaking || ShallowWaterChunks.IsEmpty() || RenderState != EShallowWaterRenderState::LiveSim)
 	{
 		return;
 	}
@@ -210,11 +213,8 @@ void UShallowWaterRiverComponent::TickBake()
 	
 	if (CurrentTargetChunkIndex < 0 && BakingQueue.IsEmpty())
 	{
-		/////////////////
-		UE_LOG(LogTemp, Warning, TEXT("야돈 To Next Pass : %d"), CurrentBakePass+1); //
-		
 		CurrentBakePass++;
-		if (CurrentBakePass >= MaxBakePasses)
+		if (CurrentBakePass >= SimulationRepetitionNum)
 		{
 			// 모든 패스가 끝남! 시뮬레이션 최종 종료
 			bIsSequentialBaking = false;
@@ -227,12 +227,12 @@ void UShallowWaterRiverComponent::TickBake()
 		{
 			ChunkBeenSimulated[i] = false;
 		}
-		InitSequentialBake(false); // Source 다시 큐에 넣고 상태 리셋
+		InitSequentialSimulation(false); // Source 다시 큐에 넣고 상태 리셋
 		return;
 	}
 
 	// 시간 다 지났거나 현재 타겟이 없을 때
-	if (CurrentTargetChunkIndex < 0 || CurrentBakingFrameCount > FramesForChunkBaking)
+	if (CurrentTargetChunkIndex < 0 || CurrentBakingFrameCount > FramesForChunkSimulation)
 	{
 		if (CurrentTargetChunkIndex >= 0)
 		{
@@ -247,24 +247,16 @@ void UShallowWaterRiverComponent::TickBake()
 		{
 			return ChunkDistanceFromSource[A] > ChunkDistanceFromSource[B];
 		});
-
-		/////////////////
-		UE_LOG(LogTemp, Warning, TEXT("야돈 Pop Chunk:%d"), CurrentTargetChunkIndex); //
-
+		
 		// 큐의 맨 앞(최우선 순위) 청크 꺼내기
 		
 		CurrentTargetChunkIndex = BakingQueue.IsEmpty() ? -1 : BakingQueue[BakingQueue.Num() - 1];
-		
-		/////////////////
-		UE_LOG(LogTemp, Warning, TEXT("야돈 Baking Chunk: %d Started Simulation"), CurrentTargetChunkIndex); //
-		
+
 		FString Str = "";
 		for (int32 ChunkIndex : BakingQueue)
 		{
 			Str += FString::Printf(TEXT("%d "), ChunkIndex);
 		}
-		UE_LOG(LogTemp, Warning, TEXT("야돈 / 현재 큐에 있는 청크 : %s"), *Str); //
-		/////////////////
 		
 		if (CurrentTargetChunkIndex >= 0)
 		{
@@ -359,12 +351,10 @@ void UShallowWaterRiverComponent::ActivateChunkAndNeighbors(int32 CenterChunkInd
 		{
 			if (bActive)
 			{
-				/////////////////
-				UE_LOG(LogTemp, Warning, TEXT("야돈 Activate Chunk:%d"), ChunkIdx); //
 				// 연산을 해야 하면 Cached 연산을 끄고(false), 쉬어야 하면 켬(true)
 				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), false);
-				// 거품 생성 여부도 동일하게 제어
-				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), true);
+				// // 거품 생성 여부도 동일하게 제어
+				// ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), true);
 				
 				// 테스트 - 중간 저장한 텍스처를 불러옴.
 				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), ShallowWaterChunks[ChunkIdx].BakedWaterSurfaceTexture);
@@ -374,24 +364,21 @@ void UShallowWaterRiverComponent::ActivateChunkAndNeighbors(int32 CenterChunkInd
 			}
 			else
 			{
-				/////////////////
-				UE_LOG(LogTemp, Warning, TEXT("야돈 Deactivate Chunk:%d"), ChunkIdx); //
+							
+				// 중간 저장을 위해 텍스처 형식으로 구움.
+				ShallowWaterChunks[ChunkIdx].BakedWaterSurfaceTexture = ShallowWaterChunks[ChunkIdx].SimGridRT->
+					ConstructTexture2D(this, FString::Printf(TEXT("ChunkBakedTexture%d"), ChunkIdx ), RF_Public);
 				
-				// 테스트 - 중간 저장을 위해 텍스처 형식으로 구움.
-				UTexture2D * BakedTexture = ShallowWaterChunks[ChunkIdx].SimGridRT->ConstructTexture2D(this, FString::Printf(TEXT("ChunkBakedTexture%d"), ChunkIdx ), RF_Public);
-				ShallowWaterChunks[ChunkIdx].BakedWaterSurfaceTexture = BakedTexture;
-				if (ChunkIdx == 1)
-				{
-					TestVisibleTexture = BakedTexture;
-					TestVisibleRT = ShallowWaterChunks[ChunkIdx].SimGridRT;
-				}
-				////////////////
+				// if (ChunkIdx == 1)
+				// {
+				// 	TestVisibleTexture = BakedTexture;
+				// 	TestVisibleRT = ShallowWaterChunks[ChunkIdx].SimGridRT;
+				// }
+				// ////////////////
 				
 				
 				ShallowWaterChunks[ChunkIdx].RiverSimSystem->DeactivateImmediate();
 				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
-				ShallowWaterChunks[ChunkIdx].RiverSimSystem->SetVariableBool(FName("GenerateFoam"), false);
-				//ShallowWaterChunks[ChunkIdx].RiverSimSystem->ReinitializeSystem();
 			}
 		}
 	}
@@ -517,8 +504,6 @@ void UShallowWaterRiverComponent::CheckBoundariesAndQueueNeighbors(int32 CenterC
                 // 타깃된 적 없으며, 큐에 중복으로 들어있지 않으면 추가
                 if (!ChunkBeenSimulated[i] && !BakingQueue.Contains(i))
                 {
-                	/////////////////
-                	UE_LOG(LogTemp, Warning, TEXT("야돈 Adding Chunk:%d to Queue by Chunk:%d"), i ,CurrentTargetChunkIndex); //
                     BakingQueue.Add(i);
                 }
                 break;
@@ -530,12 +515,6 @@ void UShallowWaterRiverComponent::CheckBoundariesAndQueueNeighbors(int32 CenterC
     TryQueueNeighbor(CX, CY - 1, bWaterBottom);
     TryQueueNeighbor(CX - 1, CY, bWaterLeft);
     TryQueueNeighbor(CX + 1, CY, bWaterRight);
-	
-	/////////////////
-	UE_LOG(LogTemp, Warning, TEXT("야돈 Checking Boundaries of Chunk:%d // Top/Bottom/Left/Right : %d/%d/%d/%d"), CenterChunkIndex, 
-		bWaterTop, bWaterBottom, bWaterLeft, bWaterRight); //
-	
-	
 	
 }
 
@@ -607,25 +586,7 @@ bool UShallowWaterRiverComponent::IsChunkOverlappingSource(const FShallowWaterCh
     return false;
 }
 
-void UShallowWaterRiverComponent::TestTempCheckChunkSystems()
-{
-	// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-	// {
-	// 	if (Chunk.RiverSimSystem->IsActive())
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("라이츄 Chunk %d Is Alive"), Chunk.GridIndex.Y * Chunk.GridIndex.X + Chunk.GridIndex.X );	
-	// 	}
-	// 	else
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("라이츄 Chunk %d Is Dead"), Chunk.GridIndex.Y * Chunk.GridIndex.X + Chunk.GridIndex.X );
-	// 	}
-	// }
-	
-	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-	{
-		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
-	}
-}
+
 
 FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(UNiagaraComponent* TargetSimSystem,
                                                                   const FName& DIName, TArray<AActor*> RawActorPtrArray, FIntPoint CaptureResolution, float OrthoWidth)
@@ -766,24 +727,10 @@ void UShallowWaterRiverComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		// 	UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::TickComponent() - null Niagara sim when trying to activate. Please reset."));
 		// }
 		
-		// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-		// {
-		// 	if (Chunk.RiverSimSystem)
-		// 	{
-		// 		Chunk.RiverSimSystem->Activate();
-		// 	}
-		// 	else
-		// 	{
-		// 		UE_LOG(LogShallowWater, Warning,
-		// 		       TEXT(
-		// 			       "UShallowWaterRiverComponent::TickComponent() - null Niagara sim when trying to activate. Please reset."
-		// 		       ));
-		// 	}
-		// }
 		
 		if (bIsSequentialBaking)
 		{
-			TickBake();
+			TickSimulate();
 		}
 	}
 	else
@@ -815,19 +762,46 @@ void UShallowWaterRiverComponent::BeginPlay()
 	// 	RiverSimSystem->ReinitializeSystem();
 	// 	RiverSimSystem->Activate();
 	// }
+	//
+	// // TODO : 여기 뭔가 수정해야될듯.
+	// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	// {
+	// 	if (Chunk.RiverSimSystem != nullptr && bReadBakedSim)
+	// 	{
+	// 		// 수정중~
+	// 		//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
+	// 		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);////
+	// 		Chunk.RiverSimSystem->ReinitializeSystem();
+	// 		Chunk.RiverSimSystem->Activate();
+	// 	}
+	// }
 	
-	// TODO : 여기 뭔가 수정해야될듯.
-	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	
+	/////테스트용
+	UE_LOG(LogTemp, Warning, TEXT("야도란 Num of WaterBodies : %d"), AllWaterBodies.Num());
+	
+	
+	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
 	{
-		if (Chunk.RiverSimSystem != nullptr && bReadBakedSim)
+		if (AWaterBody* WaterBody = CurrWaterBody.Get())
 		{
-			// 수정중~
-			//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
-			Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);////
-			Chunk.RiverSimSystem->ReinitializeSystem();
-			Chunk.RiverSimSystem->Activate();
+			
+			
+			if (UWaterBodyComponent* CurrWaterBodyComponent =  WaterBody->GetWaterBodyComponent())
+			{
+				if (UMaterialInstanceDynamic* WaterMID =  CurrWaterBodyComponent->GetWaterMaterialInstance())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("야도란 WaterMID of %s Is VALID : "), *WaterBody->GetName());
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("야도란 WaterMID of %s Is NOT!!!! VALID : "), *WaterBody->GetName());
+				}
+			}
 		}
+		
 	}
+	/////
 }
 
 void UShallowWaterRiverComponent::OnUnregister()
@@ -1446,6 +1420,15 @@ void UShallowWaterRiverComponent::Rebuild()
 			continue;
 		}
 	}
+	
+	// Source도 Sink도 아닌 애들 넣기. 
+	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : LinkWaterBodies)
+	{
+		if (CurrWaterBody != nullptr)
+		{
+			AllWaterBodies.Add(CurrWaterBody);
+		}
+	}
 
 	// flush all debug draw lines
 #if ENABLE_DRAW_DEBUG
@@ -1556,7 +1539,7 @@ void UShallowWaterRiverComponent::Rebuild()
 			NewChunk.SystemPos = BottomLeftOrigin + ChunkCenterOffset;
 
 			// 나이아가라 시스템 스폰
-			NewChunk.RiverSimSystem = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
+			NewChunk.RiverSimSystem = NewObject<UNiagaraComponent>(this, NAME_None, RF_Public);
 			NewChunk.RiverSimSystem->SetAutoActivate(false); //
 			NewChunk.RiverSimSystem->bUseAttachParentBound = false;
 			NewChunk.RiverSimSystem->SetWorldLocation(NewChunk.SystemPos);
@@ -1577,11 +1560,49 @@ void UShallowWaterRiverComponent::Rebuild()
 		}
 	}
 	
-	// 기존 레거시 시스템을 위해서 RiverSimSystem 유지.
-	if (!ShallowWaterChunks.IsEmpty())
+	// 기존엔 이거 하나로 시뮬레이션 했지만 이젠 각 청크의 나이아가라 시스템이 시뮬레이션을 맡음.
+	// RiverSimSystem은 베이크 후 통합된 거품 스폰하기.
+	RiverSimSystem = NewObject<UNiagaraComponent>(this, NAME_None, RF_Public);
+	//RiverSimSystem->SetAutoActivate(false);
+	RiverSimSystem->bUseAttachParentBound = false;
+	RiverSimSystem->SetWorldLocation(SystemPos); // 전체 바운딩 박스의 기준점
+	
+	if (GetWorld() && GetWorld()->bIsWorldInitialized)
 	{
-		RiverSimSystem =  ShallowWaterChunks[0].RiverSimSystem;//
+		if (!RiverSimSystem->IsRegistered())
+		{
+			RiverSimSystem->RegisterComponentWithWorld(GetWorld());
+		}
+
+		RiverSimSystem->SetVisibleFlag(true);
+		RiverSimSystem->SetAsset(NiagaraRiverSimulation);
 	}
+	
+
+	// 파라미터는 청크 크기가 아닌 '전체 WorldGridSize'와 '합쳐진 SimRes'를 넣습니다.
+	RiverSimSystem->SetVariableVec2(FName("WorldGridSize"), WorldGridSize);
+	RiverSimSystem->SetVariableInt(FName("ResolutionMaxAxis"), ResolutionMaxAxis);
+	RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
+	
+	// 딱히 쓸때없지만 일단 RT 세팅해둘까.
+	BakedWaterSurfaceRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+	BakedWaterSurfaceRT->InitAutoFormat(1, 1);
+	RiverSimSystem->SetVariableTextureRenderTarget(FName("SimGridRT"), BakedWaterSurfaceRT);
+	
+	BakedFoamRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+	BakedFoamRT->InitAutoFormat(1, 1);
+	RiverSimSystem->SetVariableTextureRenderTarget(FName("FoamRT"), BakedFoamRT);
+	
+	BakedWaterSurfaceNormalRT = NewObject<UTextureRenderTarget2D>(this, NAME_None, RF_Transient);
+	BakedWaterSurfaceNormalRT->InitAutoFormat(1, 1);
+	RiverSimSystem->SetVariableTextureRenderTarget(FName("NormalRT"), BakedWaterSurfaceNormalRT);
+	
+	// if (BakedWaterSurfaceTexture != nullptr && BakedFoamTexture != nullptr && BakedWaterSurfaceNormalTexture != nullptr)
+	// {
+	// 	RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), BakedWaterSurfaceTexture);
+	// 	RiverSimSystem->SetVariableTexture(FName("BakedFoamTexture"), BakedFoamTexture);
+	// 	RiverSimSystem->SetVariableTexture(FName("BakedWaterSurfaceNormalTexture"), BakedWaterSurfaceNormalTexture);
+	// }
 	
 	// 캡처 생성
 	// [TODO] 씬 캡처 (BottomContour) 로직은 각 청크의 바운딩 박스에 걸치는 액터만 
@@ -1622,7 +1643,10 @@ void UShallowWaterRiverComponent::Rebuild()
 			AddTaggedActorsToArray(DilatedBottomContourTags, DilatedBottomContourActorsRawPtr);
 
 			float ChunkOrthoWidth = FMath::Max(ChunkSize.X, ChunkSize.Y);
-			FIntPoint ChunkOrthoRes = FIntPoint(ChunkRes.X, ChunkRes.Y);
+			//float ChunkOrthoWidth = ChunkSize.Y;
+			int32 MaxRes = FMath::Max(ChunkRes.X, ChunkRes.Y);
+			//FIntPoint ChunkOrthoRes = FIntPoint(ChunkRes.X, ChunkRes.Y);
+			FIntPoint ChunkOrthoRes = FIntPoint(MaxRes, MaxRes);
 			
 			for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
 			{
@@ -1899,11 +1923,10 @@ void UShallowWaterRiverComponent::Rebuild()
 		Chunk.RiverSimSystem->SetVariableFloat(FName("SplineHeightMatchingAmount"), MatchSplineHeightAmount);
 	
 		
-		// 이제 그냥 디폴트로 ReadCachedSim true로.
-		//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
-		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
-		// 거품 생성 여부.
-		Chunk.RiverSimSystem->SetVariableBool(FName("GenerateFoam"), false);
+		Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
+		//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), true);
+		// // 거품 생성 여부.
+		// Chunk.RiverSimSystem->SetVariableBool(FName("GenerateFoam"), false);
 		
 		
 		// 🚨 [이웃 데이터 공유] 상하좌우 독립적으로 검증 및 바인딩
@@ -1992,8 +2015,59 @@ void UShallowWaterRiverComponent::Rebuild()
 	// 🚨 모든 세팅이 끝난 직후, 순차 베이킹 시스템을 초기화합니다.
 	if (RenderState == EShallowWaterRenderState::LiveSim)
 	{
-		InitSequentialBake(true);
+		InitSequentialSimulation(true);
 	}
+	
+	/// 테스트용
+	if (ShallowWaterChunks.Num() > 0)
+	{
+		TestVisibleRT = ShallowWaterChunks[0].SimGridRT;
+	}
+	
+	// 테스트 메시 스폰 및 삭제 
+	for (UMeshComponent* TestMesh : TestDebugMeshes)
+	{
+		TestMesh->DestroyComponent();
+	}
+	TestDebugMeshes.Empty();
+	
+	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : AllWaterBodies)
+	{
+		if (AWaterBody* WaterBody = CurrWaterBody.Get())
+		{
+			if (UWaterSplineComponent* CurrSpline = WaterBody->GetWaterSpline())
+			{
+				//FInterpCurveVector& SplinePoints = CurrSpline->GetSplinePointsPosition();
+				int PointNum = CurrSpline->GetNumberOfSplinePoints();
+				
+				// for (FInterpCurvePoint Point : SplinePoints.Points)
+				// {
+				// 	UStaticMeshComponent* TestMesh = NewObject<UStaticMeshComponent>(this);
+				// 	TestMesh->SetStaticMesh(TestDebugMesh);
+				// 	TestMesh->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
+				// 	TestMesh->RegisterComponent();
+				// 	
+				// 	TestMesh->SetWorldLocation(Point.OutVal);
+				// 	TestDebugMeshes.Add(TestMesh);
+				// }
+				
+				for (int i= 0; i < PointNum; i++)
+				{
+					UStaticMeshComponent* TestMesh = NewObject<UStaticMeshComponent>(this);
+					TestMesh->SetStaticMesh(TestDebugMesh);
+					TestMesh->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
+					TestMesh->RegisterComponent();
+						
+					TestMesh->SetWorldLocation(CurrSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
+					TestDebugMeshes.Add(TestMesh);
+					
+					
+				}
+			}
+		}
+	}
+	
+	
 	
 	////////////// Test 수정 끝
 }
@@ -2099,6 +2173,150 @@ void UShallowWaterRiverComponent::Bake()
 		return;
 	}
 	
+	
+	// // 1. 기존에 스폰했던 RVT Plane들이 있다면 깔끔하게 청소
+	// for (UStaticMeshComponent* Plane : ChunkRVTPlanes)
+	// {
+	// 	if (Plane)
+	// 	{
+	// 		Plane->DestroyComponent();
+	// 	}
+	// }
+	// ChunkRVTPlanes.Empty();
+	//
+	// // ... [초반 예외 처리 및 변수 초기화] ...
+	// int32 TotalPhysicsPixels = SimRes.X * SimRes.Y;
+	// TArray<FVector4> ShallowWaterSimArrayValues;
+	// ShallowWaterSimArrayValues.SetNumZeroed(TotalPhysicsPixels);
+	//
+	//
+	// // ------------------------------------------------------------
+	// // 🚨 [추가] 마진을 잘라내기 위한 UV Scale과 Offset 계산
+	// // ------------------------------------------------------------
+	// // 전체 해상도 = 알맹이 해상도 + 양쪽 마진
+	// float TotalResX = (float)(BaseChunkRes.X + (MarginCells * 2));
+	// float TotalResY = (float)(BaseChunkRes.Y + (MarginCells * 2));
+	//
+	// // UV Scale: 전체 텍스처에서 알맹이가 차지하는 비율
+	// float UVScaleX = (float)BaseChunkRes.X / TotalResX;
+	// float UVScaleY = (float)BaseChunkRes.Y / TotalResY;
+	//
+	// // UV Offset: 시작점(여백)이 UV 공간(0~1)에서 어디서부터 시작하는지
+	// float UVOffsetX = (float)MarginCells / TotalResX;
+	// float UVOffsetY = (float)MarginCells / TotalResY;
+	//
+	// // 2. 각 청크를 순회하며 데이터 처리
+	// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	// {
+	// 	// ==========================================
+	// 	// A. CPU 물리 연산(부력)을 위한 데이터만 가볍게 추출
+	// 	// ==========================================
+	// 	if (Chunk.SimGridRT)
+	// 	{
+	// 		TArray<FFloat16Color> RawPixels;
+	// 		Chunk.SimGridRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(RawPixels);
+	// 		
+	// 		int32 GlobalOffsetX = Chunk.GridIndex.X * BaseChunkRes.X;
+	// 		int32 GlobalOffsetY = Chunk.GridIndex.Y * BaseChunkRes.Y;
+	//
+	// 		for (int32 y = 0; y < BaseChunkRes.Y; ++y)
+	// 		{
+	// 			for (int32 x = 0; x < BaseChunkRes.X; ++x)
+	// 			{
+	// 				int32 ReadIdx = ((y + MarginCells) * Chunk.SimGridRT->SizeX) + (x + MarginCells);
+	// 				int32 PhysicsWriteIdx = ((GlobalOffsetY + y) * SimRes.X) + (GlobalOffsetX + x);
+	// 				
+	// 				if (RawPixels.IsValidIndex(ReadIdx) && ShallowWaterSimArrayValues.IsValidIndex(PhysicsWriteIdx))
+	// 				{
+	// 					FFloat16Color P = RawPixels[ReadIdx];
+	// 					ShallowWaterSimArrayValues[PhysicsWriteIdx] = FVector4(P.R, P.G, P.B, P.A);
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	//
+	// 	// ==========================================
+	// 	// B. GPU 렌더링(RVT)을 위한 Plane 컴포넌트 스폰
+	// 	// ==========================================
+	// 	UStaticMeshComponent* ChunkPlane = NewObject<UStaticMeshComponent>(this);
+	// 	ChunkPlane->SetStaticMesh(DefaultPlaneMesh);
+	// 	ChunkPlane->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
+	// 	ChunkPlane->RegisterComponent();
+	//
+	// 	// 위치 지정 (청크의 중앙)
+	// 	//ChunkPlane->SetWorldLocation(Chunk.SystemPos);
+	// 	ChunkPlane->SetWorldLocation({Chunk.SystemPos.X, Chunk.SystemPos.Y, 10000});
+	// 	
+	// 	
+	// 	// 스케일 지정 (언리얼 기본 Plane은 100x100 크기이므로, 100으로 나누어 스케일링)
+	// 	ChunkPlane->SetWorldScale3D(FVector(BaseChunkSize.X / 100.0f, BaseChunkSize.Y / 100.0f, 1.0f));
+	//
+	// 	// 머티리얼 세팅 (개별 RT 할당)
+	// 	if (RVTWriterMaterial)
+	// 	{
+	// 		UMaterialInstanceDynamic* PlaneMID = UMaterialInstanceDynamic::Create(RVTWriterMaterial, this);
+	// 		
+	// 		// 하나의 Vector(R, G, B, A) 파라미터로 묶어서 전달합니다.
+	// 		PlaneMID->SetVectorParameterValue(FName("UVScaleOffset"), FLinearColor(UVScaleX, UVScaleY, UVOffsetX, UVOffsetY));
+	// 		
+	// 		Chunk.BakedWaterSurfaceTexture = Chunk.SimGridRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedSim_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
+	// 		Chunk.BakedFoamTexture = Chunk.FoamRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedFoam_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
+	// 		Chunk.BakedWaterSurfaceNormalTexture = Chunk.NormalRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedNormal_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
+	// 		
+	// 		PlaneMID->SetTextureParameterValue(FName("ChunkSimRT"), Chunk.BakedWaterSurfaceTexture);
+	// 		PlaneMID->SetTextureParameterValue(FName("ChunkFoamRT"), Chunk.BakedFoamTexture);
+	// 		PlaneMID->SetTextureParameterValue(FName("ChunkNormalRT"), Chunk.BakedWaterSurfaceNormalTexture);
+	// 	
+	// 		ChunkPlane->SetMaterial(0, PlaneMID);
+	// 	}
+	//
+	// 	// 🚨 핵심 설정: 이 Plane은 메인 화면에 그리지 않고 RVT에만 그립니다!
+	// 	//ChunkPlane->bRenderInMainPass = false;
+	// 	
+	// 	
+	// 	if (WaterHeightRVT)
+	// 	{
+	// 		ChunkPlane->RuntimeVirtualTextures.Add(WaterHeightRVT);
+	// 	}
+	// 	if (ExtraWaterDataRVT)
+	// 	{
+	// 		ChunkPlane->RuntimeVirtualTextures.Add(ExtraWaterDataRVT);
+	// 	}
+	// 	if (WaterVelocityRVT)
+	// 	{
+	// 		ChunkPlane->RuntimeVirtualTextures.Add(WaterVelocityRVT);
+	// 	}
+	//
+	// 	ChunkRVTPlanes.Add(ChunkPlane);
+	// }
+	//
+	// // 3. 기존의 거대 UTexture2D 생성 및 InitializeVirtualTexture 호출 로직은 전부 삭제!
+	//
+	//
+	//
+	// if (BakedSim != nullptr)
+	// { 
+	// 	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : BakedSim->WaterBodies)
+	// 	{
+	// 		TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
+	//
+	// 		if (CurrWaterBodyComponent != nullptr)
+	// 		{
+	// 			CurrWaterBodyComponent->SetBakedShallowWaterSimulation(nullptr);
+	// 			CurrWaterBodyComponent->PostEditChange();
+	// 		}
+	// 	}
+	// }
+	//
+	// // 4. 물리 시뮬레이션 컴포넌트 초기화 (텍스처 포인터는 nullptr 전달)
+	// // (GPU 렌더링은 RVT가 담당하므로, BakedSim은 CPU 데이터(ShallowWaterSimArrayValues)만 있으면 완벽하게 작동합니다)
+	// BakedSim = NewObject<UBakedShallowWaterSimulationComponent>(this, NAME_None, RF_Public);
+	// BakedSim->SimulationData = FShallowWaterSimulationGrid(ShallowWaterSimArrayValues, nullptr, FIntVector2(SimRes.X, SimRes.Y), SystemPos, WorldGridSize);
+	// BakedSim->WaterBodies = AllWaterBodies;	
+
+	////////테스트를 위해 기존 베이킹 로직 부활
+	
+		
 	int32 TotalPixels = SimRes.X * SimRes.Y;
 	
 	// 3. 글로벌 텍스처 배열들 초기화
@@ -2110,6 +2328,7 @@ void UShallowWaterRiverComponent::Bake()
 	GlobalFoamPixels.SetNumZeroed(TotalPixels);
 	GlobalNormalPixels.SetNumZeroed(TotalPixels);
 
+	//ShallowWaterSimArrayValues.Empty();
 	TArray<FVector4> ShallowWaterSimArrayValues;
 	ShallowWaterSimArrayValues.SetNumZeroed(TotalPixels);
 	
@@ -2176,6 +2395,11 @@ void UShallowWaterRiverComponent::Bake()
 		NewTexture->SRGB = false;
 		NewTexture->CompressionSettings = TC_HDR;
 		NewTexture->Filter = TF_Bilinear;
+		
+		// 외곽쪽에 물이 있을 경우 생기는 수면 높이 이상 현상 방지.
+		NewTexture->AddressX = TA_Clamp;
+		NewTexture->AddressY = TA_Clamp;
+		
 		NewTexture->UpdateResource();
 		return NewTexture;
 	};
@@ -2189,23 +2413,57 @@ void UShallowWaterRiverComponent::Bake()
 		MergeChunkRT(Chunk.NormalRT, GlobalNormalPixels, Chunk, false); // 노말 데이터 병합
 	}
 
-	// 외곽선 0 초기화 (Clamp 늘어짐 방지)
+	// // 외곽선 0 초기화 (Clamp 늘어짐 방지)
+	// for (int32 y = 0; y < SimRes.Y; ++y)
+	// {
+	// 	for (int32 x = 0; x < SimRes.X; ++x)
+	// 	{
+	// 		if (x == 0 || x == SimRes.X - 1 || y == 0 || y == SimRes.Y - 1)
+	// 		{
+	// 			int32 EdgeIdx = (y * SimRes.X) + x;
+	// 			
+	// 			// 모든 물리 데이터를 0(수심 0, 높이 0)으로 덮어씀 -> 수심이 0이여서 아마 문제 없겠지만 높이가 0인건 문제의 여지가 있음
+	// 			GlobalSimPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
+	// 			GlobalFoamPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
+	// 			GlobalNormalPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
+	// 			ShallowWaterSimArrayValues[EdgeIdx] = FVector4(0.f, 0.f, 0.f, 0.f);
+	// 		}
+	// 	}
+	// }
+	
+	// 외곽에 물 벽이 생기는 걸 막기 위해 외곽 몇 픽셀은 물 깊이 0으로 만들기.
+	// TODO : 몇픽셀이라도 잘리는게 좀 그래. 뭐 엄청 여유 있으면 아예 크기 자체를 늘려서 마진을 만드는 것도 괜찮을지도?
+	int32 DepthMarginSize = 8; 
+
 	for (int32 y = 0; y < SimRes.Y; ++y)
 	{
 		for (int32 x = 0; x < SimRes.X; ++x)
 		{
-			if (x == 0 || x == SimRes.X - 1 || y == 0 || y == SimRes.Y - 1)
+			// 마진 구역(최외곽 테두리)인지 확인
+			if (x < DepthMarginSize || x >= SimRes.X - DepthMarginSize || y < DepthMarginSize || y >= SimRes.Y - DepthMarginSize)
 			{
 				int32 EdgeIdx = (y * SimRes.X) + x;
-				
-				// 모든 물리 데이터를 0(수심 0, 높이 0)으로 덮어씀 -> 수심이 0이여서 아마 문제 없겠지만 높이가 0인건 문제의 여지가 있음
-				GlobalSimPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
+			
+				// 1. 가장 가까운 '안전한 안쪽 픽셀'의 좌표를 구합니다.
+				int32 InnerX = FMath::Clamp(x, DepthMarginSize, SimRes.X - DepthMarginSize - 1);
+				int32 InnerY = FMath::Clamp(y, DepthMarginSize, SimRes.Y - DepthMarginSize - 1);
+				int32 InnerIdx = (InnerY * SimRes.X) + InnerX;
+
+				// 2. 안쪽 픽셀의 높이(R 채널) 값을 가져옵니다.
+				float SafeHeight = GlobalSimPixels[InnerIdx].R.GetFloat();
+
+				// 3. 💡 핵심: 높이(R)는 복사해서 보존하고, 수심(G)과 유속(B, A)만 0으로 덮어씁니다!
+				GlobalSimPixels[EdgeIdx] = FFloat16Color({SafeHeight, 0.f, 0.f, 0.f});
 				GlobalFoamPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
-				GlobalNormalPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
-				ShallowWaterSimArrayValues[EdgeIdx] = FVector4(0.f, 0.f, 0.f, 0.f);
+			
+				// 노말맵은 위를 향하도록 (0, 0, 1) 평탄화
+				GlobalNormalPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 1.f, 0.f}); 
+			
+				ShallowWaterSimArrayValues[EdgeIdx] = FVector4(SafeHeight, 0.f, 0.f, 0.f);
 			}
 		}
 	}
+	
 	
 	// 5. 람다를 사용해 3개의 텍스처 에셋 일괄 생성
 	BakedWaterSurfaceTexture = CreateTexture(GlobalSimPixels, TEXT("BakedRiverTexture"));
@@ -2246,6 +2504,11 @@ void UShallowWaterRiverComponent::Bake()
 	BakedSim->SimulationData = FShallowWaterSimulationGrid(ShallowWaterSimArrayValues, BakedWaterSurfaceTexture, FIntVector2(SimRes.X, SimRes.Y), SystemPos, WorldGridSize);
 	BakedSim->WaterBodies = AllWaterBodies;	
 
+
+	
+	
+	////////////////////////////////////////
+	
 	
 	
 	
@@ -2408,277 +2671,10 @@ void UShallowWaterRiverComponent::Bake()
 
 			CurrSplineComponent->PostEditChange();
 		}
-
-		/// 테스트중 지울것.
-		if (MyTestWaterSurfaceActor)
-		{
-			if (UStaticMeshComponent* MyTestMesh = MyTestWaterSurfaceActor->FindComponentByClass<UStaticMeshComponent>())
-			{
-				if (UMaterialInstanceDynamic* MyTestMID =  MyTestMesh->CreateDynamicMaterialInstance(0))
-				{
-					MyTestMID->SetTextureParameterValue("Texture", BakedWaterSurfaceTexture);
-					//MyTestMID->SetTextureParameterValue("Texture", BakedWaterSurfaceTexture);
-					MyTestMID->SetVectorParameterValue("SystemPos", SystemPos);
-					MyTestMID->SetVectorParameterValue("WorldGridSize", FVector(WorldGridSize, 0));
-					MyTestMID->SetVectorParameterValue("SimRes", FVector(SimRes, 0));
-				}
-				
-			}
-		}
-		
-		/// 테스트 끝
 		
 		
 		CurrWaterBodyComponent->PostEditChange();
 	}
-	// SimRes = FVector2D(BakedWaterSurfaceRT->SizeX, BakedWaterSurfaceRT->SizeY);
-	// RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
-	//
-	// if (WorldGridSize.X > WorldGridSize.Y)
-	// {
-	// 	SimDx = WorldGridSize.X / ResolutionMaxAxis;
-	// }
-	// else
-	// {
-	// 	SimDx = WorldGridSize.Y / ResolutionMaxAxis;
-	// }		
-	//
-	// BakedWaterSurfaceTexture = BakedWaterSurfaceRT->ConstructTexture2D(this, "BakedRiverTexture", TextureObjectFlags);
-	//
-	// if (bUseVirtualTextures)
-	// {
-	// 	InitializeVirtualTexture(BakedWaterSurfaceTexture);
-	// }
-	//
-	//RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), BakedWaterSurfaceTexture);
-	//
-	// // Readback to get the river texture values as an array
-	// TArray<FFloat16Color> TmpShallowWaterSimArrayValues;
-	// BakedWaterSurfaceRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(TmpShallowWaterSimArrayValues);
-	//
-	// TArray<FVector4> ShallowWaterSimArrayValues;
-	// ShallowWaterSimArrayValues.Empty();
-	// ShallowWaterSimArrayValues.AddZeroed(TmpShallowWaterSimArrayValues.Num());
-	//
-	// // cast all values to floats
-	// int Index = 0;
-	// for (FFloat16Color Val : TmpShallowWaterSimArrayValues)
-	// {
-	// 	const float WaterHeight = Val.R;
-	// 	const float WaterDepth = Val.G;
-	// 	const FVector2D WaterVelocity(Val.B, Val.A);
-	//
-	// 	FVector4 FloatVal;
-	// 	FloatVal.X = WaterHeight;
-	// 	FloatVal.Y = WaterDepth;
-	// 	FloatVal.Z = WaterVelocity.X;
-	// 	FloatVal.W = WaterVelocity.Y;
-	//
-	// 	ShallowWaterSimArrayValues[Index++] = FloatVal;
-	// }	
-	//
-	// // bake foam and other data to texture
-	// BakedFoamTexture = BakedFoamRT->ConstructTexture2D(this, "BakedFoamTexture", TextureObjectFlags);
-	//
-	// if (bUseVirtualTextures)
-	// {		
-	// 	InitializeVirtualTexture(BakedFoamTexture);
-	// }
-	//
-	// RiverSimSystem->SetVariableTexture(FName("BakedFoamTexture"), BakedFoamTexture);
-	//
-	// // bake normal to texture
-	// BakedWaterSurfaceNormalTexture = BakedWaterSurfaceNormalRT->ConstructTexture2D(this, "BakedWaterSurfaceNormalTexture", TextureObjectFlags);
-	//
-	// if (bUseVirtualTextures)
-	// {
-	// 	InitializeVirtualTexture(BakedWaterSurfaceNormalTexture);
-	// }
-	//
-	// RiverSimSystem->SetVariableTexture(FName("BakedWaterSurfaceNormalTexture"), BakedWaterSurfaceNormalTexture);
-
-	// clear references to old baked sim on water body actors
-	// if (BakedSim != nullptr)
-	// { 
-	// 	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : BakedSim->WaterBodies)
-	// 	{
-	// 		TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-	//
-	// 		if (CurrWaterBodyComponent != nullptr)
-	// 		{
-	// 			CurrWaterBodyComponent->SetBakedShallowWaterSimulation(nullptr);
-	// 			CurrWaterBodyComponent->PostEditChange();
-	// 		}
-	// 	}
-	// }
-	//
-	// BakedSim = NewObject<UBakedShallowWaterSimulationComponent>(this, NAME_None, RF_Public);
-	// BakedSim->SimulationData = FShallowWaterSimulationGrid(ShallowWaterSimArrayValues, BakedWaterSurfaceTexture, FIntVector2(BakedWaterSurfaceRT->SizeX, BakedWaterSurfaceRT->SizeY), SystemPos, WorldGridSize);
-	// BakedSim->WaterBodies = AllWaterBodies;	
-	// 	
-	// // compute the maximum water height for each convex in each water body simulated by this river
-	// // we use this to modify the collision geometry so it fully encompasses the baked water sim
-	// TMap<FKConvexElem*, float> ConvexToMaxHeight;
-	// for (int32 y = 0; y < BakedWaterSurfaceRT->SizeY; ++y) {
-	// for (int32 x = 0; x < BakedWaterSurfaceRT->SizeX; ++x) {
-	// 	FVector WorldPos = BakedSim->SimulationData.IndexToWorld(FIntVector2(x, y));
-	//
-	// 	FVector Vel;
-	// 	float Height, Depth;
-	// 	BakedSim->SimulationData.QueryShallowWaterSimulationAtIndex(FIntVector2(x, y), Vel, Height, Depth);
-	// 	WorldPos.Z = Height;
-	// 			
-	// 	if (Depth > 1e-5)
-	// 	{
-	// 		for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
-	// 		{		
-	// 			////////이따가 삭제 - 임시로 Lake도 bake에 포함하기 위해 추가.
-	// 			if (Cast<AWaterBodyLake>(CurrWaterBody.Get()))
-	// 			{
-	// 				UE_LOG(LogTemp, Warning, TEXT("CurrWaterBody: WaterBodyLake 피카츄"));
-	// 				continue;
-	// 				
-	// 			}
-	// 			//~~~~이따가 삭제
-	// 			
-	// 			TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-	//
-	// 			TArray<UPrimitiveComponent*> CollisionComponents = CurrWaterBodyComponent->GetCollisionComponents();
-	// 			
-	// 			
-	// 			
-	// 			for (UPrimitiveComponent* CurrCollisionComponent : CollisionComponents)
-	// 			{
-	// 				USplineMeshComponent* CurrSplineComponent = StaticCast<USplineMeshComponent*>(CurrCollisionComponent);
-	// 				TObjectPtr<UBodySetup> CurrBodySetup = CurrSplineComponent->BodySetup;
-	//
-	// 				const FTransform CurrMeshTransform = CurrCollisionComponent->GetComponentTransform();
-	//
-	// 				// make sure the collision convex hull vertices are clamped to the min/max water height
-	// 				for (FKConvexElem& ConvexElem : CurrBodySetup->AggGeom.ConvexElems)
-	// 				{					
-	// 					const TArray<FVector>& VertexData = ConvexElem.VertexData;		
-	//
-	// 					// see if the current point is inside the convex projected to the xy plane
-	// 					const FBox CurrBox = ConvexElem.CalcAABB(CurrMeshTransform, FVector(1, 1, 1));										
-	//
-	// 					if (CurrBox.IsInsideXY(FBox(WorldPos, WorldPos)))
-	// 					{						
-	// 						float* TmpMaxHeight = ConvexToMaxHeight.Find(&ConvexElem);
-	// 						if (TmpMaxHeight == nullptr)
-	// 						{							
-	// 							ConvexToMaxHeight.Emplace(&ConvexElem, WorldPos.Z);
-	// 						}
-	// 						else
-	// 						{
-	// 							*TmpMaxHeight = FMath::Max(*TmpMaxHeight, WorldPos.Z);
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }}
-	//
-	// // set the sim texture on each water body that is in the simulated river.  
-	// for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
-	// {
-	// 	////////이따가 삭제2 - 임시로 Lake도 bake에 포함하기 위해 추가.
-	// 	if (Cast<AWaterBodyLake>(CurrWaterBody.Get()))
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("CurrWaterBody: WaterBodyLake 라이츄"));
-	// 		continue;
-	// 	}
-	// 	//~~~~이따가 삭제
-	// 	
-	// 	TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-	// 			
-	// 	CurrWaterBodyComponent->SetBakedShallowWaterSimulation(BakedSim);
-	//
-	// 	// grow bounds in z to include the tallest height
-	// 	TArray<UPrimitiveComponent*> CollisionComponents = CurrWaterBodyComponent->GetCollisionComponents();
-	// 	
-	// 	// Make sure that the collision objects includes the maximum height of the baked water sim otherwise
-	// 	// we will miss collisions.
-	// 	for (UPrimitiveComponent* CurrCollisionComponent : CollisionComponents)
-	// 	{
-	// 		USplineMeshComponent* CurrSplineComponent = StaticCast<USplineMeshComponent*>(CurrCollisionComponent);
-	// 		
-	// 		TObjectPtr<UBodySetup> CurrBodySetup = CurrSplineComponent->BodySetup;
-	//
-	// 		FTransform CurrMeshTransform = CurrCollisionComponent->GetComponentTransform();
-	//
-	// 		// make sure the collision convex hull vertices are clamped to the min/max water height
-	// 		for (FKConvexElem& ConvexElem : CurrBodySetup->AggGeom.ConvexElems)
-	// 		{
-	// 			TArray<FVector>& VertexData = ConvexElem.VertexData;
-	//
-	// 			if (const float* WorldMaxZForConvex = ConvexToMaxHeight.Find(&ConvexElem))
-	// 			{
-	// 				// for each vertex in the convex hull, set the Z to the maximum baked water sim Z height for the convex
-	// 				int32 Idx = 0;
-	// 				for (FVector& Vertex : VertexData)
-	// 				{
-	// 					// only top vertices are 4,5,6,7
-	// 					if (Idx >= 4)
-	// 					{
-	// 						FVector VWorld = CurrMeshTransform.TransformPosition(Vertex);
-	//
-	// 						VWorld.Z = FMath::Max(VWorld.Z, *WorldMaxZForConvex);
-	//
-	// 						const FVector VLocal = CurrMeshTransform.InverseTransformPosition(VWorld);
-	// 						Vertex.X = VLocal.X;
-	// 						Vertex.Y = VLocal.Y;
-	// 						Vertex.Z = VLocal.Z;
-	// 					}
-	//
-	//
-	// 					#if ENABLE_DRAW_DEBUG
-	// 					if (bShallowWaterRiverDebugVisualize)
-	// 					{		
-	// 						FVector VWorld = CurrMeshTransform.TransformPosition(Vertex);
-	//
-	// 						switch (Idx)
-	// 						{
-	// 							case 0:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 2, FColor::Red, true);		
-	// 							break;
-	// 							case 1:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 3, FColor::Green, true);		
-	// 							break;
-	// 							case 2:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 4, FColor::Blue, true);		
-	// 							break;
-	// 							case 3:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 5, FColor::Black, true);		
-	// 							break;
-	// 							case 4:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 6, FColor::White, true);	//	
-	// 							break;
-	// 							case 5:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 7, FColor::Magenta, true); //		
-	// 							break;
-	// 							case 6:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 8, FColor::Orange, true);	//	
-	// 							break;
-	// 							case 7:
-	// 							DrawDebugSphere(GetWorld() , VWorld, 10., 9, FColor::Purple, true);	//	
-	// 							break;								
-	// 						}
-	// 						
-	// 					}
-	// 					#endif
-	// 											
-	// 					Idx++;
-	// 				}
-	// 			}
-	// 		}			
-	//
-	// 		CurrSplineComponent->PostEditChange();
-	// 	}
-	//
-	// 	CurrWaterBodyComponent->PostEditChange();
-	// }
 }
 
 void UShallowWaterRiverComponent::InitializeVirtualTexture(TObjectPtr<UTexture2D> InTexture)
@@ -2883,29 +2879,78 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 	// 	RiverSimSystem->ReinitializeSystem();
 	// }
 	
-	for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+	if (bReadBakedSim)
 	{
-		if (Chunk.RiverSimSystem != nullptr)
-		{		
-			Chunk.RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
-	
-			Chunk.RiverSimSystem->SetVariableBool(FName("RenderWaterSurface"), !RenderWaterBody);
-			//Chunk.RiverSimSystem->SetVariableBool(FName("RenderSecondary"), RenderSecondary);
-			
-			Chunk.RiverSimSystem->SetVariableBool(FName("DebugRenderBottomContour"), RenderState == EShallowWaterRenderState::DebugRenderBottomContour);
-			Chunk.RiverSimSystem->SetVariableBool(FName("DebugRenderFoam"), RenderState == EShallowWaterRenderState::DebugRenderFoam);
-			
-			// 현재 타깃 제외 모두 BakedSim 읽는 걸로.
-			//Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
-			int32 ChunkIndex = Chunk.GridIndex.Y * ChunkGridDimensions.X + Chunk.GridIndex.X;
-			Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), ChunkIndex != CurrentTargetChunkIndex);//
-			Chunk.RiverSimSystem->SetVariableBool(FName("RenderSecondary"), ChunkIndex != CurrentTargetChunkIndex);//
+		//////////////
+		for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		{
+			// 1. 개별 청크 시뮬레이션 시스템 종료
+			if (Chunk.RiverSimSystem)
+			{
+				Chunk.RiverSimSystem->DeactivateImmediate();
+			}
+		}
 		
-			Chunk.RiverSimSystem->SetVariableTextureRenderTarget("OceanNormalRT", NormalDetailRT);
-			//Chunk.RiverSimSystem->ReinitializeSystem();
-			Chunk.RiverSimSystem->DestroyInstanceNotComponent();
+		// 2. 마스터 시스템 활성화 및 거품 텍스처 배정
+		if (RiverSimSystem)
+		{
+			if (BakedWaterSurfaceTexture != nullptr && BakedFoamTexture != nullptr && BakedWaterSurfaceNormalTexture != nullptr)
+			{
+				RiverSimSystem->SetVariableTexture(FName("BakedSimTexture"), BakedWaterSurfaceTexture);
+				RiverSimSystem->SetVariableTexture(FName("BakedFoamTexture"), BakedFoamTexture);
+				RiverSimSystem->SetVariableTexture(FName("BakedWaterSurfaceNormalTexture"), BakedWaterSurfaceNormalTexture);
+			}
+			
+			RiverSimSystem->SetVariableVec2(FName("WorldGridSize"), WorldGridSize);
+			RiverSimSystem->SetVariableInt(FName("ResolutionMaxAxis"), ResolutionMaxAxis);
+			RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
+
+			RiverSimSystem->SetVariableBool(FName("RenderWaterSurface"), !RenderWaterBody);
+			RiverSimSystem->SetVariableBool(FName("RenderSecondary"), RenderSecondary);
+			RiverSimSystem->SetVariableBool(FName("DebugRenderBottomContour"), RenderState == EShallowWaterRenderState::DebugRenderBottomContour);
+			RiverSimSystem->SetVariableBool(FName("DebugRenderFoam"), RenderState == EShallowWaterRenderState::DebugRenderFoam);
+			RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
+		
+			RiverSimSystem->SetVariableTextureRenderTarget("OceanNormalRT", NormalDetailRT);
+			
+			RiverSimSystem->ReinitializeSystem();
+			
+			
 		}
 	}
+	else
+	{
+		// TODO 여기에 RiverSImSystem 안보이게도 해야해. 여기 말고 Rebuild에서 해야하나?
+		
+		for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
+		{
+			int32 ChunkIndex = Chunk.GridIndex.Y * ChunkGridDimensions.X + Chunk.GridIndex.X;
+
+			if (Chunk.RiverSimSystem != nullptr)
+			{
+				Chunk.RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
+
+				Chunk.RiverSimSystem->SetVariableBool(FName("RenderWaterSurface"), !RenderWaterBody);
+				Chunk.RiverSimSystem->SetVariableBool(FName("RenderSecondary"), RenderSecondary);
+
+				Chunk.RiverSimSystem->SetVariableBool(FName("DebugRenderBottomContour"),
+				                                      RenderState ==
+				                                      EShallowWaterRenderState::DebugRenderBottomContour);
+				Chunk.RiverSimSystem->SetVariableBool(FName("DebugRenderFoam"),
+				                                      RenderState == EShallowWaterRenderState::DebugRenderFoam);
+
+				Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), bReadBakedSim);
+
+				// Chunk.RiverSimSystem->SetVariableBool(FName("ReadCachedSim"), ChunkIndex != CurrentTargetChunkIndex);//
+				// Chunk.RiverSimSystem->SetVariableBool(FName("RenderSecondary"), ChunkIndex != CurrentTargetChunkIndex);//
+
+				Chunk.RiverSimSystem->SetVariableTextureRenderTarget("OceanNormalRT", NormalDetailRT);
+				//Chunk.RiverSimSystem->ReinitializeSystem();
+				Chunk.RiverSimSystem->DestroyInstanceNotComponent();
+			}
+		}
+	}
+	
 	
 
 	if ((RenderState == EShallowWaterRenderState::BakedSim || RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim) && 

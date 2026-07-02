@@ -141,7 +141,7 @@ public:
 	float SourceSize;
 
 	// (추가) 청크 분할 개수를 에디터에서 설정 (예: X:2, Y:2)
-	UPROPERTY(EditAnywhere, Category = "Simulation", meta = (DisplayName = "Chunk Grid Dimensions"))
+	UPROPERTY(EditAnywhere, Category = "Simulation|Chunk", meta = (DisplayName = "Chunk Grid Dimensions"))
 	FIntPoint ChunkGridDimensions; 
 	
 	UPROPERTY(EditAnywhere, Category = "Simulation", meta = (DisplayName = "Speed"))
@@ -333,30 +333,24 @@ private:
 ////////// 내가 수정한 것들
 public:
 
-	//////////// watersurfacetexture 테스트 중
-	UPROPERTY(EditAnywhere, Category = "MyTest")
-	AActor* MyTestWaterSurfaceActor;
-	//////////// watersurfacetexture 테스트 끝
-	
-	// 임시 테스트용
-	UFUNCTION(BlueprintCallable, Category = "MyTest", CallInEditor)
-	void TestTempCheckChunkSystems();
+	// Source도, Sink도 아닌 워터바디. 
+	UPROPERTY(EditAnywhere, Category = "Water", meta = (DisplayName = "Linking Water Bodies"))
+	TArray<TSoftObjectPtr<AWaterBody>> LinkWaterBodies;
 	
 protected:
-	
-	// UPROPERTY(EditAnywhere, Category = "MyTest")
-	// bool bDoesTest = false;
-	
-	// UPROPERTY(EditAnywhere, Category = "MyTest")
-	// int TestIndex = 0;
+	///////
+	UPROPERTY(EditAnywhere, Category = "MyTest")
+	TObjectPtr<UStaticMesh> TestDebugMesh;
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	TArray<UMeshComponent*> TestDebugMeshes;
 	
 	UPROPERTY()
 	TArray<FShallowWaterChunk> ShallowWaterChunks;
 	
-	UPROPERTY(EditAnywhere, Category = "MyTest")
+	UPROPERTY(EditAnywhere, Category = "Simulation|Chunk")
 	int32 MarginCells = 15;
 	
-	UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	UPROPERTY(VisibleAnywhere, Category = "Simulation|Chunk")
 	float AlignedOverlapMargin;
 	
 	UPROPERTY()
@@ -375,11 +369,11 @@ protected:
 	// 청크 시뮬레이션이 진행되었는지 여부
 	TArray<bool> ChunkBeenSimulated;
 	
-	UPROPERTY(EditAnywhere, Category = "Simulation|Bake")
-	int32 FramesForChunkBaking = 100;
+	UPROPERTY(EditAnywhere, Category = "Simulation|Chunk")
+	int32 FramesForChunkSimulation = 100;
 	
-	UPROPERTY(EditAnywhere, Category = "Simulation|Bake")
-	int32 MaxBakePasses = 1;// 큐가 비었을 때 처음부터 다시 진행할 반복(Pass) 횟수
+	UPROPERTY(EditAnywhere, Category = "Simulation|Chunk")
+	int32 SimulationRepetitionNum = 1;// 큐가 비었을 때 처음부터 다시 진행할 반복(Pass) 횟수
 	
 	bool bIsSequentialBaking = false;
 	int32 CurrentBakePass = 0;
@@ -390,29 +384,50 @@ protected:
 	TArray<int32> BakingQueue;
 	
 	// 소스 데이터
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TArray<FVector> SourcePosArray;
 	TArray<FVector3f> SourceSizeArray;
 	TArray<float> SourceAngleArray;
 	
 	TArray<int32> SourceChunkIndices; // 소스가 속해있는 청크
 	
+	//// 청크 분할 RVT 투영 
+	// // RVT에 그림을 그릴 베이스 머티리얼 (에디터에서 할당)
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
+	// TObjectPtr<UMaterialInterface> RVTWriterMaterial;
+	// // 레벨에 배치된 RVT 에셋 (에디터에서 할당)
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
+	// TObjectPtr<URuntimeVirtualTexture> WaterHeightRVT;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
+	// TObjectPtr<URuntimeVirtualTexture> WaterVelocityRVT;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
+	// TObjectPtr<URuntimeVirtualTexture> ExtraWaterDataRVT;
+	//
+	//
+	// // 100x100 기본 엔진 Plane 메시 (에디터에서 엔진 기본 Plane 할당)
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
+	// TObjectPtr<UStaticMesh> DefaultPlaneMesh;
+	// // 스폰된 청크 평면들을 관리하기 위한 배열 (재베이킹 시 삭제 용도)
+	// UPROPERTY()
+	// TArray<TObjectPtr<UStaticMeshComponent>> ChunkRVTPlanes;
+	
+	
 	// --- 청크 분할 시뮬레이션 용 함수 --- TODO : 에디터온니 로 덮기
-	void InitSequentialBake(bool bIsFirstPass);
-	void TickBake();
+	void InitSequentialSimulation(bool bIsFirstPass);
+	void TickSimulate();
 	void ActivateChunkAndNeighbors(int32 CenterChunkIndex, bool bActive);
-	//void UpdateChunkSimStates(int32 CenterChunkIndex);
 	void CheckBoundariesAndQueueNeighbors(int32 CenterChunkIndex);
 	bool IsChunkOverlappingSource(const FShallowWaterChunk& Chunk);
 	
 	
 	
-	// 테스트용
-	UPROPERTY(EditAnywhere, Category = "MyTest")
-	UTextureRenderTarget2D* BakedWaterSurfaceRTForCheck;
-	
-	UPROPERTY(VisibleAnywhere, Category = "MyTest")
-	TObjectPtr<UTexture2D> TestVisibleTexture;
-	
+	// // 테스트용
+	// UPROPERTY(EditAnywhere, Category = "MyTest")
+	// UTextureRenderTarget2D* BakedWaterSurfaceRTForCheck;
+	//
+	// UPROPERTY(VisibleAnywhere, Category = "MyTest")
+	// TObjectPtr<UTexture2D> TestVisibleTexture;
+	//
 	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTextureRenderTarget2D> TestVisibleRT;
 	
