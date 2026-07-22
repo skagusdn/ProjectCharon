@@ -90,20 +90,12 @@ void USwimBuoyancyComponent::BeginPlay()
 								break;
 							}
 						}
-
-						if(bOverlappingWaterBody)
-						{
-							UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon IS overlapping WaterBody"));	
-						}
-						else
-						{
-							UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon is NOT overlapping WaterBody"));
-						}
+						
 					}
 				}
 				
-				UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f, LocalForce : %s"),
-					WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, This->GetImmersionDepth(),*WaterCheckPontoon.LocalForce.ToString());	
+				// UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f, LocalForce : %s"),
+				// 	WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, This->GetImmersionDepth(),*WaterCheckPontoon.LocalForce.ToString());	
 			}
 			
 		});

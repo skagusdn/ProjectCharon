@@ -151,8 +151,8 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 
-	UPROPERTY()
-	TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
+	// UPROPERTY()
+	// TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
 
 	UPROPERTY()
 	TObjectPtr<const class UHealthAttributeSet> VehicleHealthAttributeSet;
@@ -183,4 +183,5 @@ protected:
 	// 생사 관련 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<ULifeStateComponent> LifeStateComponent;
+	
 };

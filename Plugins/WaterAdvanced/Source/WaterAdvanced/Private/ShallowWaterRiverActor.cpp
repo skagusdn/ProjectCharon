@@ -41,6 +41,7 @@
 
 #include "WaterBodyLakeActor.h"
 #include "WaterBodyLakeComponent.h"
+#include "WaterBodyRiverActor.h"
 #include "Engine/Canvas.h"
 #include "Kismet/KismetRenderingLibrary.h"
 
@@ -139,6 +140,17 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(const FName& D
 		}
 	}
 	return FBoxSphereBounds(BottomContourCombinedWorldBoundsBuilder);	
+}
+
+void UShallowWaterRiverComponent::RollbackAllWaterBodies()
+{
+	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : AllWaterBodies)
+	{
+		if (CurrWaterBody.IsValid())
+		{
+			RollbackWaterBody(CurrWaterBody.Get());
+		}
+	}
 }
 
 void UShallowWaterRiverComponent::InitSequentialSimulation(bool bIsFirstPass)
@@ -621,6 +633,28 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(UNiagaraCompon
 		}
 	}
 	return FBoxSphereBounds(BottomContourCombinedWorldBoundsBuilder);	
+}
+
+void UShallowWaterRiverComponent::RollbackWaterBody(AWaterBody* WaterBody)
+{
+	if (WaterBody)
+	{
+		if (UWaterBodyRiverComponent* RiverComponent = Cast<UWaterBodyRiverComponent>(WaterBody->GetWaterBodyComponent()))
+		{
+			if (RollbackWaterMaterial != nullptr && RollbackLakeTransitionMaterial != nullptr && RollbackOceanTransitionMaterial != nullptr)
+			{
+				RiverComponent->SetWaterMaterial(RollbackWaterMaterial);	
+				RiverComponent->SetLakeTransitionMaterial(RollbackLakeTransitionMaterial);	
+				RiverComponent->SetOceanTransitionMaterial(RollbackOceanTransitionMaterial);	
+			}
+		}
+		
+	}
+}
+
+void AShallowWaterRiver::RollbackWaterBodies()
+{
+	ShallowWaterRiverComponent->RollbackAllWaterBodies();
 }
 
 void UShallowWaterRiverComponent::ConvertToVirtualTextures()
@@ -2021,53 +2055,8 @@ void UShallowWaterRiverComponent::Rebuild()
 	/// 테스트용
 	if (ShallowWaterChunks.Num() > 0)
 	{
-		TestVisibleRT = ShallowWaterChunks[0].SimGridRT;
+		TestVisibleRT = ShallowWaterChunks[0].FoamRT;
 	}
-	
-	// 테스트 메시 스폰 및 삭제 
-	for (UMeshComponent* TestMesh : TestDebugMeshes)
-	{
-		TestMesh->DestroyComponent();
-	}
-	TestDebugMeshes.Empty();
-	
-	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : AllWaterBodies)
-	{
-		if (AWaterBody* WaterBody = CurrWaterBody.Get())
-		{
-			if (UWaterSplineComponent* CurrSpline = WaterBody->GetWaterSpline())
-			{
-				//FInterpCurveVector& SplinePoints = CurrSpline->GetSplinePointsPosition();
-				int PointNum = CurrSpline->GetNumberOfSplinePoints();
-				
-				// for (FInterpCurvePoint Point : SplinePoints.Points)
-				// {
-				// 	UStaticMeshComponent* TestMesh = NewObject<UStaticMeshComponent>(this);
-				// 	TestMesh->SetStaticMesh(TestDebugMesh);
-				// 	TestMesh->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
-				// 	TestMesh->RegisterComponent();
-				// 	
-				// 	TestMesh->SetWorldLocation(Point.OutVal);
-				// 	TestDebugMeshes.Add(TestMesh);
-				// }
-				
-				for (int i= 0; i < PointNum; i++)
-				{
-					UStaticMeshComponent* TestMesh = NewObject<UStaticMeshComponent>(this);
-					TestMesh->SetStaticMesh(TestDebugMesh);
-					TestMesh->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
-					TestMesh->RegisterComponent();
-						
-					TestMesh->SetWorldLocation(CurrSpline->GetSplinePointAt(i, ESplineCoordinateSpace::World).Position);
-					TestDebugMeshes.Add(TestMesh);
-					
-					
-				}
-			}
-		}
-	}
-	
-	
 	
 	////////////// Test 수정 끝
 }
@@ -2339,8 +2328,8 @@ void UShallowWaterRiverComponent::Bake()
 	{
 		if (!ChunkRT) return;
 
-		TArray<FFloat16Color> RawPixels;
-		ChunkRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(RawPixels);
+		TArray<FLinearColor> RawPixels;
+		ChunkRT->GameThread_GetRenderTargetResource()->ReadLinearColorPixels(RawPixels);
 		int32 RTResX = ChunkRT->SizeX;
 
 		// // 물리 데이터 배열은 메인 SimGridRT를 처리할 때 한 번만 초기화
@@ -2412,24 +2401,33 @@ void UShallowWaterRiverComponent::Bake()
 		MergeChunkRT(Chunk.FoamRT, GlobalFoamPixels, Chunk, false);    // 거품 데이터 병합
 		MergeChunkRT(Chunk.NormalRT, GlobalNormalPixels, Chunk, false); // 노말 데이터 병합
 	}
-
-	// // 외곽선 0 초기화 (Clamp 늘어짐 방지)
-	// for (int32 y = 0; y < SimRes.Y; ++y)
+	
+	// // Foam이 안되네. 테스트 해보자.
+	// for (int i = 0; i < GlobalFoamPixels.Num(); i++)
 	// {
-	// 	for (int32 x = 0; x < SimRes.X; ++x)
+	// 	FFloat16Color& Pixel = GlobalFoamPixels[i];
+	// 	if (Pixel.R != 0)
 	// 	{
-	// 		if (x == 0 || x == SimRes.X - 1 || y == 0 || y == SimRes.Y - 1)
+	// 		UE_LOG(LogTemp, Warning, TEXT("Foam HERE %d"), i);
+	// 		break;
+	// 	}
+	// }
+	//
+	// if (ShallowWaterChunks.Num() > 0)
+	// {
+	// 	TArray<FFloat16Color> FoamPixels;
+	// 	ShallowWaterChunks[0].FoamRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(FoamPixels);
+	// 	for (int i = 0; i < FoamPixels.Num(); i++)
+	// 	{
+	// 		FFloat16Color& Pixel = FoamPixels[i];
+	// 		if (Pixel.R != 0)
 	// 		{
-	// 			int32 EdgeIdx = (y * SimRes.X) + x;
-	// 			
-	// 			// 모든 물리 데이터를 0(수심 0, 높이 0)으로 덮어씀 -> 수심이 0이여서 아마 문제 없겠지만 높이가 0인건 문제의 여지가 있음
-	// 			GlobalSimPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
-	// 			GlobalFoamPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
-	// 			GlobalNormalPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 0.f, 0.f});
-	// 			ShallowWaterSimArrayValues[EdgeIdx] = FVector4(0.f, 0.f, 0.f, 0.f);
+	// 			UE_LOG(LogTemp, Warning, TEXT("Foam HERE2 %d"), i);
+	// 			break;
 	// 		}
 	// 	}
 	// }
+	// /////////////////////
 	
 	// 외곽에 물 벽이 생기는 걸 막기 위해 외곽 몇 픽셀은 물 깊이 0으로 만들기.
 	// TODO : 몇픽셀이라도 잘리는게 좀 그래. 뭐 엄청 여유 있으면 아예 크기 자체를 늘려서 마진을 만드는 것도 괜찮을지도?

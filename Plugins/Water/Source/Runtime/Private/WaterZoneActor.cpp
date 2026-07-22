@@ -440,6 +440,9 @@ void AWaterZone::PostEditMove(bool bFinished)
 
 	UpdateOverlappingWaterBodies();
 
+	//// 지울것
+	UE_LOG(LogTemp, Warning, TEXT("WaterZone (%s) (%d) Moved"), *GetNameSafe(this), WaterZoneIndex);
+	
 	MarkForRebuild(RebuildFlags, /* DebugRequestingObject = */ this);
 }
 
@@ -821,6 +824,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 				return true;
 			});
 		}
+		
 
 		UE::WaterInfo::FRenderingContext Context;
 		Context.ZoneToRender = this;

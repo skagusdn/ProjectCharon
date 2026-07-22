@@ -213,10 +213,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTexture2D> BakedWaterSurfaceTexture;
 	
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTexture2D> BakedFoamTexture;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTexture2D> BakedWaterSurfaceNormalTexture;
 
 	//UPROPERTY(EditAnywhere, Category = "Shallow Water")
@@ -337,12 +337,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Water", meta = (DisplayName = "Linking Water Bodies"))
 	TArray<TSoftObjectPtr<AWaterBody>> LinkWaterBodies;
 	
+	void RollbackAllWaterBodies();
+	
 protected:
-	///////
-	UPROPERTY(EditAnywhere, Category = "MyTest")
-	TObjectPtr<UStaticMesh> TestDebugMesh;
-	UPROPERTY(VisibleAnywhere, Category = "MyTest")
-	TArray<UMeshComponent*> TestDebugMeshes;
 	
 	UPROPERTY()
 	TArray<FShallowWaterChunk> ShallowWaterChunks;
@@ -391,27 +388,6 @@ protected:
 	
 	TArray<int32> SourceChunkIndices; // 소스가 속해있는 청크
 	
-	//// 청크 분할 RVT 투영 
-	// // RVT에 그림을 그릴 베이스 머티리얼 (에디터에서 할당)
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
-	// TObjectPtr<UMaterialInterface> RVTWriterMaterial;
-	// // 레벨에 배치된 RVT 에셋 (에디터에서 할당)
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
-	// TObjectPtr<URuntimeVirtualTexture> WaterHeightRVT;
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
-	// TObjectPtr<URuntimeVirtualTexture> WaterVelocityRVT;
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
-	// TObjectPtr<URuntimeVirtualTexture> ExtraWaterDataRVT;
-	//
-	//
-	// // 100x100 기본 엔진 Plane 메시 (에디터에서 엔진 기본 Plane 할당)
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation|RVT")
-	// TObjectPtr<UStaticMesh> DefaultPlaneMesh;
-	// // 스폰된 청크 평면들을 관리하기 위한 배열 (재베이킹 시 삭제 용도)
-	// UPROPERTY()
-	// TArray<TObjectPtr<UStaticMeshComponent>> ChunkRVTPlanes;
-	
-	
 	// --- 청크 분할 시뮬레이션 용 함수 --- TODO : 에디터온니 로 덮기
 	void InitSequentialSimulation(bool bIsFirstPass);
 	void TickSimulate();
@@ -419,21 +395,24 @@ protected:
 	void CheckBoundariesAndQueueNeighbors(int32 CenterChunkIndex);
 	bool IsChunkOverlappingSource(const FShallowWaterChunk& Chunk);
 	
+	// 롤백할때 되돌릴 머티리얼 수동지정 ㅎ
+	UPROPERTY(EditAnywhere, Category = "MyTest|RollbackMaterials")
+	TObjectPtr <class UMaterialInstance> RollbackWaterMaterial;
+	UPROPERTY(EditAnywhere, Category = "MyTest|RollbackMaterials")
+	TObjectPtr <class UMaterialInstance> RollbackLakeTransitionMaterial;
+	UPROPERTY(EditAnywhere, Category = "MyTest|RollbackMaterials")
+	TObjectPtr <class UMaterialInstance> RollbackOceanTransitionMaterial;
 	
 	
-	// // 테스트용
-	// UPROPERTY(EditAnywhere, Category = "MyTest")
-	// UTextureRenderTarget2D* BakedWaterSurfaceRTForCheck;
-	//
-	// UPROPERTY(VisibleAnywhere, Category = "MyTest")
-	// TObjectPtr<UTexture2D> TestVisibleTexture;
-	//
+	// 테스트용
 	UPROPERTY(VisibleAnywhere, Category = "MyTest")
 	TObjectPtr<UTextureRenderTarget2D> TestVisibleRT;
 	
 	
 	FBoxSphereBounds InitializeCaptureDI(UNiagaraComponent* TargetSimSystem, const FName &DIName, TArray<AActor*> RawActorPtrArray, FIntPoint CaptureResolution, float OrthoWidth);
 	
+	// 워터바디의 머티리얼을 다시 원상복구 시킴.
+	void RollbackWaterBody(AWaterBody* WaterBody);
 	
 	
 private:
@@ -444,7 +423,12 @@ UCLASS(MinimalAPI, BlueprintType, HideCategories = (Physics, Replication, Input,
 class AShallowWaterRiver : public AActor
 {
 	GENERATED_UCLASS_BODY()
-
+	
+public :	
+	// 강 원래대로 돌리기. 
+	UFUNCTION(CallInEditor, Category ="MyTest")
+	void RollbackWaterBodies();
+	
 private:
 	// Asset can be set in Project Settings - Plugins - Water ShallowWaterSimulation
 	UPROPERTY(VisibleAnywhere, Category = "Shallow Water")

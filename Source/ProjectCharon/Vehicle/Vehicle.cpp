@@ -30,7 +30,7 @@ AVehicle::AVehicle()
 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
 	
-	VehicleBasicAttributeSet = nullptr;
+	//VehicleBasicAttributeSet = nullptr;
 
 	//AbilitySystemComponent->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::HandleVehicleAbilityActivation);
 }
@@ -119,11 +119,12 @@ void AVehicle::PostInitializeComponents()
 		}
 	}
 	
-	VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
-	if(VehicleBasicAttributeSet)
-	{
-		VehicleBasicAttributeSet->OnVehicleDamageApplied.AddUObject(this, &ThisClass::HandleVehicleDamageApplied);
-	}
+	
+	// VehicleBasicAttributeSet = AbilitySystemComponent->GetSet<UVehicleBasicAttributeSet>();
+	// if(VehicleBasicAttributeSet)
+	// {
+	// 	VehicleBasicAttributeSet->OnVehicleDamageApplied.AddUObject(this, &ThisClass::HandleVehicleDamageApplied);
+	// }
 
 
 	

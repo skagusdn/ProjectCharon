@@ -431,11 +431,19 @@ void UWaterBodyComponent::UpdateWaterZones(bool bAllowChangesDuringCook /* = fal
 				return;
 			}
 
-			const FBox Bounds3D = CalcBounds(GetComponentToWorld()).GetBox();
+			// 수정 // 로직 교체 -> 워터 스플라인에서 범위 가져오기. 
+			FBox TempBox = CalcBounds(GetComponentToWorld()).GetBox();
+			if(GetWaterSpline() != nullptr)
+			{
+				UWaterSplineComponent* WaterSplineComponent = GetWaterSpline();
+				TempBox = WaterSplineComponent->CalcBounds(WaterSplineComponent->GetComponentToWorld()).GetBox();
+			}
+			const FBox Bounds3D = TempBox;
 
 			const AActor* ActorOwner = GetTypedOuter<AActor>();
 			const ULevel* PreferredLevel = ActorOwner ? ActorOwner->GetLevel() : nullptr;
-			FoundZone = UWaterSubsystem::FindWaterZone(World, FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
+			//FoundZone = UWaterSubsystem::FindWaterZone(World, FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)), PreferredLevel);
+			FoundZone = UWaterSubsystem::FindWaterZone3D(World, Bounds3D, PreferredLevel); // 여기가 수정한 부분.
 		}
 
 		if (OwningWaterZone != FoundZone)
