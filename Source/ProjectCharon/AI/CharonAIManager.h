@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "AIManager.generated.h"
+#include "CharonAIManager.generated.h"
 
 struct FInputActionValue;
 class UInputAction;
@@ -13,7 +13,7 @@ class AAIController;
  *  봇 플레이어나 몬스터 등 ai를 관리할 매니저 서브시스템. 
  */
 UCLASS()
-class PROJECTCHARON_API UAIManager : public UWorldSubsystem
+class PROJECTCHARON_API UCharonAIManager : public UWorldSubsystem
 {
 	GENERATED_BODY()
 	
@@ -25,5 +25,8 @@ public:
 protected:
 	
 	TArray<TObjectPtr<AAIController>> AIControllers;
+	
+	
+	
 	
 };

@@ -96,13 +96,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ResetAbilityConfig();
 
-	//InputFunctionSet의 함수 델리게이트를 실행 요청.	
-	UFUNCTION()
-	void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
-	
-	// RPC에서 FInputActionValue이 제대로 전달되지 않으므로 값을 분리해서 전달. 
-	UFUNCTION(Server, Reliable)
-	void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
+	// //InputFunctionSet의 함수 델리게이트를 실행 요청.	
+	// UFUNCTION()
+	// void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
+	//
+	// // RPC에서 FInputActionValue이 제대로 전달되지 않으므로 값을 분리해서 전달. 
+	// UFUNCTION(Server, Reliable)
+	// void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
 	//void Server_RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
 	
 		

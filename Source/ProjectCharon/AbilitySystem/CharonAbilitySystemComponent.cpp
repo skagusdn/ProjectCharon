@@ -307,7 +307,7 @@ void UCharonAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilityS
 {
 	Super::OnGiveAbility(AbilitySpec);
 
-	UE_LOG(LogTemp, Display, TEXT("Ability - %s Has Granted"), *AbilitySpec.Ability.GetName());
+	UE_LOG(LogTemp, Display, TEXT("Ability - %s Has Granted to %s"), *AbilitySpec.Ability.GetName(), *GetOwner()->GetName());
 }
 
 void UCharonAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGameplayTagContainer& AbilityTags,

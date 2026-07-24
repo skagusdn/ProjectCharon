@@ -56,7 +56,7 @@ void UAnimNotifyDispatcherComponent::DispatchNotify(const FName Bone, const FGam
 		{
 			if(NotifyReceiver)
 			{
-				UE_LOG(LogCharon, Display, TEXT("DispatchNotify - %s"), GetOwner()->HasAuthority()?TEXT("Server"):TEXT("Client"));///////
+				//UE_LOG(LogCharon, Display, TEXT("DispatchNotify - %s"), GetOwner()->HasAuthority()?TEXT("Server"):TEXT("Client"));///////
 				NotifyReceiver->Execute_ReceiveNotify(NotifyReceiver.GetObject(), Bone, EffectTag, AnimationSequence, MeshComp, VFXScale, AudioVolume, AudioPitch);
 			}
 		}

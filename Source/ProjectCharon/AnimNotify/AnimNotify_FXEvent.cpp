@@ -22,7 +22,7 @@ void UAnimNotify_FXEvent::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 		{
 			if(UAnimNotifyDispatcherComponent* EventReceiverComp = OwningActor->GetComponentByClass<UAnimNotifyDispatcherComponent>())
 			{
-				UE_LOG(LogCharon, Display, TEXT("AnimNotify - %s"), OwningActor->HasAuthority()?TEXT("Server"):TEXT("Client"));///////
+				//UE_LOG(LogCharon, Display, TEXT("AnimNotify - %s"), OwningActor->HasAuthority()?TEXT("Server"):TEXT("Client"));///////
 				EventReceiverComp->DispatchNotify(BoneName, EffectTag, Animation, MeshComp);
 			}
 		}

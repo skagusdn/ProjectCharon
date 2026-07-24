@@ -5,7 +5,9 @@
 
 #include "AbilityAssistComponent.h"
 #include "AbilitySystemInterface.h"
+#include "AIController.h"
 #include "AbilitySystem/CharonAbilitySet.h"
+#include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"//
 #include "Input/CharonInputComponent.h"
 
@@ -85,6 +87,11 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		TemporaryInputFunctions = InInputFunctions;
 	}
 	
+	if (OwnerPawn->GetController()->IsA<AAIController>())
+	{
+		return;
+	}
+	
 	const APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
 	check(PC);
 
@@ -108,7 +115,8 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		
 		if(InInputFunctions && OwnerCharacter)
 		{
-			CharonIC->BindNativeFunctions(InputConfig, OwnerCharacter, InInputFunctions,  NativeBindHandles );
+			//CharonIC->BindNativeFunctions(InputConfig, OwnerCharacter, InInputFunctions,  NativeBindHandles );
+			CharonIC->BindNativeFunctions(InputConfig, this, InInputFunctions, NativeBindHandles );
 		}
 	}
 }
@@ -224,6 +232,48 @@ void UInputAssistComponent::Input_AbilityInputTagReleased(FGameplayTag InputTag)
 			}
 		}	
 	}
+}
+
+void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue,
+	AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+{
+	if(IsServerRPC)
+	{
+		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+			InputActionValue.GetValueType(), InputFunctionSet, Tag);
+	}
+	else
+	{
+		// TODO : 굳이 캐릭터로 변환해서 줘야할까?
+		if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
+		{
+			InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
+		}
+	}
+}
+
+// TODO : ServerRPC는 보안적으로 위험. 점검 로직이 필요. 
+void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
+	EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag)
+{
+	FInputActionValue InputActionValue;
+	switch(ValueType)
+	{
+	case EInputActionValueType::Boolean :
+		InputActionValue = FInputActionValue(ValueX > 0);
+		break;
+	case EInputActionValueType::Axis1D :
+		InputActionValue = FInputActionValue(ValueX);
+		break;
+	case EInputActionValueType::Axis2D :
+		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
+		break;
+	case EInputActionValueType::Axis3D :
+		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
+		break;
+	}
+	
+	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, false);
 }
 
 

@@ -25,6 +25,11 @@ public:
 	// UFUNCTION(BlueprintCallable, Category="Charon|Interaction")
 	// FGameplayAbilitySpecHandle GrantAbilityAndActivate(TSubclassOf<UGameplayAbility> AbilityForInteraction,
 	// 	AActor* InteractionObject, bool HasOptionalEventData = false, FGameplayEventData OptionalEventData = FGameplayEventData());
+	
+	//강제 상호작용.
+	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly)
+	void ForceInteraction(AActor* Target);
+	
 protected:
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
 	bool UpdateInteractionTarget(AActor* InInteractionTarget);
@@ -35,6 +40,8 @@ protected:
 
 	//void Interact_GrantAbilityAndActivate();
 
+	
+	
 	UFUNCTION(BlueprintCallable, Category = "Charon|Interaction")
 	bool TriggerAbilityForInteraction(FGameplayAbilitySpecHandle AbilitySpecHandle, FGameplayEventData EventData);
 	

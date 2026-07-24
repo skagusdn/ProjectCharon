@@ -28,6 +28,12 @@ public:
 	
 	UInputAssistComponent();
 
+	//InputFunctionSet의 함수 델리게이트를 실행 요청.	
+	UFUNCTION()
+	void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
+	
+	
+	
 private:
 	
 	
@@ -39,6 +45,12 @@ protected:
 
 	void Input_AbilityInputTagPressed(FGameplayTag InputTag);
 	void Input_AbilityInputTagReleased(FGameplayTag InputTag);
+	
+	
+	
+	// RPC에서 FInputActionValue이 제대로 전달되지 않으므로 값을 분리해서 전달. 
+	UFUNCTION(Server, Reliable)
+	void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag);
 	
 	TObjectPtr<const UCharonInputConfig> DefaultInputConfig = nullptr;
 	TObjectPtr<const UCharonInputConfig> PresentInputConfig = nullptr;

@@ -70,8 +70,7 @@ void URunAttributeSet::PostAttributeChange(const FGameplayAttribute& Attribute, 
 {
 	Super::PostAttributeChange(Attribute, OldValue, NewValue);
 	
-	UE_LOG(LogTemp, Warning, TEXT("%s : PostAttributeChange From %f To %f"), *Attribute.GetName(), OldValue, NewValue);
-	
+	//UE_LOG(LogTemp, Warning, TEXT("%s : PostAttributeChange From %f To %f"), *Attribute.GetName(), OldValue, NewValue);
 }
 
 void URunAttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data)

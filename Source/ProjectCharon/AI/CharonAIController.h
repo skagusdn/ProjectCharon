@@ -13,7 +13,9 @@ class PROJECTCHARON_API ACharonAIController : public AAIController
 
 public:
 	ACharonAIController();
-
+	
+protected:
+	void OnPossess(APawn* InPawn) override;
 	// AI 캐릭터를 단순 디버깅 용 이외로 사용하고자  한다면 Crew시스템에도 추가되게 초기화 로직 넣기. 
 	
 };

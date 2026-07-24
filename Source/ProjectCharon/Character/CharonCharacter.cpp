@@ -146,50 +146,45 @@ void ACharonCharacter::ResetAbilityConfig()
 	
 }
 
-void ACharonCharacter::RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet,
-	const FGameplayTag Tag, bool IsServerRPC)
-{
-	if(IsServerRPC)
-	{
-		//FVector Value = InputActionValue.Get<FVector>();
-		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
-			InputActionValue.GetValueType(), InputFunctionSet, Tag, false);
-	}
-	else
-	{
-		InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, this);
-	}
-	
-}
-
-void ACharonCharacter::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
-	EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
-{
-	FInputActionValue InputActionValue;
-	switch(ValueType)
-	{
-	case EInputActionValueType::Boolean :
-		InputActionValue = FInputActionValue(ValueX > 0);
-		break;
-	case EInputActionValueType::Axis1D :
-		InputActionValue = FInputActionValue(ValueX);
-		break;
-	case EInputActionValueType::Axis2D :
-		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
-		break;
-	case EInputActionValueType::Axis3D :
-		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
-		break;
-	}
-	
-	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, IsServerRPC);
-}
-
-// void ACharonCharacter::Server_RequestExecuteInputFunction_Implementation(FInputActionValue InputActionValue,
-//                                                                          AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+// void ACharonCharacter::RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet,
+// 	const FGameplayTag Tag, bool IsServerRPC)
 // {
+// 	if(IsServerRPC)
+// 	{
+// 		//FVector Value = InputActionValue.Get<FVector>();
+// 		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+// 			InputActionValue.GetValueType(), InputFunctionSet, Tag, false);
+// 	}
+// 	else
+// 	{
+// 		InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, this);
+// 	}
+// 	
+// }
+
+// void ACharonCharacter::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
+// 	EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+// {
+// 	FInputActionValue InputActionValue;
+// 	switch(ValueType)
+// 	{
+// 	case EInputActionValueType::Boolean :
+// 		InputActionValue = FInputActionValue(ValueX > 0);
+// 		break;
+// 	case EInputActionValueType::Axis1D :
+// 		InputActionValue = FInputActionValue(ValueX);
+// 		break;
+// 	case EInputActionValueType::Axis2D :
+// 		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
+// 		break;
+// 	case EInputActionValueType::Axis3D :
+// 		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
+// 		break;
+// 	}
+// 	
 // 	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, IsServerRPC);
 // }
+
 
 
 void ACharonCharacter::InitCharonCharacter()

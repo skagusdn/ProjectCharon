@@ -5,6 +5,7 @@
 
 #include "EnhancedInputSubsystems.h"
 #include "Character/CharonCharacter.h"
+#include "Data/InputFunctionSet.h"
 
 
 void UCharonInputComponent::AddInputMappings(const UCharonInputConfig* InputConfig,
@@ -33,8 +34,33 @@ void UCharonInputComponent::RemoveInputMappings(const UCharonInputConfig* InputC
 	}
 }
 
-//template <class UserClass, typename FuncType>
-void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
+// //template <class UserClass, typename FuncType>
+// void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, ACharacter* Initiator, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
+// {
+// 	check(InputConfig);
+// 	
+// 	for(auto& Element : InputFunctions->InputFunctionDelegateMap)
+// 	{
+// 		if(const UInputAction* InputAction = InputConfig->FindNativeInputActionForTag(Element.Key, false))
+// 		{
+// 			//const ETriggerEvent TriggerEvent = Element.Value.TriggerEvent;
+// 			TArray<ETriggerEvent> TriggerEvents = Element.Value.TriggerEvents;
+//
+// 			for(ETriggerEvent TriggerEvent : TriggerEvents)
+// 			{
+// 				ACharonCharacter* CharonCharacter =  Cast<ACharonCharacter>(Initiator);
+// 				BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, CharonCharacter, Element](const FInputActionValue& Value)
+// 				{
+// 					CharonCharacter->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
+// 				}).GetHandle() );
+// 			}
+// 		}
+// 	}
+// 	
+// 	
+// }
+
+void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputConfig, UInputAssistComponent* InputAssistComp, AInputFunctionSet* InputFunctions, TArray<uint32>& BindHandles)
 {
 	check(InputConfig);
 	
@@ -47,10 +73,9 @@ void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputC
 
 			for(ETriggerEvent TriggerEvent : TriggerEvents)
 			{
-				ACharonCharacter* CharonCharacter =  Cast<ACharonCharacter>(Initiator);
-				BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, CharonCharacter, Element](const FInputActionValue& Value)
+				BindHandles.Add( BindActionValueLambda(InputAction, TriggerEvent, [InputFunctions, InputAssistComp, Element](const FInputActionValue& Value)
 				{
-					CharonCharacter->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
+					InputAssistComp->RequestExecuteInputFunction(Value, InputFunctions, Element.Key, Element.Value.bNeedServerRPC );
 				}).GetHandle() );
 			}
 		}
@@ -58,6 +83,7 @@ void UCharonInputComponent::BindNativeFunctions(const UCharonInputConfig* InputC
 	
 	
 }
+
 
 void UCharonInputComponent::RemoveBinds(TArray<uint32>& BindHandles)
 {
