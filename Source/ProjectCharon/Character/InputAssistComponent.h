@@ -32,7 +32,9 @@ public:
 	UFUNCTION()
 	void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
 	
-	
+	// 강제
+	void ExecuteEnforcedInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag, bool IsServerRPC);
+	void ExecuteEnforcedAbilityInput(FGameplayTag Tag, bool bInputPressed);
 	
 private:
 	
@@ -52,9 +54,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag);
 	
+	
+	
 	TObjectPtr<const UCharonInputConfig> DefaultInputConfig = nullptr;
 	TObjectPtr<const UCharonInputConfig> PresentInputConfig = nullptr;
-
 	TObjectPtr<const UCharonInputConfig> TemporaryInputConfig = nullptr;
 	
 	UPROPERTY()

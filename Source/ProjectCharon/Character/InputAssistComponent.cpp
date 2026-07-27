@@ -237,6 +237,23 @@ void UInputAssistComponent::Input_AbilityInputTagReleased(FGameplayTag InputTag)
 void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue,
 	AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
 {
+	// 전달받은 InputFunctionSet이 적절한지 검사
+	if (TemporaryInputFunctions)
+	{
+		if (TemporaryInputFunctions != InputFunctionSet)
+		{
+			return;
+		}
+	}
+	else
+	{
+		if (!PresentInputFunctions || PresentInputFunctions != InputFunctionSet)
+		{
+			return;
+		}
+	}
+	
+	
 	if(IsServerRPC)
 	{
 		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],

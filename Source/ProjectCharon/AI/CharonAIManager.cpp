@@ -22,7 +22,7 @@ ACharacter* UCharonAIManager::TrySpawnAICharacter(TSubclassOf<ACharacter> Charac
 			if (AAIController* AIController = World->SpawnActor<AAIController>(AIControllerClass))
 			{
 				AIController->Possess(AICharacter);
-				AIControllers.Add(AIController);
+				//AIControllers.Add(AIController);
 				
 				return AICharacter;
 			}

@@ -24,7 +24,7 @@ public:
 	
 protected:
 	
-	TArray<TObjectPtr<AAIController>> AIControllers;
+	//TArray<TObjectPtr<AAIController>> AIControllers;
 	
 	
 	
