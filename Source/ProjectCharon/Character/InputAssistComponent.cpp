@@ -19,6 +19,26 @@ UInputAssistComponent::UInputAssistComponent()
 	
 }
 
+void UInputAssistComponent::HandleInputActionTriggered(const FInputActionValue& ActionValue, FGameplayTag InputTag,
+	bool bIsAbilityAction, bool bIsButtonPressed, bool bNeedServerRPC)
+{
+	if (bIsAbilityAction)
+	{
+		if (bIsButtonPressed)
+		{
+			Input_AbilityInputTagPressed(InputTag);
+		}
+		else
+		{
+			Input_AbilityInputTagReleased(InputTag);
+		}
+	}
+	else
+	{
+		RequestExecuteInputFunction(ActionValue, InputTag, bNeedServerRPC);
+	}
+}
+
 void UInputAssistComponent::OnUnregister()
 {
 	UnregisterInputConfig(false);
@@ -108,8 +128,9 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 	{
 		CharonIC->AddInputMappings(InputConfig, InputSubsystem);
 			
-		CharonIC->BindAbilityActions(InputConfig, this, &UInputAssistComponent::Input_AbilityInputTagPressed,
-			&UInputAssistComponent::Input_AbilityInputTagReleased, AbilityBindHandles);
+		// CharonIC->BindAbilityActions(InputConfig, this, &UInputAssistComponent::Input_AbilityInputTagPressed,
+		// 	&UInputAssistComponent::Input_AbilityInputTagReleased, AbilityBindHandles);
+		CharonIC->BindAbilityActions(InputConfig, AbilityBindHandles);
 
 		ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 		
@@ -118,6 +139,11 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 			//CharonIC->BindNativeFunctions(InputConfig, OwnerCharacter, InInputFunctions,  NativeBindHandles );
 			CharonIC->BindNativeFunctions(InputConfig, this, InInputFunctions, NativeBindHandles );
 		}
+		
+		//
+		//CharonIC->OnInputActionTriggered.AddDynamic(this, &UInputAssistComponent::HandleInputActionTriggered);
+		CharonIC->RegisterInputReceiver(this, &UInputAssistComponent::HandleInputActionTriggered);
+		 
 	}
 }
 
@@ -269,29 +295,91 @@ void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputA
 	}
 }
 
-// TODO : ServerRPC는 보안적으로 위험. 점검 로직이 필요. 
+void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag,
+	bool IsServerRPC)
+{
+	
+	AInputFunctionSet* TargetInputFunctionSet = TemporaryInputFunctions != nullptr ? TemporaryInputFunctions : PresentInputFunctions;
+	
+	
+	if(IsServerRPC)
+	{
+		// Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+		// 	InputActionValue.GetValueType(), Tag);
+		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+			InputActionValue.GetValueType(), TargetInputFunctionSet, Tag);
+	}
+	else if (TargetInputFunctionSet)
+	{
+		// TODO : 굳이 캐릭터로 변환해서 줘야할까?
+		if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
+		{
+			TargetInputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
+		}
+	}
+}
+
 void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
 	EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag)
 {
 	FInputActionValue InputActionValue;
-	switch(ValueType)
+	switch (ValueType)
 	{
-	case EInputActionValueType::Boolean :
+	case EInputActionValueType::Boolean:
 		InputActionValue = FInputActionValue(ValueX > 0);
 		break;
-	case EInputActionValueType::Axis1D :
+	case EInputActionValueType::Axis1D:
 		InputActionValue = FInputActionValue(ValueX);
 		break;
-	case EInputActionValueType::Axis2D :
+	case EInputActionValueType::Axis2D:
 		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
 		break;
-	case EInputActionValueType::Axis3D :
+	case EInputActionValueType::Axis3D:
 		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
 		break;
 	}
+		
+	//
+	if (InputFunctionSet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("피존원 %s"), *Tag.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("피존투 %s"), *Tag.ToString());
+	}
+	//
 	
-	RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, false);
+	//RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, false);
+	if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
+	{
+		InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
+	}
 }
+
+
+// void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
+// 	EInputActionValueType ValueType, const FGameplayTag Tag)
+// {
+// 	FInputActionValue InputActionValue;
+// 	switch(ValueType)
+// 	{
+// 	case EInputActionValueType::Boolean :
+// 		InputActionValue = FInputActionValue(ValueX > 0);
+// 		break;
+// 	case EInputActionValueType::Axis1D :
+// 		InputActionValue = FInputActionValue(ValueX);
+// 		break;
+// 	case EInputActionValueType::Axis2D :
+// 		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
+// 		break;
+// 	case EInputActionValueType::Axis3D :
+// 		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
+// 		break;
+// 	}
+// 	
+// 	RequestExecuteInputFunction(InputActionValue, Tag, false);
+// }
 
 
 

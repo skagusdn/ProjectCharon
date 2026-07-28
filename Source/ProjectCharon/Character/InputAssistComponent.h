@@ -32,9 +32,8 @@ public:
 	UFUNCTION()
 	void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
 	
-	// 강제
-	void ExecuteEnforcedInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag, bool IsServerRPC);
-	void ExecuteEnforcedAbilityInput(FGameplayTag Tag, bool bInputPressed);
+	
+	
 	
 private:
 	
@@ -48,11 +47,16 @@ protected:
 	void Input_AbilityInputTagPressed(FGameplayTag InputTag);
 	void Input_AbilityInputTagReleased(FGameplayTag InputTag);
 	
+	UFUNCTION()
+	void HandleInputActionTriggered(const FInputActionValue& ActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed, bool bNeedServerRPC );
 	
 	
+	void RequestExecuteInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag, bool IsServerRPC);
 	// RPC에서 FInputActionValue이 제대로 전달되지 않으므로 값을 분리해서 전달. 
 	UFUNCTION(Server, Reliable)
 	void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag);
+	// UFUNCTION(Server, Reliable)
+	// void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, const FGameplayTag Tag);
 	
 	
 	
