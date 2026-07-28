@@ -89,6 +89,7 @@ public :
 template <class UserClass, typename CallbackFuncType>
 void UCharonInputComponent::RegisterInputReceiver(UserClass* Object, CallbackFuncType CallbackFunc)
 {
+	OnInputActionTriggered.RemoveAll(Object);
 	OnInputActionTriggered.AddUObject(Object, CallbackFunc);
 }
 

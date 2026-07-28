@@ -71,7 +71,7 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 
 	check(OwnerPawn);
 	
-	if(!OwnerPawn->IsLocallyControlled())
+	if(!OwnerPawn->IsLocallyControlled() && !OwnerPawn->HasAuthority())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("call RegisterInputConfig only in local! ^___^"));
 		return;
@@ -106,11 +106,18 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		TemporaryInputConfig = InputConfig;
 		TemporaryInputFunctions = InInputFunctions;
 	}
-	
+
+	// 클라이언트가 아닌 경우(서버인데 로컬인 경우 제외) 밑에 바인딩 작업은 할필요 x
+	if (!OwnerPawn->IsLocallyControlled())
+	{
+		return;
+	}
+	// ai인 경우 여기까지.
 	if (OwnerPawn->GetController()->IsA<AAIController>())
 	{
 		return;
 	}
+	
 	
 	const APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
 	check(PC);
@@ -339,16 +346,16 @@ void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(fl
 		break;
 	}
 		
-	//
-	if (InputFunctionSet)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("피존원 %s"), *Tag.ToString());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("피존투 %s"), *Tag.ToString());
-	}
-	//
+	// //
+	// if (InputFunctionSet)
+	// {
+	// 	UE_LOG(LogTemp, Warning, TEXT("피존원 %s"), *Tag.ToString());
+	// }
+	// else
+	// {
+	// 	UE_LOG(LogTemp, Warning, TEXT("피존투 %s"), *Tag.ToString());
+	// }
+	// //
 	
 	//RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, false);
 	if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
