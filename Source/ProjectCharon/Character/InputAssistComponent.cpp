@@ -4,13 +4,11 @@
 #include "InputAssistComponent.h"
 
 #include "AbilityAssistComponent.h"
-#include "AbilitySystemInterface.h"
 #include "AIController.h"
-#include "AbilitySystem/CharonAbilitySet.h"
 #include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"//
 #include "Input/CharonInputComponent.h"
-
+#include "Vehicle/VehicleAIComponent.h"
 
 
 // Sets default values for this component's properties
@@ -83,38 +81,48 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		return;
 	}
 
-	if(!bIsTemporary && TemporaryInputConfig == nullptr && PresentInputConfig == InputConfig)
+	if(!bIsTemporary && TempActiveInputConfig == nullptr && ActiveInputConfig == InputConfig)
 	{
 		return;
 	}
 		
-	if(PresentInputConfig)
+	if(ActiveInputConfig)
 	{
 		UnregisterInputConfig(bIsTemporary);
 	}
 
 	if(!bIsTemporary)
 	{
-		PresentInputConfig = InputConfig;
-		PresentInputFunctions = InInputFunctions;
+		ActiveInputConfig = InputConfig;
+		ActiveInputFunctions = InInputFunctions;
 
-		TemporaryInputConfig = nullptr;
-		TemporaryInputFunctions = nullptr;
+		TempActiveInputConfig = nullptr;
+		TempActiveInputFunctions = nullptr;
 	}
 	else
 	{
-		TemporaryInputConfig = InputConfig;
-		TemporaryInputFunctions = InInputFunctions;
+		TempActiveInputConfig = InputConfig;
+		TempActiveInputFunctions = InInputFunctions;
 	}
 
-	// 클라이언트가 아닌 경우(서버인데 로컬인 경우 제외) 밑에 바인딩 작업은 할필요 x
+	// 로컬 플레이어가 아닌 서버는 밑에 바인딩 작업은 할필요 x
 	if (!OwnerPawn->IsLocallyControlled())
 	{
 		return;
 	}
-	// ai인 경우 여기까지.
+	
+	// ai인 경우 입력 컴포넌트가 아닌 AI 컴포넌트에 바인드
+	// TODO : 아직 AI 캐릭터가 베히클에서 내린 경우는 계획하지 않음.  
 	if (OwnerPawn->GetController()->IsA<AAIController>())
 	{
+		if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
+		{
+			if (UVehicleAIComponent* VehicleAIComp = UVehicleAIComponent::FindVehicleAIComponent(OwnerCharacter))
+			{
+				VehicleAIComp->RegisterAIInputReceiver(this, &UInputAssistComponent::HandleInputActionTriggered);
+			}	
+		}
+		
 		return;
 	}
 	
@@ -178,7 +186,7 @@ void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 	if(ensureMsgf(CharonIC, TEXT("This Input Component Is Not SubClass of CharonInputComponent!")))
 	{
 		// TODO : 이거 이렇게 하면 여러 InputConfig에서 겹치는 InputMappingContext가 있으면 문제가 되겠는데???
-		CharonIC->RemoveInputMappings( PresentInputConfig, InputSubsystem);
+		CharonIC->RemoveInputMappings( ActiveInputConfig, InputSubsystem);
 			
 		CharonIC->RemoveBinds(AbilityBindHandles);
 		CharonIC->RemoveBinds(NativeBindHandles);
@@ -187,7 +195,7 @@ void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 	//임시 교체일 경우 PresentInputConfig는 유지. 
 	if(!bIsTemporary)
 	{
-		PresentInputConfig = nullptr;	
+		ActiveInputConfig = nullptr;	
 	}
 	
 	
@@ -210,14 +218,14 @@ void UInputAssistComponent::K2_UnregisterTemporaryInputConfig(const UCharonInput
 	}
 	
 	
-	SwitchInputConfig(PresentInputConfig, PresentInputFunctions, false);
+	SwitchInputConfig(ActiveInputConfig, ActiveInputFunctions, false);
 }
 
 void UInputAssistComponent::ResetToDefaultInputConfig_Implementation()
 {
-	if(PresentInputConfig)
+	if(ActiveInputConfig)
 	{
-		if(PresentInputConfig == DefaultInputConfig)
+		if(ActiveInputConfig == DefaultInputConfig)
 		{
 			return;
 		}
@@ -267,46 +275,46 @@ void UInputAssistComponent::Input_AbilityInputTagReleased(FGameplayTag InputTag)
 	}
 }
 
-void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue,
-	AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
-{
-	// 전달받은 InputFunctionSet이 적절한지 검사
-	if (TemporaryInputFunctions)
-	{
-		if (TemporaryInputFunctions != InputFunctionSet)
-		{
-			return;
-		}
-	}
-	else
-	{
-		if (!PresentInputFunctions || PresentInputFunctions != InputFunctionSet)
-		{
-			return;
-		}
-	}
-	
-	
-	if(IsServerRPC)
-	{
-		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
-			InputActionValue.GetValueType(), InputFunctionSet, Tag);
-	}
-	else
-	{
-		// TODO : 굳이 캐릭터로 변환해서 줘야할까?
-		if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
-		{
-			InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
-		}
-	}
-}
+// void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue,
+// 	AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC)
+// {
+// 	// 전달받은 InputFunctionSet이 적절한지 검사
+// 	if (TempActiveInputFunctions)
+// 	{
+// 		if (TempActiveInputFunctions != InputFunctionSet)
+// 		{
+// 			return;
+// 		}
+// 	}
+// 	else
+// 	{
+// 		if (!ActiveInputFunctions || ActiveInputFunctions != InputFunctionSet)
+// 		{
+// 			return;
+// 		}
+// 	}
+// 	
+// 	
+// 	if(IsServerRPC)
+// 	{
+// 		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
+// 			InputActionValue.GetValueType(), InputFunctionSet, Tag);
+// 	}
+// 	else
+// 	{
+// 		// TODO : 굳이 캐릭터로 변환해서 줘야할까?
+// 		if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
+// 		{
+// 			InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
+// 		}
+// 	}
+// }
 
 void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag,
 	bool IsServerRPC)
 {
 	
-	AInputFunctionSet* TargetInputFunctionSet = TemporaryInputFunctions != nullptr ? TemporaryInputFunctions : PresentInputFunctions;
+	AInputFunctionSet* TargetInputFunctionSet = TempActiveInputFunctions != nullptr ? TempActiveInputFunctions : ActiveInputFunctions;
 	
 	
 	if(IsServerRPC)

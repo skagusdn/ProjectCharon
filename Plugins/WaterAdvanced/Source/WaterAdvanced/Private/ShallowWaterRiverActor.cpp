@@ -2822,6 +2822,9 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 	if (OceanPatchNormalRT == nullptr)
 	{
 		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - ocean patch normal RT is not initialized"));
+		
+		//이 부분을 추가하지 않으면 계속 틱이 반복되므로 임의로 추가. 
+		bRenderStateTickInitialize = true;
 		return;
 	}
 	

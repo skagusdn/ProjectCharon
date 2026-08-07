@@ -89,8 +89,14 @@ public :
 template <class UserClass, typename CallbackFuncType>
 void UCharonInputComponent::RegisterInputReceiver(UserClass* Object, CallbackFuncType CallbackFunc)
 {
-	OnInputActionTriggered.RemoveAll(Object);
-	OnInputActionTriggered.AddUObject(Object, CallbackFunc);
+	static_assert(TIsDerivedFrom<UserClass, UActorComponent>::IsDerived,
+		"Object must be derived from UActorComponent");
+	
+	if (Object->GetOwner() == GetOwner())
+	{
+		OnInputActionTriggered.RemoveAll(Object);
+		OnInputActionTriggered.AddUObject(Object, CallbackFunc);	
+	}	
 }
 
 

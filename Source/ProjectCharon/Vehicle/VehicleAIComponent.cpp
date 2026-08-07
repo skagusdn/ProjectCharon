@@ -4,8 +4,10 @@
 #include "VehicleAIComponent.h"
 
 #include "Vehicle.h"
+#include "VehicleRiderComponent.h"
 #include "AI/CharonAIController.h"
 #include "AI/CharonAIManager.h"
+#include "Character/InputAssistComponent.h"
 #include "GameFramework/Character.h"
 #include "Interaction/Ability/CharonAbility_Interaction.h"
 
@@ -20,20 +22,80 @@ void UVehicleAIComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SpawnAIRiders();
+	//SpawnAIRiders();
+	
+	// for (ACharacter* AIRider : AIRiders)
+	// {
+	// 	ForceAIRide(AIRider);
+	// }
+	
+	if(GetWorld())
+	{
+		FTimerHandle TimerHandle;
+		FTimerDelegate TimerDelegate;
+		TimerDelegate.BindLambda([This = this]()->void
+		{
+			This->SpawnAIRiders();
+			
+			for (ACharacter* AIRider : This->AIRiders)
+			{
+				This->ForceAIRide(AIRider);
+			}
+			
+		});
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 3.f, false);
+	}
+	
+	
+	
+}
+
+void UVehicleAIComponent::PushAIInput(ACharacter* Rider, int32 DestinationSeat,
+	const FInputActionValue& InputActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed)
+{
+	if (!OwnerVehicle ||  OwnerVehicle->FindRiderIdx(Rider) < 0)
+	{
+		return;
+	}
+	
 	for (ACharacter* AIRider : AIRiders)
 	{
-		ForceAIRide(AIRider);
+		if (OwnerVehicle->FindRiderIdx(AIRider) == DestinationSeat)
+		{
+			Server_PushAIInput(Rider, DestinationSeat, InputActionValue, InputTag, bIsAbilityAction, bIsButtonPressed);
+			
+			return;
+		}
 	}
+	
+}
+
+UVehicleAIComponent* UVehicleAIComponent::FindVehicleAIComponent(const ACharacter* Rider)
+{
+	if (UVehicleRiderComponent* RiderComponent =  Rider->FindComponentByClass<UVehicleRiderComponent>())
+	{
+		if (const AVehicle* Vehicle = RiderComponent->GetRidingVehicle())
+		{
+			return Vehicle->FindComponentByClass<UVehicleAIComponent>();
+		}
+	}
+	
+	return nullptr;
 }
 
 void UVehicleAIComponent::OnRegister()
 {
 	Super::OnRegister();
 	
+	InputOrderDelegates.Empty();
 	if (GetOwner())
 	{
 		OwnerVehicle = Cast<AVehicle>(GetOwner());
+		InputOrderDelegates.AddDefaulted(OwnerVehicle->GetMaxRiderNum());
+	}
+	else
+	{
+		OwnerVehicle = nullptr;
 	}
 	
 	if (!OwnerVehicle)
@@ -113,4 +175,38 @@ void UVehicleAIComponent::ForceAIRide(ACharacter* Rider)
 		}
 	}
 }
+
+int32 UVehicleAIComponent::FindRiderIdx(AActor* Rider) const
+{
+	if (ACharacter* RiderCharacter = Cast<ACharacter>(Rider))
+	{
+		return OwnerVehicle->FindRiderIdx(RiderCharacter);
+	}
+	
+	return -1;
+}
+
+void UVehicleAIComponent::Server_PushAIInput_Implementation(ACharacter* Rider, int32 DestinationSeat,
+	const FInputActionValue& InputActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed)
+{
+	if (!OwnerVehicle ||  OwnerVehicle->FindRiderIdx(Rider) < 0)
+	{
+		return;
+	}
+	
+	for (ACharacter* AIRider : AIRiders)
+	{
+		if (OwnerVehicle->FindRiderIdx(AIRider) == DestinationSeat)
+		{
+			if (InputOrderDelegates.Num() > DestinationSeat)
+			{
+				// 어차피 이 함수는 서버에서 호출되니 Server RPC 여부는.. 아마 필요 없을듯?
+				InputOrderDelegates[DestinationSeat].Broadcast(InputActionValue, InputTag, bIsAbilityAction, bIsButtonPressed, false);
+				return;
+			}
+		}
+	}
+	
+}
+
 

@@ -22,14 +22,11 @@ class UCharonInputConfig;
 class UCharonAbilitySet;
 class UGameplayAbility;
 
-// USTRUCT(BlueprintType)
-// struct FVehicleUISet
-// {
-// 	GENERATED_BODY()
-//
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	TArray<TSubclassOf<UAttributeBoundWidget>> WidgetClassList;
-// };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
+	float, DamageMagnitude, FGameplayTagContainer, DamageType);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRiderUpdated, ACharacter*, Rider, int32, RiderIdx);
 
 USTRUCT(BlueprintType)
 struct FRiderSpecData
@@ -46,8 +43,6 @@ struct FRiderSpecData
 	// FVehicleUISet VehicleUISet;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FVehicleAttributeChangedDelegate, AActor*, DamageInstigator, AActor*, DamageCauser,
-	float, DamageMagnitude, FGameplayTagContainer, DamageType);
 
 //DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityActivatedDelegate, UGameplayAbility*, ActivatedAbility);
 
@@ -61,10 +56,11 @@ public:
 	
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(BlueprintCallable)
+	int32 GetMaxRiderNum() const {return MaxRiderNum;};
+	
 	// UPROPERTY(BlueprintReadWrite)
-	// TArray<TObjectPtr<ACharacter>> Riders;
-	UPROPERTY(BlueprintReadWrite)
-	TMap<int32, TObjectPtr<ACharacter>> Riders;
+	// TMap<int32, TObjectPtr<ACharacter>> Riders;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<TObjectPtr<USceneComponent>> Seats;
@@ -87,31 +83,42 @@ public:
 	// 베히클에 데미지 적용시 브로드캐스트됨.
 	UPROPERTY(BlueprintAssignable)
 	FVehicleAttributeChangedDelegate OnVehicleDamageApplied;
-
-	// // 베히클이 베히클 어빌리티를 발동할때 브로드캐스트 됨.
-	// UPROPERTY(BlueprintAssignable)
-	// FVehicleAbilityActivatedDelegate OnVehicleAbilityActivated;
 	
+	//  라이더에게 부여할 어빌리티 및 입력 설정
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	FRiderSpecData GetRiderSpecData(uint8 RiderIdx);
 	
+	UPROPERTY(BlueprintAssignable)
+	FRiderUpdated OnRiderEntered;
+	
+	UPROPERTY(BlueprintAssignable)
+	FRiderUpdated OnRiderExited;
+	
+	
 protected:
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, ReplicatedUsing="OnRep_Riders")
+	TArray<ACharacter*> Riders;
+	
+	
+	UFUNCTION()
+	void OnRep_Riders(const TArray<ACharacter*>& OldRiders);
 	
 	//탑승자로 등록
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	int32 RegisterRider(ACharacter* Rider);
 	// UFUNCTION(Client, Reliable)
 	// void Client_RegisterRider(ACharacter* Rider, int RiderIdx);
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_RegisterRider(ACharacter* Rider, int RiderIdx);
+	// UFUNCTION(NetMulticast, Reliable)
+	// void Multicast_RegisterRider(ACharacter* Rider, int RiderIdx);
 	
 	//탑승자에서 해제. 탑승자 목록에서 없으면 false 리턴.
 	UFUNCTION(BlueprintCallable)
 	bool UnregisterRider(ACharacter* Rider);
-	UFUNCTION(Client, Reliable)
-	void Client_UnregisterRider(ACharacter* Rider, int RiderIdx);
+	// UFUNCTION(Client, Reliable)
+	// void Client_UnregisterRider(ACharacter* Rider, int RiderIdx);
 	
-	void RemoveInvalidRiders();
+	//void RemoveInvalidRiders();
 	
 	//탑승자의 메시를 Vehicle에 부착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
@@ -127,8 +134,10 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitializeComponents() override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
-
+	
+	
 	//베히클 죽음(파괴) 관련
 	UFUNCTION()
 	virtual void OnVehicleDeathStarted(AActor* OwningActor);
@@ -145,15 +154,12 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Replicated, VisibleAnywhere, Category = "Charon | Vehicle")
 	int32 CurrentRiderNum = 0;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Charon | Vehicle")
+	UPROPERTY(EditDefaultsOnly, Category = "Charon | Vehicle")
 	int32 MaxRiderNum = 1;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
-
-	// UPROPERTY()
-	// TObjectPtr<const class UVehicleBasicAttributeSet> VehicleBasicAttributeSet;
-
+	
 	UPROPERTY()
 	TObjectPtr<const class UHealthAttributeSet> VehicleHealthAttributeSet;
 	

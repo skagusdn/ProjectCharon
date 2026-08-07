@@ -19,7 +19,8 @@ public :
 	void UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp);
 	
 	UFUNCTION(BlueprintCallable)
-	USkeletalMeshComponent* RentRiderMesh(APlayerState* PlayerState, AActor* Renter);
+	USkeletalMeshComponent* RentRiderMesh(APlayerState* PlayerState, AActor* Renter, const USkeletalMeshComponent* SourceMeshComp);
+	
 	
 	//UFUNCTION(BlueprintCallable)
 	//void ReturnRentedRiderMesh(USkeletalMeshComponent* RentedRiderMesh);

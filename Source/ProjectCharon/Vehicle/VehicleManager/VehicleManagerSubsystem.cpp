@@ -42,7 +42,7 @@ void UVehicleManagerSubsystem::UpdateRiderMesh(APlayerState* PlayerState, const 
 
 
 
-USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh(APlayerState* PlayerState, AActor* Renter)
+USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh(APlayerState* PlayerState, AActor* Renter, const USkeletalMeshComponent* SourceMeshComp)
 {
 	if(!RiderMeshes.Contains(PlayerState))
 	{
@@ -56,23 +56,45 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh(APlayerState* Pl
 		return nullptr;
 	}
 	
-	USkeletalMeshComponent* RiderMesh = *RiderMeshes.Find(PlayerState);
-
-	if(!RiderMesh)
+	
+	USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
+	
+	if (!RiderMeshPtr || !(*RiderMeshPtr))
 	{
-		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh somehow disappeared. check it"));
+		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player"));
 		return nullptr;
 	}
-
+	
+	USkeletalMeshComponent* RiderMesh = *RiderMeshPtr;
+	
 	// 이미 빌려준 메시인지 체크. 
 	for(const TTuple<AActor*, USkeletalMeshComponent*> Tuple : LentRiderMeshes)
 	{
 		if(Tuple.Value == RiderMesh)
 		{
-			UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
-			ReturnRentedRiderMesh(Tuple.Key);
+			UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
+			//ReturnRentedRiderMesh(Tuple.Key);
+			return nullptr;
 		}
 	}
+	
+	// // 메시 에셋이 다를 경우. 
+	// if (SourceMeshComp)
+	// {
+	// 	if (USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset())
+	// 	{
+	// 		if (SourceMesh != RiderMesh->GetSkeletalMeshAsset())
+	// 		{
+	// 			UpdateRiderMesh(PlayerState, SourceMeshComp);
+	// 			RiderMesh = *RiderMeshes.Find(PlayerState);
+	// 			if (!RiderMesh)
+	// 			{
+	// 				UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player, Update Failed"));
+	// 				return nullptr;
+	// 			}
+	// 		}
+	// 	}
+	// }
 	
 	if(!RiderMesh->IsRegistered())
 	{

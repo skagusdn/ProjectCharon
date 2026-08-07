@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
-#include "AbilitySystem/CharonAbilitySet.h"
 #include "Components/ActorComponent.h"
 #include "Data/CharacterAbilityConfig.h"
 #include "InputAssistComponent.generated.h"
@@ -28,9 +27,9 @@ public:
 	
 	UInputAssistComponent();
 
-	//InputFunctionSet의 함수 델리게이트를 실행 요청.	
-	UFUNCTION()
-	void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
+	// //InputFunctionSet의 함수 델리게이트를 실행 요청.	
+	// UFUNCTION()
+	// void RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag, bool IsServerRPC);
 	
 	
 	
@@ -59,16 +58,19 @@ protected:
 	// void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, const FGameplayTag Tag);
 	
 	
-	
+	UPROPERTY()
 	TObjectPtr<const UCharonInputConfig> DefaultInputConfig = nullptr;
-	TObjectPtr<const UCharonInputConfig> PresentInputConfig = nullptr;
-	TObjectPtr<const UCharonInputConfig> TemporaryInputConfig = nullptr;
+	UPROPERTY()
+	TObjectPtr<const UCharonInputConfig> ActiveInputConfig = nullptr;
+	UPROPERTY()
+	TObjectPtr<const UCharonInputConfig> TempActiveInputConfig = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<AInputFunctionSet> DefaultInputFunctions = nullptr;
-	TObjectPtr<AInputFunctionSet> PresentInputFunctions = nullptr;
-
-	TObjectPtr<AInputFunctionSet> TemporaryInputFunctions = nullptr;
+	UPROPERTY()
+	TObjectPtr<AInputFunctionSet> ActiveInputFunctions = nullptr;
+	UPROPERTY()
+	TObjectPtr<AInputFunctionSet> TempActiveInputFunctions = nullptr;
 	
 	// //보조 InputConfig 넣을 곳. 설정창 불러오기라던가, 뭔가 추가기능이라던가. 
 	//TSet<UCharonInputConfig> SubInputConfigs;
@@ -106,5 +108,6 @@ public:
 	UFUNCTION(BlueprintCallable, Client, Reliable, Category="Charon|Input")
 	void ResetToDefaultInputConfig();
 	
+
 
 };

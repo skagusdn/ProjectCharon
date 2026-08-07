@@ -5,11 +5,11 @@
 
 #include "AbilitySystemComponent.h"
 #include "NiagaraShared.h"
-#include "Deprecated_VehicleLifeStateComponent.h"
 #include "VehicleRiderComponent.h"
 #include "AbilitySystem/CharonAbilitySet.h"
 #include "AbilitySystem/Attributes/VehicleBasicAttributeSet.h"
 #include "AbilitySystem/Attributes/HealthAttributeSet.h"
+#include "Character/LifeStateComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
@@ -30,9 +30,7 @@ AVehicle::AVehicle()
 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
 	
-	//VehicleBasicAttributeSet = nullptr;
-
-	//AbilitySystemComponent->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::HandleVehicleAbilityActivation);
+	
 }
 
 
@@ -52,12 +50,16 @@ void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		TArray<ACharacter*> RidersToExit;
 		// 강제적으로 탑승자 내리게하기. RideVehicle 어빌리티 쪽에서 처리하긴하는데 이렇게 중복으로 만들어둬도 되나?
 		// 바로 Riders 에서 루프 돌면서 ExitVehicle하면 루프 내에서 Riders를 삭제하는 꼴이라고 경고줌.
-		for(TTuple<int32, ACharacter*> Tuple : Riders)
+		// for(TTuple<int32, ACharacter*> Tuple : Riders)
+		// {
+		// 	if(ACharacter* Rider = Tuple.Value)
+		// 	{
+		// 		RidersToExit.Add(Rider);	
+		// 	}
+		// }
+		for(ACharacter* Rider : Riders)
 		{
-			if(ACharacter* Rider = Tuple.Value)
-			{
-				RidersToExit.Add(Rider);	
-			}
+			RidersToExit.Add(Rider);	
 		}
 
 		for(ACharacter* Rider : RidersToExit)
@@ -100,7 +102,7 @@ void AVehicle::PostInitializeComponents()
 		LifeStateComponent->InitializeWithAbilitySystem(AbilitySystemComponent);
 	}
 
-	
+	Riders.SetNum(MaxRiderNum);
 	
 	// Riders에 부여할 AbilityConfig 및 InputFunctionSet 초기화...라기보단 정리. 
 	for (int i = 0; i < MaxRiderNum; i++) {
@@ -130,11 +132,27 @@ void AVehicle::PostInitializeComponents()
 	
 }
 
+void AVehicle::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) 
+		? PropertyChangedEvent.Property->GetFName() 
+		: NAME_None;
+	
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AVehicle, MaxRiderNum))
+	{
+		MaxRiderNum = FMath::Max(0, MaxRiderNum);
+
+		Riders.SetNum(MaxRiderNum);
+	}
+}
+
 void AVehicle::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	//DOREPLIFETIME(AVehicle, Riders); -> 맵은 리플리케이션이 안되넹.
+	DOREPLIFETIME(AVehicle, Riders);
 	//DOREPLIFETIME(AVehicle, InputFunctionSets);
 	DOREPLIFETIME(AVehicle, CurrentRiderNum);
 }
@@ -179,26 +197,7 @@ void AVehicle::HandleVehicleDamageApplied(AActor* DamageInstigator, AActor* Dama
 	OnVehicleDamageApplied.Broadcast(DamageInstigator, DamageCauser, DamageMagnitude, DamageEffectSpec->GetDynamicAssetTags());
 }
 
-// #if WITH_EDITOR
-// void AVehicle::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-// {
-// 	Super::PostEditChangeProperty(PropertyChangedEvent);
-// 	if(PropertyChangedEvent.Property)
-// 	{
-// 		FName PropertyName = PropertyChangedEvent.Property->GetFName();
-// 		//InputFunctionSetClasses는 라이더 최대 수까지만.
-// 		//TODO : MaxRiderNum이 변할때도 비슷하게 해줘야 하는데 뭔가 고려할게 많으니 일단 나중에
-// 		if(PropertyName == GET_MEMBER_NAME_CHECKED(AVehicle, InputFunctionSetClasses))
-// 		{
-// 			while(InputFunctionSetClasses.Num() > MaxRiderNum)
-// 			{
-// 				InputFunctionSetClasses.RemoveAt(InputFunctionSetClasses.Num() - 1);
-// 			}
-// 		}
-// 		
-// 	}
-// }
-// #endif
+
 
 void AVehicle::Tick(float DeltaTime)
 {
@@ -210,7 +209,7 @@ bool AVehicle::EnterVehicle_Implementation(ACharacter* Rider)
 {
 	if(!HasAuthority())
 	{
-		return false;;
+		return false;
 	}
 	
 	const int32 Ret = RegisterRider(Rider);
@@ -250,9 +249,12 @@ bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider, bool bForcedExit)
 
 int32 AVehicle::FindRiderIdx (const ACharacter* Rider)
 {
+	check(Riders.Num() == MaxRiderNum);
+	
 	for (int32 i = 0; i < MaxRiderNum; i++) 
 	{
-		if (Riders.Contains(i) && Riders[i] == Rider) {
+		if (Riders[i] == Rider)
+		{
 			return i;
 		}
 	}
@@ -276,6 +278,38 @@ FRiderSpecData AVehicle::GetRiderSpecData(const uint8 RiderIdx)
 }
 
 
+void AVehicle::OnRep_Riders(const TArray<ACharacter*>& OldRiders)
+{
+	
+	TArray<ACharacter*> EnteredRiders;
+	TArray<ACharacter*> ExitedRiders;
+	
+	for (int i = 0; i < MaxRiderNum; i++)
+	{
+		// 새로 탑승한 경우
+		if (Riders.Num() > i && Riders[i] != nullptr && (OldRiders.Num() <= i || OldRiders[i] == nullptr))
+		{
+			EnteredRiders.Add(Riders[i]);
+		}
+		
+		// 하차한 경우
+		if (OldRiders.Num() > i && OldRiders[i] != nullptr && (Riders.Num() <= i || Riders[i] == nullptr))
+		{
+			ExitedRiders.Add(OldRiders[i]);
+		}
+	}
+	
+	for (ACharacter* EnteredRider : EnteredRiders)
+	{
+		AttachToVehicle(EnteredRider);
+	}
+	
+	for (ACharacter* ExitedRider : ExitedRiders)
+	{
+		AttachToVehicle(ExitedRider);
+	}
+}
+
 int32 AVehicle::RegisterRider(ACharacter* Rider)
 {
 	if(!HasAuthority())
@@ -290,14 +324,21 @@ int32 AVehicle::RegisterRider(ACharacter* Rider)
 	}
 	
 	for (int i = 0; i < MaxRiderNum; i++) {
-		if (Riders.Contains(i)) {
+		// if (Riders.Contains(i)) {
+		// 	continue;
+		// }
+		//
+		// Riders.Add(i,Rider);
+		// CurrentRiderNum++;
+		// //Client_RegisterRider(Rider, i);
+		// Multicast_RegisterRider(Rider, i);
+		// return i;
+		if (Riders.Num() <= i || Riders[i] != nullptr) {
 			continue;
 		}
 
-		Riders.Add(i,Rider);
+		Riders[i] = Rider;
 		CurrentRiderNum++;
-		//Client_RegisterRider(Rider, i);
-		Multicast_RegisterRider(Rider, i);
 		return i;
 	}
 
@@ -310,11 +351,11 @@ int32 AVehicle::RegisterRider(ACharacter* Rider)
 // 	Riders.Add(RiderIdx, Rider);
 // }
 
-void AVehicle::Multicast_RegisterRider_Implementation(ACharacter* Rider, int RiderIdx)
-{
-	ensure(Rider);
-	Riders.Add(RiderIdx, Rider);
-}
+// void AVehicle::Multicast_RegisterRider_Implementation(ACharacter* Rider, int RiderIdx)
+// {
+// 	ensure(Rider);
+// 	Riders.Add(RiderIdx, Rider);
+// }
 
 bool AVehicle::UnregisterRider(ACharacter* Rider)
 {
@@ -322,29 +363,28 @@ bool AVehicle::UnregisterRider(ACharacter* Rider)
 	if (idx == -1) {
 		return false;
 	}
-	Riders.Remove(idx);
+	Riders[idx] = nullptr;
 	CurrentRiderNum--;
-	Client_UnregisterRider(Rider, idx);
 
 	return true;
 }
 
-void AVehicle::Client_UnregisterRider_Implementation(ACharacter* Rider, int RiderIdx)
-{
-	ensure(Rider);
-	Riders.Remove(RiderIdx);
-}
+// void AVehicle::Client_UnregisterRider_Implementation(ACharacter* Rider, int RiderIdx)
+// {
+// 	ensure(Rider);
+// 	Riders.Remove(RiderIdx);
+// }
 
-void AVehicle::RemoveInvalidRiders()
-{
-	for(TTuple<int32, TObjectPtr<ACharacter>> Tuple : Riders)
-	{
-		if(!Tuple.Value)
-		{
-			
-		}
-	}
-}
+// void AVehicle::RemoveInvalidRiders()
+// {
+// 	for(TTuple<int32, TObjectPtr<ACharacter>> Tuple : Riders)
+// 	{
+// 		if(!Tuple.Value)
+// 		{
+// 			
+// 		}
+// 	}
+// }
 
 
 
