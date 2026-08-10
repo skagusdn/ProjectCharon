@@ -7,6 +7,44 @@
 #include "VehicleManagerSubsystem.generated.h"
 
 class AVehicleManager;
+
+USTRUCT()
+struct FRentKey
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TObjectPtr<AActor> Renter;
+	UPROPERTY()
+	TObjectPtr<APlayerState> PlayerState;
+	// UPROPERTY()
+	// TObjectPtr<USkeletalMeshComponent> Mesh;
+	
+	// bool operator==(const FRentMeshData& Other) const
+	// {
+	// 	if (Other.Renter == Renter && Other.PlayerState == PlayerState)
+	// 	{
+	// 		return true;
+	// 	}
+	// 	
+	// 	return false;
+	// }
+	
+	bool operator==(const FRentKey& Other) const
+	{
+		return Renter == Other.Renter && PlayerState == Other.PlayerState;
+	}
+	
+	friend uint32 GetTypeHash(const FRentKey& Key)
+	{
+		// 두 멤버의 해시 값을 조합하여 고유한 해시 값을 생성합니다.
+		// GetTypeHash는 포인터에 대해서도 잘 동작합니다.
+		return HashCombine(GetTypeHash(Key.Renter), GetTypeHash(Key.PlayerState));
+	}
+};
+
+
+
 /**
  *  일단 지금은 베히클 탑승 시 베히클에 부착할 캐릭터 메시만 관리.
  */
@@ -19,20 +57,31 @@ public :
 	void UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp);
 	
 	UFUNCTION(BlueprintCallable)
-	USkeletalMeshComponent* RentRiderMesh(APlayerState* PlayerState, AActor* Renter, const USkeletalMeshComponent* SourceMeshComp);
+	USkeletalMeshComponent* RentRiderMesh(AActor* Renter, APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshCompForCheck);
 	
 	
 	//UFUNCTION(BlueprintCallable)
 	//void ReturnRentedRiderMesh(USkeletalMeshComponent* RentedRiderMesh);
 	UFUNCTION(BlueprintCallable)
-	void ReturnRentedRiderMesh(AActor* Renter);
+	void ReturnRentedRiderMesh(AActor* Renter, APlayerState* PlayerState);
+	UFUNCTION()
+	void ReturnAllMeshOfRentor(AActor* Renter);
+	// UFUNCTION()
+	// void ReturnAllMeshOfPlayer(APlayerState* PlayerState);
 
 	// 생성한 라이더 메시를 임시 보관할 액터. 
 	UPROPERTY()
 	TObjectPtr<AActor> MeshTempContainer;
 
-	UPROPERTY(BlueprintReadOnly)
-	TMap<AActor*, USkeletalMeshComponent*> LentRiderMeshes;
+	// UPROPERTY(BlueprintReadOnly)
+	// TMap<AActor*, USkeletalMeshComponent*> LentRiderMeshes;
+	
+	
+	UPROPERTY()
+	TMap<FRentKey , USkeletalMeshComponent*> LentRiderMeshes;
+	// UPROPERTY()
+	// TArray<FRentMeshData> LentRiderMeshes;
+	
 
 protected:
 	//virtual void OnWorldBeginPlay(UWorld& InWorld) override;

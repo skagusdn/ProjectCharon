@@ -238,13 +238,13 @@ bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider, bool bForcedExit)
 		return false;
 	}
 	
-	const bool Ret = UnregisterRider(Rider);
-	if(Ret)
+	if(UnregisterRider(Rider))
 	{
 		DetachFromVehicle(Rider);
+		return true;
 	}
 	
-	return Ret;
+	return false;
 }
 
 int32 AVehicle::FindRiderIdx (const ACharacter* Rider)
@@ -306,7 +306,7 @@ void AVehicle::OnRep_Riders(const TArray<ACharacter*>& OldRiders)
 	
 	for (ACharacter* ExitedRider : ExitedRiders)
 	{
-		AttachToVehicle(ExitedRider);
+		DetachFromVehicle(ExitedRider);
 	}
 }
 

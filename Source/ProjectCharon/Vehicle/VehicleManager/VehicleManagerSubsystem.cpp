@@ -42,59 +42,75 @@ void UVehicleManagerSubsystem::UpdateRiderMesh(APlayerState* PlayerState, const 
 
 
 
-USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh(APlayerState* PlayerState, AActor* Renter, const USkeletalMeshComponent* SourceMeshComp)
+USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter, APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshCompForCheck)
 {
-	if(!RiderMeshes.Contains(PlayerState))
-	{
-		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: There is no Rider Mesh matching with this player"));
-		return nullptr;
-	}
-
 	if(!Renter)
 	{
 		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: Renter actor is invalid"));
 		return nullptr;
 	}
 	
-	
 	USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
+	// USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
+	//
+	// if (!RiderMeshPtr || !(*RiderMeshPtr))
+	// {
+	// 	UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player"));
+	// 	return nullptr;
+	// }
+	//
+	// USkeletalMeshComponent* RiderMesh = *RiderMeshPtr;
 	
-	if (!RiderMeshPtr || !(*RiderMeshPtr))
+	// 메시 에셋이 다를 경우
+	// (게임 시작 후 바로 렌트를 시도할 경우 메시가 아직 리플리케이트 되지 않는 경우 발견)
+	// 강제로 업데이트. 
+	if (SourceMeshCompForCheck)
 	{
-		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player"));
+		if (USkeletalMesh* SourceMesh = SourceMeshCompForCheck->GetSkeletalMeshAsset())
+		{
+			if (!RiderMeshPtr || SourceMesh != (*RiderMeshPtr)->GetSkeletalMeshAsset())
+			{
+				UpdateRiderMesh(PlayerState, SourceMeshCompForCheck);
+				RiderMeshPtr = RiderMeshes.Find(PlayerState);
+				
+			}
+		}
+	}
+	
+	if(!RiderMeshes.Contains(PlayerState))
+	{
+		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: There is no Rider Mesh matching with this player"));
+		return nullptr;
+	}
+	
+	if (!RiderMeshPtr)
+	{
+		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player, Update Failed"));
 		return nullptr;
 	}
 	
 	USkeletalMeshComponent* RiderMesh = *RiderMeshPtr;
+
+	const FRentKey RentKey = {Renter, PlayerState};
 	
 	// 이미 빌려준 메시인지 체크. 
-	for(const TTuple<AActor*, USkeletalMeshComponent*> Tuple : LentRiderMeshes)
+	if (LentRiderMeshes.Contains(RentKey))
 	{
-		if(Tuple.Value == RiderMesh)
-		{
-			UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
-			//ReturnRentedRiderMesh(Tuple.Key);
-			return nullptr;
-		}
+		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
+		return nullptr;
 	}
 	
-	// // 메시 에셋이 다를 경우. 
-	// if (SourceMeshComp)
+	// for(const TTuple<AActor*, USkeletalMeshComponent*> Tuple : LentRiderMeshes)
 	// {
-	// 	if (USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset())
+	// 	if(Tuple.Value == RiderMesh)
 	// 	{
-	// 		if (SourceMesh != RiderMesh->GetSkeletalMeshAsset())
-	// 		{
-	// 			UpdateRiderMesh(PlayerState, SourceMeshComp);
-	// 			RiderMesh = *RiderMeshes.Find(PlayerState);
-	// 			if (!RiderMesh)
-	// 			{
-	// 				UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player, Update Failed"));
-	// 				return nullptr;
-	// 			}
-	// 		}
+	// 		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
+	// 		//ReturnRentedRiderMesh(Tuple.Key);
+	// 		return nullptr;
 	// 	}
 	// }
+	
+	
 	
 	if(!RiderMesh->IsRegistered())
 	{
@@ -104,12 +120,13 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh(APlayerState* Pl
 	RiderMesh->SetComponentTickEnabled(true);
 	// 콜리전 세팅은 대여자가 알아서 하라고 하고.
 	
-	LentRiderMeshes.Add(Renter, RiderMesh);
-	Renter->OnDestroyed.AddDynamic(this, &ThisClass::ReturnRentedRiderMesh);
+	//LentRiderMeshes.Add(Renter, RiderMesh);
+	LentRiderMeshes.Add(RentKey, RiderMesh);
+	Renter->OnDestroyed.AddDynamic(this, &ThisClass::ReturnAllMeshOfRentor);
 	return RiderMesh;
 }
 
-void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter)
+void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter, APlayerState* PlayerState)
 {
 	if(!Renter)
 	{
@@ -117,13 +134,39 @@ void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter)
 		return;
 	}
 
-	if(!LentRiderMeshes.Contains(Renter))
+	// FRentMeshData* FoundData = LentRiderMeshes.FindByPredicate([Renter, PlayerState](const FRentMeshData& Data)
+	// {
+	// 	return Data.Renter == Renter && Data.PlayerState == PlayerState;
+	// });
+	//
+	// if (FoundData == nullptr)
+	// {
+	// 	UE_LOG(LogCharon, Warning, TEXT("ReturnRentedRiderMesh: This Renter didn't rent RiderMesh"));
+	// 	return;
+	// }
+	
+	
+	FRentKey RentKey = {Renter, PlayerState};
+	if(!LentRiderMeshes.Contains(RentKey))
 	{
 		UE_LOG(LogCharon, Warning, TEXT("ReturnRentedRiderMesh: This Renter didn't rent RiderMesh"));
 		return;
 	}
 
-	USkeletalMeshComponent* RentedRiderMesh = *LentRiderMeshes.Find(Renter); 
+	// USkeletalMeshComponent* RentedRiderMesh = *LentRiderMeshes.Find(RentKey); 
+	//
+	// RentedRiderMesh->SetVisibility(false);
+	// RentedRiderMesh->SetComponentTickEnabled(false);
+	// RentedRiderMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// RentedRiderMesh->SetLeaderPoseComponent(nullptr);
+	//
+	// RentedRiderMesh->AttachToComponent(MeshTempContainer->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	//
+	// LentRiderMeshes.Remove(RentKey);
+	//
+	// Renter->OnDestroyed.RemoveAll(this);
+	
+	USkeletalMeshComponent* RentedRiderMesh = *LentRiderMeshes.Find(RentKey); 
 
 	RentedRiderMesh->SetVisibility(false);
 	RentedRiderMesh->SetComponentTickEnabled(false);
@@ -132,8 +175,28 @@ void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter)
 	
 	RentedRiderMesh->AttachToComponent(MeshTempContainer->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 
-	LentRiderMeshes.Remove(Renter);
+	LentRiderMeshes.Remove(RentKey);
+	
 	Renter->OnDestroyed.RemoveAll(this);
+	
+}
+
+void UVehicleManagerSubsystem::ReturnAllMeshOfRentor(AActor* Renter)
+{
+	TArray<FRentKey> Keys;
+	
+	for (TTuple<FRentKey, USkeletalMeshComponent*> &Tuple : LentRiderMeshes)
+	{
+		if(Tuple.Key.Renter == Renter)
+		{
+			Keys.Add(Tuple.Key);
+		}
+	}
+	
+	for (FRentKey RentKey : Keys)
+	{
+		ReturnRentedRiderMesh(RentKey.Renter, RentKey.PlayerState);
+	}
 	
 }
 

@@ -8,7 +8,10 @@
 #include "AI/CharonAIController.h"
 #include "AI/CharonAIManager.h"
 #include "Character/InputAssistComponent.h"
+#include "Framework/CharonBotComponent.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/GameModeBase.h"
+#include "GameFramework/GameStateBase.h"
 #include "Interaction/Ability/CharonAbility_Interaction.h"
 
 
@@ -22,29 +25,35 @@ void UVehicleAIComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//SpawnAIRiders();
+	SpawnAIRiders();
 	
-	// for (ACharacter* AIRider : AIRiders)
-	// {
-	// 	ForceAIRide(AIRider);
-	// }
-	
-	if(GetWorld())
+	for (ACharacter* AIRider : AIRiders)
 	{
-		FTimerHandle TimerHandle;
-		FTimerDelegate TimerDelegate;
-		TimerDelegate.BindLambda([This = this]()->void
-		{
-			This->SpawnAIRiders();
-			
-			for (ACharacter* AIRider : This->AIRiders)
-			{
-				This->ForceAIRide(AIRider);
-			}
-			
-		});
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 3.f, false);
+		// AController* Controller = AIRider->GetController();
+		// if (Controller)
+		// {
+		// 	
+		// }
+		//
+		ForceAIRide(AIRider);
 	}
+	
+	// if(GetWorld())
+	// {
+	// 	FTimerHandle TimerHandle;
+	// 	FTimerDelegate TimerDelegate;
+	// 	TimerDelegate.BindLambda([This = this]()->void
+	// 	{
+	// 		This->SpawnAIRiders();
+	// 		
+	// 		for (ACharacter* AIRider : This->AIRiders)
+	// 		{
+	// 			This->ForceAIRide(AIRider);
+	// 		}
+	// 		
+	// 	});
+	// 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 3.f, false);
+	// }
 	
 	
 	
@@ -121,23 +130,56 @@ void UVehicleAIComponent::SpawnAIRiders()
 	
 	if (GetWorld())
 	{
-		if (UCharonAIManager* AIManager = GetWorld()->GetSubsystem<UCharonAIManager>())
+		// if (UCharonAIManager* AIManager = GetWorld()->GetSubsystem<UCharonAIManager>())
+		// {
+		// 	FVector Location = OwnerVehicle->GetActorLocation();
+		// 	Location += {0,0,500};
+		// 	FRotator Rotation(0.f, 0.f, 0.f);
+		// 	FVector Scale(1.f);
+		//
+		// 	FTransform Transform(Rotation, Location, Scale);
+		// 	
+		// 	if (AICharacterClass && AIControllerClass)
+		// 	{
+		// 		if (ACharacter* SpawnedAICharacter = AIManager->TrySpawnAICharacter(AICharacterClass, Transform, AIControllerClass))
+		// 		{
+		// 			AIRiders.AddUnique(SpawnedAICharacter);
+		// 		}
+		// 		
+		// 	}
+		// 	
+		// }
+		
+		if (AGameModeBase* GameMode = GetWorld()->GetAuthGameMode())
 		{
-			FVector Location = OwnerVehicle->GetActorLocation();
-			Location += {0,0,500};
-			FRotator Rotation(0.f, 0.f, 0.f);
-			FVector Scale(1.f);
-
-			FTransform Transform(Rotation, Location, Scale);
+			AGameStateBase* GameState = GameMode->GameState;
+			check(GameState);
 			
-			if (AICharacterClass && AIControllerClass)
+			if (UCharonBotComponent* BotComp = GameState->GetComponentByClass<UCharonBotComponent>())
 			{
-				if (ACharacter* SpawnedAICharacter = AIManager->TrySpawnAICharacter(AICharacterClass, Transform, AIControllerClass))
+				FVector Location = OwnerVehicle->GetActorLocation();
+				Location += {0,0,500};
+				FRotator Rotation(0.f, 0.f, 0.f);
+				FVector Scale(1.f);
+
+				FTransform Transform(Rotation, Location, Scale);
+			
+				if (AICharacterClass && AIControllerClass)
 				{
-					AIRiders.AddUnique(SpawnedAICharacter);
+					if (AAIController* SpawnedBot = BotComp->TrySpawnBot(AICharacterClass, Transform, AIControllerClass))
+					{
+						if (APawn* BotPawn = SpawnedBot->GetPawn())
+						{
+							if (ACharacter* BotCharacter = Cast<ACharacter>(BotPawn))
+							{
+								AIRiders.AddUnique(BotCharacter);
+							}
+						}
+					}
 				}
-				
 			}
+			
+			
 			
 		}
 		
