@@ -3,13 +3,171 @@
 
 #include "AbilityAssistComponent.h"
 
+#include "CharonCharacter.h"
 #include "CharonGameplayTags.h"
+#include "PawnInitStateComponent.h"
 #include "AbilitySystem/CharonAbilityTagRelationshipMapping.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/CharonPlayerState.h"
 
+
+const FName UAbilityAssistComponent::NAME_ActorFeatureName("AbilityAssist");
+
+bool UAbilityAssistComponent::CanChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState,
+	FGameplayTag DesiredState) const
+{
+	check(Manager);
+
+	APawn* Pawn = GetPawn<APawn>();
+
+	if (!CurrentState.IsValid() && DesiredState == CharonGameplayTags::InitState_Spawned)
+	{
+		// As long as we have a real pawn, let us transition
+		if (Pawn)
+		{
+			return true;
+		}
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_Spawned && DesiredState == CharonGameplayTags::InitState_DataAvailable)
+	{
+		// The player state is required.
+		if (!GetPlayerState<ACharonPlayerState>())
+		{
+			return false;
+		}
+
+		// If we're authority or autonomous, we need to wait for a controller with registered ownership of the player state.
+		if (Pawn->GetLocalRole() != ROLE_SimulatedProxy)
+		{
+			AController* Controller = GetController<AController>();
+
+			const bool bHasControllerPairedWithPS = (Controller != nullptr) && \
+				(Controller->PlayerState != nullptr) && \
+				(Controller->PlayerState->GetOwner() == Controller);
+
+			if (!bHasControllerPairedWithPS)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_DataAvailable && DesiredState == CharonGameplayTags::InitState_DataInitialized)
+	{
+		// Wait for player state and extension component
+		ACharonPlayerState* CharonPS = GetPlayerState<ACharonPlayerState>();
+
+		return CharonPS && Manager->HasFeatureReachedInitState(Pawn, UPawnInitStateComponent::NAME_ActorFeatureName, CharonGameplayTags::InitState_DataInitialized);
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_DataInitialized && DesiredState == CharonGameplayTags::InitState_GameplayReady)
+	{
+		// TODO add ability initialization checks?
+		return true;
+	}
+
+	return false;
+}
+
+void UAbilityAssistComponent::HandleChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState,
+	FGameplayTag DesiredState)
+{
+	if (CurrentState == CharonGameplayTags::InitState_DataAvailable && DesiredState == CharonGameplayTags::InitState_DataInitialized)
+	{
+		APawn* Pawn = GetPawn<APawn>();
+		ACharonPlayerState* CharonPS = GetPlayerState<ACharonPlayerState>();
+		if (!ensure(Pawn && CharonPS))
+		{
+			return;
+		}
+
+		//const ULyraPawnData* PawnData = nullptr;
+
+		if (ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(Pawn))
+		{
+			
+			//
+			if (Pawn->HasAuthority())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("리자몽 Server HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("리자몽 Client HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
+			}
+			
+			InitAbilityAssist(CharonPS->GetCharonAbilitySystemComponent(), CharonPS, CharonCharacter->DefaultAbilityConfig);
+			
+			//
+			if (Pawn->HasAuthority())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("리자몽 After Server HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("리자몽 After Client HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
+			}
+		}
+		
+	}
+}
+
+void UAbilityAssistComponent::OnActorInitStateChanged(const FActorInitStateChangedParams& Params)
+{
+	if (Params.FeatureName == UPawnInitStateComponent::NAME_ActorFeatureName)
+	{
+		if (Params.FeatureState == CharonGameplayTags::InitState_DataInitialized)
+		{
+			// If the extension component says all all other components are initialized, try to progress to next state
+			CheckDefaultInitialization();
+		}
+	}
+}
+
+void UAbilityAssistComponent::CheckDefaultInitialization()
+{
+	static const TArray<FGameplayTag> StateChain = { CharonGameplayTags::InitState_Spawned, CharonGameplayTags::InitState_DataAvailable, CharonGameplayTags::InitState_DataInitialized, CharonGameplayTags::InitState_GameplayReady };
+
+	// This will try to progress from spawned (which is only set in BeginPlay) through the data initialization stages until it gets to gameplay ready
+	ContinueInitStateChain(StateChain);
+}
+
+void UAbilityAssistComponent::OnAbilitySystemInitialized_RegisterAndCall(FSimpleMulticastDelegate::FDelegate Delegate)
+{
+	if (!OnAbilitySystemInitialized.IsBoundToObject(Delegate.GetUObject()))
+	{
+		OnAbilitySystemInitialized.Add(Delegate);
+	}
+
+	if (AbilitySystemComponent)
+	{
+		//
+		if (GetOwner()->HasAuthority())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized_RegisterAndCall 리자몽 Server %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent) );	
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized_RegisterAndCall 리자몽 Client %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent) );	
+		}
+		//
+		
+		Delegate.Execute();
+	}
+}
+
+void UAbilityAssistComponent::OnAbilitySystemUninitialized_Register(FSimpleMulticastDelegate::FDelegate Delegate)
+{
+	if (!OnAbilitySystemUninitialized.IsBoundToObject(Delegate.GetUObject()))
+	{
+		OnAbilitySystemUninitialized.Add(Delegate);
+	}
+}
 
 // Sets default values for this component's properties
-UAbilityAssistComponent::UAbilityAssistComponent()
+UAbilityAssistComponent::UAbilityAssistComponent(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
@@ -92,7 +250,18 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 		AbilitySystemComponent->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::Server_HandleAbilityCommitted);	
 	}
 	
+	//
+	if (GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("리자몽 Server InitASC %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("리자몽 Client InitASC %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
+	}
 	
+	OnAbilitySystemInitialized.Broadcast();
+	K2_OnAbilitySystemInitialized.Broadcast();
 }
 
 void UAbilityAssistComponent::UninitializeAbilitySystem()
@@ -135,13 +304,20 @@ void UAbilityAssistComponent::UninitializeAbilitySystem()
 	AbilitySystemComponent->AbilityCommittedCallbacks.RemoveAll(this);
 	AbilitySystemComponent = nullptr;
 
-
+	OnAbilitySystemUninitialized.Broadcast();
+	K2_OnAbilitySystemUninitialized.Broadcast();
 }
 
 void UAbilityAssistComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	// Listen for when the pawn extension component changes init state
+	BindOnActorInitStateChanged(UPawnInitStateComponent::NAME_ActorFeatureName, FGameplayTag(), false);
+
+	// Notifies that we are done spawning, then try the rest of initialization
+	ensure(TryToChangeInitState(CharonGameplayTags::InitState_Spawned));
+	CheckDefaultInitialization();
 }
 
 void UAbilityAssistComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -157,6 +333,7 @@ void UAbilityAssistComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 void UAbilityAssistComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UninitializeAbilitySystem();
+	UnregisterInitStateFeature();
 	
 	Super::EndPlay(EndPlayReason);
 }

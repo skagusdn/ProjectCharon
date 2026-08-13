@@ -3,16 +3,19 @@
 
 #include "VehicleAIComponent.h"
 
+#include "CharonGameplayTags.h"
 #include "Vehicle.h"
 #include "VehicleRiderComponent.h"
 #include "AI/CharonAIController.h"
-#include "AI/CharonAIManager.h"
 #include "Character/InputAssistComponent.h"
+#include "Character/PawnInitStateComponent.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Framework/CharonBotComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameStateBase.h"
 #include "Interaction/Ability/CharonAbility_Interaction.h"
+#include "Math/UnitConversion.h"
 
 
 UVehicleAIComponent::UVehicleAIComponent()
@@ -25,18 +28,24 @@ void UVehicleAIComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	
 	SpawnAIRiders();
 	
-	for (ACharacter* AIRider : AIRiders)
+	UGameInstance* GameInstance = GetWorld()->GetGameInstance();
+	UGameFrameworkComponentManager* ComponentManager = GameInstance->GetSubsystem<UGameFrameworkComponentManager>();
+	if (ComponentManager)
 	{
-		// AController* Controller = AIRider->GetController();
-		// if (Controller)
-		// {
-		// 	
-		// }
-		//
-		ForceAIRide(AIRider);
+		for (ACharacter* AIRider : AIRiders)
+		{
+			ComponentManager->RegisterAndCallForActorInitState(AIRider, UPawnInitStateComponent::NAME_ActorFeatureName ,CharonGameplayTags::InitState_GameplayReady, FActorInitStateChangedDelegate::CreateUObject(this, &UVehicleAIComponent::OnBotReady));
+			ForceAIRide(AIRider);
+		}
+		
+		
 	}
+	
+	
+	
 	
 	// if(GetWorld())
 	// {
@@ -215,6 +224,26 @@ void UVehicleAIComponent::ForceAIRide(ACharacter* Rider)
 				}
 			}
 		}
+	}
+}
+
+void UVehicleAIComponent::OnBotReady(const FActorInitStateChangedParams& Params)
+{
+	
+	if (Params.FeatureState == CharonGameplayTags::InitState_GameplayReady)
+	{
+		if (AIRiders.Contains(Params.OwningActor))
+		{
+			if (ACharacter* AIRider = Cast<ACharacter>(Params.OwningActor))
+			{
+				ForceAIRide(AIRider);	
+			}
+					
+		}
+
+		// 4. 정리(Cleanup):
+		//    더 이상 알림을 받을 필요가 없으므로, 등록을 해제하여 메모리 누수를 방지합니다.
+		// ... UnregisterObserver 호출 ...
 	}
 }
 

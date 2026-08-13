@@ -8,6 +8,7 @@
 #include "Input/CharonInputComponent.h"
 #include "VehicleAIComponent.generated.h"
 
+struct FActorInitStateChangedParams;
 struct FGameplayTag;
 struct FInputActionValue;
 class ACharonAIController;
@@ -45,6 +46,7 @@ protected:
 	
 	void SpawnAIRiders();
 	void ForceAIRide(ACharacter* Rider);
+	void OnBotReady(const FActorInitStateChangedParams& Params);
 	
 	int32 FindRiderIdx(AActor* Rider) const;
 	

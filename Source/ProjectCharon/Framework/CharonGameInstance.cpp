@@ -3,6 +3,8 @@
 
 #include "CharonGameInstance.h"
 
+#include "CharonGameplayTags.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Player/CharonLocalPlayer.h"
 #include "UI/CharonUISubsystem.h"
 
@@ -22,4 +24,21 @@ bool UCharonGameInstance::RemoveLocalPlayer(ULocalPlayer* ExistingPlayer)
 	GetSubsystem<UCharonUISubsystem>()->NotifyPlayerDestroyed(Cast<UCharonLocalPlayer>(ExistingPlayer));
 
 	return Super::RemoveLocalPlayer(ExistingPlayer);
+}
+
+void UCharonGameInstance::Init()
+{
+	Super::Init();
+	
+	// Register our custom init states -> 라이라에서 가져옴. InitState 등록하기. 
+	UGameFrameworkComponentManager* ComponentManager = GetSubsystem<UGameFrameworkComponentManager>(this);
+
+	if (ensure(ComponentManager))
+	{
+		ComponentManager->RegisterInitState(CharonGameplayTags::InitState_Spawned, false, FGameplayTag());
+		ComponentManager->RegisterInitState(CharonGameplayTags::InitState_DataAvailable, false, CharonGameplayTags::InitState_Spawned);
+		ComponentManager->RegisterInitState(CharonGameplayTags::InitState_DataInitialized, false, CharonGameplayTags::InitState_DataAvailable);
+		ComponentManager->RegisterInitState(CharonGameplayTags::InitState_GameplayReady, false, CharonGameplayTags::InitState_DataInitialized);
+	}
+	
 }

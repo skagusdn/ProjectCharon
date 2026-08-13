@@ -69,6 +69,10 @@
 		{
 			"Name": "WaterAdvanced",
 			"Enabled": true
+		},
+		{
+			"Name": "GameFeatures",
+			"Enabled": true
 		}
 	]
 }

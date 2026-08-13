@@ -5,6 +5,7 @@
 
 #include "CharonCharacterMovementComponent.h"
 #include "LifeStateComponent.h"
+#include "PawnInitStateComponent.h"
 #include "Data/InputFunctionSet.h"
 #include "Player/CharonPlayerState.h"
 
@@ -31,33 +32,68 @@ ACharonCharacter::ACharonCharacter(const FObjectInitializer& ObjectInitializer)
 	bReplicates = true;
 	
 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
+	AbilityAssistComponent->OnAbilitySystemInitialized_RegisterAndCall(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ThisClass::OnAbilitySystemInitialized));
+	AbilityAssistComponent->OnAbilitySystemUninitialized_Register(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ThisClass::OnAbilitySystemUninitialized));
+	
 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
 	DefaultInputFunctions = nullptr;
 	
 	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnDeathFinished);
+	
+	InitStateComponent = CreateDefaultSubobject<UPawnInitStateComponent>("InitState Component");
+	
 }
 
 void ACharonCharacter::OnRep_Controller()
 {
 	Super::OnRep_Controller();
 
-	InitCharonCharacter();
+	InitStateComponent->CheckDefaultInitialization();
+	//InitCharonCharacter();
 }
 
 void ACharonCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 
-	InitCharonCharacter();
+	InitStateComponent->CheckDefaultInitialization();
+	//InitCharonCharacter();
 }
 
 void ACharonCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	InitCharonCharacter();
+	InitStateComponent->CheckDefaultInitialization();
+	//InitCharonCharacter();
+}
+
+void ACharonCharacter::OnAbilitySystemInitialized()
+{
+	//
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized 리자몽 Server %s // %s "), *GetNameSafe(this), *GetNameSafe(GetAbilitySystemComponent()) );	
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized 리자몽 Client %s // %s "), *GetNameSafe(this), *GetNameSafe(GetAbilitySystemComponent()) );	
+	}
+	
+	//
+	
+	check(AbilityAssistComponent);
+	UCharonAbilitySystemComponent* CharonASC = AbilityAssistComponent->GetCharonAbilitySystemComponent();
+	check(CharonASC);
+	
+	LifeStateComponent->InitializeWithAbilitySystem(CharonASC);	
+}
+
+void ACharonCharacter::OnAbilitySystemUninitialized()
+{
+	LifeStateComponent->UninitializeFromAbilitySystem();
 }
 
 void ACharonCharacter::OnDeathStarted(AActor* OwningActor)
@@ -187,45 +223,36 @@ void ACharonCharacter::ResetAbilityConfig()
 
 
 
-void ACharonCharacter::InitCharonCharacter()
-{
-	// 주의 : 초기화는 다양한 타이밍에 진행되니 여러 번 호출되어도 이상이 없게 디자인하기. ex) 부여한 능력 회수 안하고 능력 부여 여러번 되는 경우. 
-	if(ACharonPlayerState* PS = Cast<ACharonPlayerState>(GetPlayerState()))
-	{
-		AbilityAssistComponent->InitAbilityAssist(PS->GetCharonAbilitySystemComponent(), PS, DefaultAbilityConfig);
-
-		if(InputComponent)
-		{
-			InputAssistComponent->InitInputAssist(DefaultAbilityConfig->InputConfig, DefaultInputFunctions);
-		}
-
-		if(UCharonAbilitySystemComponent* CharonASC = Cast<UCharonAbilitySystemComponent>(GetAbilitySystemComponent()))
-		{
-			LifeStateComponent->InitializeWithAbilitySystem(CharonASC);	
-		}
-		
-	}
-	
-}
+// void ACharonCharacter::InitCharonCharacter()
+// {
+// 	// 주의 : 초기화는 다양한 타이밍에 진행되니 여러 번 호출되어도 이상이 없게 디자인하기. ex) 부여한 능력 회수 안하고 능력 부여 여러번 되는 경우. 
+// 	if(ACharonPlayerState* PS = Cast<ACharonPlayerState>(GetPlayerState()))
+// 	{
+// 		AbilityAssistComponent->InitAbilityAssist(PS->GetCharonAbilitySystemComponent(), PS, DefaultAbilityConfig);
+//
+// 		if(InputComponent)
+// 		{
+// 			InputAssistComponent->InitInputAssist(DefaultAbilityConfig->InputConfig, DefaultInputFunctions);
+// 		}
+//
+// 		if(UCharonAbilitySystemComponent* CharonASC = Cast<UCharonAbilitySystemComponent>(GetAbilitySystemComponent()))
+// 		{
+// 			LifeStateComponent->InitializeWithAbilitySystem(CharonASC);	
+// 		}
+// 		
+// 	}
+// 	
+// }
 
 void ACharonCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	InitCharonCharacter();
+	//InitCharonCharacter();
+	InitStateComponent->CheckDefaultInitialization();
 }
 
-// void ACharonCharacter::PawnClientRestart()
-// {
-// 	Super::PawnClientRestart();
-//
-// 	InitCharonCharacter();
-// }
 
-
-
-
-// Called when the game starts or when spawned
 void ACharonCharacter::BeginPlay()
 {
 	Super::BeginPlay();

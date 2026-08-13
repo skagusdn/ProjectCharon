@@ -36,7 +36,7 @@ public class ProjectCharon : ModuleRules
         );
 	
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {"GameplayMessageRuntime", "WaterAdvanced"}
+			new string[] {"GameplayMessageRuntime", "WaterAdvanced", "ModularGameplay"}
 		);
 
 		

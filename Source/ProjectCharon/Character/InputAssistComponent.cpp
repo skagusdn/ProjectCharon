@@ -5,20 +5,173 @@
 
 #include "AbilityAssistComponent.h"
 #include "AIController.h"
+#include "CharonCharacter.h"
+#include "CharonGameplayTags.h"
+#include "PawnInitStateComponent.h"
+#include "Components/GameFrameworkComponentManager.h"
 #include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"//
 #include "Input/CharonInputComponent.h"
+#include "Player/CharonController.h"
+#include "Player/CharonPlayerState.h"
 #include "Vehicle/VehicleAIComponent.h"
 
+const FName UInputAssistComponent::NAME_ActorFeatureName("InputAssist");
 
 // Sets default values for this component's properties
-UInputAssistComponent::UInputAssistComponent()
+UInputAssistComponent::UInputAssistComponent(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
 {
 	
 }
 
+bool UInputAssistComponent::CanChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState,
+	FGameplayTag DesiredState) const
+{
+	check(Manager);
+
+	APawn* Pawn = GetPawn<APawn>();
+
+	if (!CurrentState.IsValid() && DesiredState == CharonGameplayTags::InitState_Spawned)
+	{
+		// As long as we have a real pawn, let us transition
+		if (Pawn)
+		{
+			return true;
+		}
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_Spawned && DesiredState == CharonGameplayTags::InitState_DataAvailable)
+	{
+		// The player state is required.
+		if (!GetPlayerState<ACharonPlayerState>())
+		{
+			return false;
+		}
+
+		// If we're authority or autonomous, we need to wait for a controller with registered ownership of the player state.
+		if (Pawn->GetLocalRole() != ROLE_SimulatedProxy)
+		{
+			AController* Controller = GetController<AController>();
+
+			const bool bHasControllerPairedWithPS = (Controller != nullptr) && \
+				(Controller->PlayerState != nullptr) && \
+				(Controller->PlayerState->GetOwner() == Controller);
+
+			if (!bHasControllerPairedWithPS)
+			{
+				return false;
+			}
+		}
+
+		const bool bIsLocallyControlled = Pawn->IsLocallyControlled();
+		const bool bIsBot = Pawn->IsBotControlled();
+
+		if (bIsLocallyControlled && !bIsBot)
+		{
+			ACharonController* CharonPC = GetController<ACharonController>();
+
+			// // The input component and local player is required when locally controlled.
+			// if (!Pawn->InputComponent || !CharonPC || !CharonPC->GetLocalPlayer())
+			// {
+			// 	return false;
+			// }
+			// 입력 컴포넌트가 없는데 AI도 아닌 경우 False
+			if (!Pawn->InputComponent || !CharonPC || !CharonPC->GetLocalPlayer())
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_DataAvailable && DesiredState == CharonGameplayTags::InitState_DataInitialized)
+	{
+		// Wait for player state and extension component
+		ACharonPlayerState* LyraPS = GetPlayerState<ACharonPlayerState>();
+
+		return LyraPS && Manager->HasFeatureReachedInitState(Pawn, UPawnInitStateComponent::NAME_ActorFeatureName, CharonGameplayTags::InitState_DataInitialized);
+	}
+	else if (CurrentState == CharonGameplayTags::InitState_DataInitialized && DesiredState == CharonGameplayTags::InitState_GameplayReady)
+	{
+		// TODO add ability initialization checks?
+		return true;
+	}
+
+	return false;
+}
+
+void UInputAssistComponent::HandleChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState,
+	FGameplayTag DesiredState)
+{
+	
+	if (CurrentState == CharonGameplayTags::InitState_DataAvailable && DesiredState == CharonGameplayTags::InitState_DataInitialized)
+	{
+		APawn* Pawn = GetPawn<APawn>();
+		ACharonPlayerState* CharonPS = GetPlayerState<ACharonPlayerState>();
+		if (!ensure(Pawn && CharonPS))
+		{
+			return;
+		}
+		
+		if (ACharonController* CharonPC = GetController<ACharonController>())
+		{
+			if (Pawn->InputComponent != nullptr)
+			{
+				// 임시
+				if (ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(Pawn))
+				{
+					InitInputAssist(CharonCharacter->DefaultAbilityConfig->InputConfig, CharonCharacter->DefaultInputFunctions);	
+				}
+			}
+		}
+		
+	}
+	
+}
+
+void UInputAssistComponent::OnActorInitStateChanged(const FActorInitStateChangedParams& Params)
+{
+
+	if (Params.FeatureName == UPawnInitStateComponent::NAME_ActorFeatureName)
+	{
+		if (Params.FeatureState == CharonGameplayTags::InitState_DataInitialized)
+		{
+			// If the extension component says all all other components are initialized, try to progress to next state
+			CheckDefaultInitialization();
+		}
+	}
+	
+}
+
+void UInputAssistComponent::CheckDefaultInitialization()
+{
+	static const TArray<FGameplayTag> StateChain = { CharonGameplayTags::InitState_Spawned, CharonGameplayTags::InitState_DataAvailable, CharonGameplayTags::InitState_DataInitialized, CharonGameplayTags::InitState_GameplayReady };
+
+	// This will try to progress from spawned (which is only set in BeginPlay) through the data initialization stages until it gets to gameplay ready
+	ContinueInitStateChain(StateChain);
+}
+
+void UInputAssistComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	// Listen for when the pawn extension component changes init state
+	BindOnActorInitStateChanged(UPawnInitStateComponent::NAME_ActorFeatureName, FGameplayTag(), false);
+
+	// Notifies that we are done spawning, then try the rest of initialization
+	ensure(TryToChangeInitState(CharonGameplayTags::InitState_Spawned));
+	CheckDefaultInitialization();
+}
+
+void UInputAssistComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnregisterInitStateFeature();
+	
+	Super::EndPlay(EndPlayReason);
+}
+
 void UInputAssistComponent::HandleInputActionTriggered(const FInputActionValue& ActionValue, FGameplayTag InputTag,
-	bool bIsAbilityAction, bool bIsButtonPressed, bool bNeedServerRPC)
+                                                       bool bIsAbilityAction, bool bIsButtonPressed, bool bNeedServerRPC)
 {
 	if (bIsAbilityAction)
 	{

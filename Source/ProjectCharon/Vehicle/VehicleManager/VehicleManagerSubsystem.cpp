@@ -11,8 +11,35 @@
 
 void UVehicleManagerSubsystem::UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp)
 {
+	// check(PlayerState);
+	// check(SourceMeshComp);
+	//
+	// USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset();
+	//
+	// if(!SourceMesh)
+	// {
+	// 	UE_LOG(LogCharon, Warning, TEXT("UpdatePlayerCharacterMesh: Mesh has no skeletal mesh asset"));
+	// 	return;
+	// }
+	//
+	// if(!MeshTempContainer)
+	// {
+	// 	MeshTempContainer = GetWorld()->SpawnActor(AActor::StaticClass());
+	// 	MeshTempContainer->Rename(TEXT("MeshTempContainer"));
+	// }
+	//
+	// if(USkeletalMeshComponent* NewComponent = NewObject<USkeletalMeshComponent>(MeshTempContainer))
+	// {
+	// 	NewComponent->SetSkeletalMesh(SourceMesh);
+	// 	NewComponent->SetVisibility(false);
+	// 	NewComponent->SetComponentTickEnabled(false);
+	// 	NewComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//
+	// 	RiderMeshes.Add(PlayerState, NewComponent);
+	// }
+	
 	check(PlayerState);
-	check(SourceMeshComp);
+	//check(SourceMeshComp);
 	
 	USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset();
 
@@ -51,36 +78,38 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 	}
 	
 	USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
-	// USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
-	//
-	// if (!RiderMeshPtr || !(*RiderMeshPtr))
+	
+	// // 메시 에셋이 다를 경우
+	// // (게임 시작 후 바로 렌트를 시도할 경우 메시가 아직 리플리케이트 되지 않는 경우 발견)
+	// // 강제로 업데이트. 
+	// if (SourceMeshCompForCheck)
 	// {
-	// 	UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player"));
+	// 	if (USkeletalMesh* SourceMesh = SourceMeshCompForCheck->GetSkeletalMeshAsset())
+	// 	{
+	// 		if (!RiderMeshPtr || SourceMesh != (*RiderMeshPtr)->GetSkeletalMeshAsset())
+	// 		{
+	// 			UpdateRiderMesh(PlayerState, SourceMeshCompForCheck);
+	// 			RiderMeshPtr = RiderMeshes.Find(PlayerState);
+	// 			
+	// 		}
+	// 	}
+	// }
+	
+	if (!PlayerState)
+	{
+		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: PlayerState is not Valid"));
+		return nullptr;
+	}
+	
+	// if(!RiderMeshes.Contains(PlayerState))
+	// {
+	// 	UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: There is no Rider Mesh matching with this player"));
 	// 	return nullptr;
 	// }
-	//
-	// USkeletalMeshComponent* RiderMesh = *RiderMeshPtr;
-	
-	// 메시 에셋이 다를 경우
-	// (게임 시작 후 바로 렌트를 시도할 경우 메시가 아직 리플리케이트 되지 않는 경우 발견)
-	// 강제로 업데이트. 
-	if (SourceMeshCompForCheck)
-	{
-		if (USkeletalMesh* SourceMesh = SourceMeshCompForCheck->GetSkeletalMeshAsset())
-		{
-			if (!RiderMeshPtr || SourceMesh != (*RiderMeshPtr)->GetSkeletalMeshAsset())
-			{
-				UpdateRiderMesh(PlayerState, SourceMeshCompForCheck);
-				RiderMeshPtr = RiderMeshes.Find(PlayerState);
-				
-			}
-		}
-	}
 	
 	if(!RiderMeshes.Contains(PlayerState))
 	{
-		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: There is no Rider Mesh matching with this player"));
-		return nullptr;
+		
 	}
 	
 	if (!RiderMeshPtr)
@@ -99,17 +128,6 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
 		return nullptr;
 	}
-	
-	// for(const TTuple<AActor*, USkeletalMeshComponent*> Tuple : LentRiderMeshes)
-	// {
-	// 	if(Tuple.Value == RiderMesh)
-	// 	{
-	// 		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
-	// 		//ReturnRentedRiderMesh(Tuple.Key);
-	// 		return nullptr;
-	// 	}
-	// }
-	
 	
 	
 	if(!RiderMesh->IsRegistered())

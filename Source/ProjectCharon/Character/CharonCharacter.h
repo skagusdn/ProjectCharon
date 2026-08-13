@@ -14,6 +14,7 @@
 #include "CharonCharacter.generated.h"
 
 
+class UPawnInitStateComponent;
 class ULifeStateComponent;
 class AInputFunctionSet;
 class UCharacterAbilityConfig;
@@ -44,6 +45,9 @@ protected:
 	virtual void OnRep_PlayerState() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+	virtual void OnAbilitySystemInitialized();
+	virtual void OnAbilitySystemUninitialized();
+	
 	//캐릭터 죽음 관련
 	UFUNCTION()
 	virtual void OnDeathStarted(AActor* OwningActor);
@@ -55,6 +59,10 @@ protected:
 	void K2_OnDeathFinished();
 
 	void UninitCharonCharacter();
+	
+	//InitState 처리(초기화 담당) 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPawnInitStateComponent> InitStateComponent;
 	
 	//어빌리티 쪽 처리 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true", RenameComponentFrom = "ExpComp"))
@@ -68,9 +76,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULifeStateComponent> LifeStateComponent;
 	
-	//InputAction과 매핑할 InputFunction
-	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<AInputFunctionSet> DefaultInputFunctions;
+	
 
 	
 public:
@@ -78,8 +84,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TObjectPtr<UCharacterAbilityConfig> DefaultAbilityConfig;
 
-	//각종 컴포넌트, 입력, ASC 등 초기화.
-	virtual void InitCharonCharacter();
+	//InputAction과 매핑할 InputFunction
+	UPROPERTY(BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<AInputFunctionSet> DefaultInputFunctions;
+	
+	// //각종 컴포넌트, 입력, ASC 등 초기화.
+	// virtual void InitCharonCharacter();
 	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
