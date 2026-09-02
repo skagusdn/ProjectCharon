@@ -321,11 +321,9 @@ void UCharonAbilitySystemComponent::ApplyAbilityBlockAndCancelTags(const FGamepl
 	{
 		TagRelationshipMapping->GetAbilityTagsToBlockAndCancel(AbilityTags, &ModifiedBlockTags, &ModifiedCancelTags);
 	}
-	
+
 	Super::ApplyAbilityBlockAndCancelTags(AbilityTags, RequestingAbility, bEnableBlockTags, ModifiedBlockTags,
 	                                      bExecuteCancelTags, ModifiedCancelTags);
-
-	
 }
 
 void UCharonAbilitySystemComponent::InitAttributesWithDefaultData()

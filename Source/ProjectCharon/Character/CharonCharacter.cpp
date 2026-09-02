@@ -11,20 +11,6 @@
 
 
 
-// ACharonCharacter::ACharonCharacter()
-// {
-// 	PrimaryActorTick.bCanEverTick = true;
-// 	bReplicates = true;
-//
-// 	AbilityAssistComponent = CreateDefaultSubobject<UAbilityAssistComponent>(TEXT("AbilityAssist"));
-// 	InputAssistComponent = CreateDefaultSubobject<UInputAssistComponent>(TEXT("InputAssist"));
-// 	DefaultInputFunctions = nullptr;
-//
-// 	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
-// 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnDeathStarted);
-// 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnDeathFinished);
-// }
-
 ACharonCharacter::ACharonCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCharonCharacterMovementComponent>(ACharacter::CharacterMovementComponentName ))
 {
@@ -72,18 +58,6 @@ void ACharonCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void ACharonCharacter::OnAbilitySystemInitialized()
 {
-	//
-	if (HasAuthority())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized 리자몽 Server %s // %s "), *GetNameSafe(this), *GetNameSafe(GetAbilitySystemComponent()) );	
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized 리자몽 Client %s // %s "), *GetNameSafe(this), *GetNameSafe(GetAbilitySystemComponent()) );	
-	}
-	
-	//
-	
 	check(AbilityAssistComponent);
 	UCharonAbilitySystemComponent* CharonASC = AbilityAssistComponent->GetCharonAbilitySystemComponent();
 	check(CharonASC);
@@ -247,8 +221,7 @@ void ACharonCharacter::ResetAbilityConfig()
 void ACharonCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	//InitCharonCharacter();
+	
 	InitStateComponent->CheckDefaultInitialization();
 }
 

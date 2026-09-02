@@ -7,69 +7,38 @@
 #include "Logging.h"
 //#include "GameFramework/Character.h"
 //#include "GameFramework/GameModeBase.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/PlayerState.h"
 
-void UVehicleManagerSubsystem::UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp)
+void UVehicleManagerSubsystem::UpdateRiderMesh(ACharacter* Rider, USkeletalMesh* CharacterMesh)
 {
-	// check(PlayerState);
-	// check(SourceMeshComp);
-	//
-	// USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset();
-	//
-	// if(!SourceMesh)
-	// {
-	// 	UE_LOG(LogCharon, Warning, TEXT("UpdatePlayerCharacterMesh: Mesh has no skeletal mesh asset"));
-	// 	return;
-	// }
-	//
-	// if(!MeshTempContainer)
-	// {
-	// 	MeshTempContainer = GetWorld()->SpawnActor(AActor::StaticClass());
-	// 	MeshTempContainer->Rename(TEXT("MeshTempContainer"));
-	// }
-	//
-	// if(USkeletalMeshComponent* NewComponent = NewObject<USkeletalMeshComponent>(MeshTempContainer))
-	// {
-	// 	NewComponent->SetSkeletalMesh(SourceMesh);
-	// 	NewComponent->SetVisibility(false);
-	// 	NewComponent->SetComponentTickEnabled(false);
-	// 	NewComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	//
-	// 	RiderMeshes.Add(PlayerState, NewComponent);
-	// }
 	
-	check(PlayerState);
-	//check(SourceMeshComp);
-	
-	USkeletalMesh* SourceMesh = SourceMeshComp->GetSkeletalMeshAsset();
-
-	if(!SourceMesh)
-	{
-		UE_LOG(LogCharon, Warning, TEXT("UpdatePlayerCharacterMesh: Mesh has no skeletal mesh asset"));
-		return;
-	}
-
 	if(!MeshTempContainer)
 	{
 		MeshTempContainer = GetWorld()->SpawnActor(AActor::StaticClass());
 		MeshTempContainer->Rename(TEXT("MeshTempContainer"));
 	}
 	
-	if(USkeletalMeshComponent* NewComponent = NewObject<USkeletalMeshComponent>(MeshTempContainer))
+	if (!RiderMeshes.Contains(Rider))
 	{
-		NewComponent->SetSkeletalMesh(SourceMesh);
-		NewComponent->SetVisibility(false);
-		NewComponent->SetComponentTickEnabled(false);
-		NewComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if(USkeletalMeshComponent* NewComponent = NewObject<USkeletalMeshComponent>(MeshTempContainer))
+		{
+			NewComponent->SetVisibility(false);
+			NewComponent->SetComponentTickEnabled(false);
+			NewComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-		RiderMeshes.Add(PlayerState, NewComponent);
+			RiderMeshes.Add(Rider, NewComponent);
+		}
 	}
+	
+	USkeletalMeshComponent* RiderMeshComponent = *RiderMeshes.Find(Rider);
+	RiderMeshComponent->SetSkeletalMeshAsset(CharacterMesh);
 	
 }
 
 
 
-USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter, APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshCompForCheck)
+USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter, ACharacter* Rider)
 {
 	if(!Renter)
 	{
@@ -77,7 +46,7 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 		return nullptr;
 	}
 	
-	USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
+	//USkeletalMeshComponent** RiderMeshPtr = RiderMeshes.Find(PlayerState);
 	
 	// // 메시 에셋이 다를 경우
 	// // (게임 시작 후 바로 렌트를 시도할 경우 메시가 아직 리플리케이트 되지 않는 경우 발견)
@@ -95,32 +64,16 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 	// 	}
 	// }
 	
-	if (!PlayerState)
+	if(!RiderMeshes.Contains(Rider))
 	{
-		UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: PlayerState is not Valid"));
-		return nullptr;
+		UpdateRiderMesh(Rider, Rider->GetMesh()->GetSkeletalMeshAsset());
 	}
 	
-	// if(!RiderMeshes.Contains(PlayerState))
-	// {
-	// 	UE_LOG(LogCharon, Warning, TEXT("RentRiderMesh: There is no Rider Mesh matching with this player"));
-	// 	return nullptr;
-	// }
+	check(RiderMeshes.Find(Rider));
 	
-	if(!RiderMeshes.Contains(PlayerState))
-	{
-		
-	}
-	
-	if (!RiderMeshPtr)
-	{
-		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: Cant Find RiderMesh of this Player, Update Failed"));
-		return nullptr;
-	}
-	
-	USkeletalMeshComponent* RiderMesh = *RiderMeshPtr;
+	USkeletalMeshComponent* RiderMesh = *RiderMeshes.Find(Rider);
 
-	const FRentKey RentKey = {Renter, PlayerState};
+	const FRentKey RentKey = {Renter, Rider};
 	
 	// 이미 빌려준 메시인지 체크. 
 	if (LentRiderMeshes.Contains(RentKey))
@@ -128,7 +81,6 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 		UE_LOG(LogCharon, Error, TEXT("RentRiderMesh: RiderMesh had been lent already. Something is wrong"));
 		return nullptr;
 	}
-	
 	
 	if(!RiderMesh->IsRegistered())
 	{
@@ -139,32 +91,23 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 	// 콜리전 세팅은 대여자가 알아서 하라고 하고.
 	
 	//LentRiderMeshes.Add(Renter, RiderMesh);
+	// TODO : LentRiderMeshes 없애고 그냥 한곳에서 관리해. 이게 뭐여. 
 	LentRiderMeshes.Add(RentKey, RiderMesh);
 	Renter->OnDestroyed.AddDynamic(this, &ThisClass::ReturnAllMeshOfRentor);
+	// 라이더가 파괴되는 경우 알아서 베히클에서 내리게 하겟지 뭐
 	return RiderMesh;
 }
 
-void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter, APlayerState* PlayerState)
+void UVehicleManagerSubsystem::ReturnRentedRiderMesh(AActor* Renter, ACharacter* Rider)
 {
 	if(!Renter)
 	{
 		UE_LOG(LogCharon, Warning, TEXT("ReturnRentedRiderMesh: Renter is invalid"));
 		return;
 	}
-
-	// FRentMeshData* FoundData = LentRiderMeshes.FindByPredicate([Renter, PlayerState](const FRentMeshData& Data)
-	// {
-	// 	return Data.Renter == Renter && Data.PlayerState == PlayerState;
-	// });
-	//
-	// if (FoundData == nullptr)
-	// {
-	// 	UE_LOG(LogCharon, Warning, TEXT("ReturnRentedRiderMesh: This Renter didn't rent RiderMesh"));
-	// 	return;
-	// }
 	
 	
-	FRentKey RentKey = {Renter, PlayerState};
+	FRentKey RentKey = {Renter, Rider};
 	if(!LentRiderMeshes.Contains(RentKey))
 	{
 		UE_LOG(LogCharon, Warning, TEXT("ReturnRentedRiderMesh: This Renter didn't rent RiderMesh"));
@@ -213,19 +156,10 @@ void UVehicleManagerSubsystem::ReturnAllMeshOfRentor(AActor* Renter)
 	
 	for (FRentKey RentKey : Keys)
 	{
-		ReturnRentedRiderMesh(RentKey.Renter, RentKey.PlayerState);
+		ReturnRentedRiderMesh(RentKey.Renter, RentKey.Rider);
 	}
 	
 }
 
-// void UVehicleManagerSubsystem::OnWorldBeginPlay(UWorld& InWorld)
-// {
-// 	Super::OnWorldBeginPlay(InWorld);
-//
-// 	if(GIsServer)
-// 	{
-// 		VehicleManager = GetWorld()->SpawnActor<AVehicleManager>(AVehicleManager::StaticClass());	
-// 	}
-// }
 
 

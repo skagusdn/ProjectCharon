@@ -69,12 +69,7 @@ bool UInputAssistComponent::CanChangeInitState(UGameFrameworkComponentManager* M
 		if (bIsLocallyControlled && !bIsBot)
 		{
 			ACharonController* CharonPC = GetController<ACharonController>();
-
-			// // The input component and local player is required when locally controlled.
-			// if (!Pawn->InputComponent || !CharonPC || !CharonPC->GetLocalPlayer())
-			// {
-			// 	return false;
-			// }
+			
 			// 입력 컴포넌트가 없는데 AI도 아닌 경우 False
 			if (!Pawn->InputComponent || !CharonPC || !CharonPC->GetLocalPlayer())
 			{
@@ -113,7 +108,7 @@ void UInputAssistComponent::HandleChangeInitState(UGameFrameworkComponentManager
 			return;
 		}
 		
-		if (ACharonController* CharonPC = GetController<ACharonController>())
+		if (GetController<ACharonController>())
 		{
 			if (Pawn->InputComponent != nullptr)
 			{
@@ -270,7 +265,7 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 	{
 		if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
 		{
-			if (UVehicleAIComponent* VehicleAIComp = UVehicleAIComponent::FindVehicleAIComponent(OwnerCharacter))
+			if (UVehicleAIComponent* VehicleAIComp = UVehicleAIComponent::FindVehicleAIComponentFromRider(OwnerCharacter))
 			{
 				VehicleAIComp->RegisterAIInputReceiver(this, &UInputAssistComponent::HandleInputActionTriggered);
 			}	
@@ -469,11 +464,8 @@ void UInputAssistComponent::RequestExecuteInputFunction(FInputActionValue InputA
 	
 	AInputFunctionSet* TargetInputFunctionSet = TempActiveInputFunctions != nullptr ? TempActiveInputFunctions : ActiveInputFunctions;
 	
-	
 	if(IsServerRPC)
 	{
-		// Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
-		// 	InputActionValue.GetValueType(), Tag);
 		Server_RequestExecuteInputFunction(InputActionValue[0], InputActionValue[1], InputActionValue[2],
 			InputActionValue.GetValueType(), TargetInputFunctionSet, Tag);
 	}
@@ -507,16 +499,6 @@ void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(fl
 		break;
 	}
 		
-	// //
-	// if (InputFunctionSet)
-	// {
-	// 	UE_LOG(LogTemp, Warning, TEXT("피존원 %s"), *Tag.ToString());
-	// }
-	// else
-	// {
-	// 	UE_LOG(LogTemp, Warning, TEXT("피존투 %s"), *Tag.ToString());
-	// }
-	// //
 	
 	//RequestExecuteInputFunction(InputActionValue, InputFunctionSet, Tag, false);
 	if (ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner()))
@@ -524,31 +506,6 @@ void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(fl
 		InputFunctionSet->ExecuteInputFunctionByTag(InputActionValue, Tag, OwningCharacter);
 	}
 }
-
-
-// void UInputAssistComponent::Server_RequestExecuteInputFunction_Implementation(float ValueX, float ValueY, float ValueZ,
-// 	EInputActionValueType ValueType, const FGameplayTag Tag)
-// {
-// 	FInputActionValue InputActionValue;
-// 	switch(ValueType)
-// 	{
-// 	case EInputActionValueType::Boolean :
-// 		InputActionValue = FInputActionValue(ValueX > 0);
-// 		break;
-// 	case EInputActionValueType::Axis1D :
-// 		InputActionValue = FInputActionValue(ValueX);
-// 		break;
-// 	case EInputActionValueType::Axis2D :
-// 		InputActionValue = FInputActionValue(FVector2D(ValueX, ValueY));
-// 		break;
-// 	case EInputActionValueType::Axis3D :
-// 		InputActionValue = FInputActionValue(FVector(ValueX, ValueY, ValueZ));
-// 		break;
-// 	}
-// 	
-// 	RequestExecuteInputFunction(InputActionValue, Tag, false);
-// }
-
 
 
 

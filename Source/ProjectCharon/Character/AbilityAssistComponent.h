@@ -103,9 +103,6 @@ protected:
 	// void OnRelatedTagAddedOrRemoved(FGameplayTag Tag);
 	
 	
-	
-protected:
-	
 	UPROPERTY(Replicated)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 

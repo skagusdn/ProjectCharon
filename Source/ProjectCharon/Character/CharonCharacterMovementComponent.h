@@ -20,6 +20,12 @@ public:
 
 	virtual float ImmersionDepth() const override;
 
+	// 테스트중~
+	UPROPERTY(BlueprintReadOnly)
+	float Slope = 0.0001f;
+	// 테스트중~
+	UPROPERTY(BlueprintReadOnly)
+	float DesiredVelZ = 0.f;
 
 protected:
 

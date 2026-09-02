@@ -31,7 +31,8 @@ public:
 
 	/** The name of this component-implemented feature */
 	static const FName NAME_ActorFeatureName;
-	
+
+	// 초기화를 위한 InitState 플러그인
 	//~ Begin IGameFrameworkInitStateInterface interface
 	virtual FName GetFeatureName() const override { return NAME_ActorFeatureName; }
 	virtual bool CanChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState, FGameplayTag DesiredState) const override;
@@ -39,9 +40,7 @@ public:
 	virtual void OnActorInitStateChanged(const FActorInitStateChangedParams& Params) override;
 	virtual void CheckDefaultInitialization() override;
 	//~ End IGameFrameworkInitStateInterface interface
-	
-	
-	
+
 private:
 	
 	
@@ -59,15 +58,12 @@ protected:
 	UFUNCTION()
 	void HandleInputActionTriggered(const FInputActionValue& ActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed, bool bNeedServerRPC );
 	
-	
+	// 바인드 된 InputFunctionSet의 특정 함수로 입력값 전달. 
 	void RequestExecuteInputFunction(FInputActionValue InputActionValue, const FGameplayTag Tag, bool IsServerRPC);
 	// RPC에서 FInputActionValue이 제대로 전달되지 않으므로 값을 분리해서 전달. 
 	UFUNCTION(Server, Reliable)
 	void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, AInputFunctionSet* InputFunctionSet, const FGameplayTag Tag);
-	// UFUNCTION(Server, Reliable)
-	// void Server_RequestExecuteInputFunction(float ValueX, float ValueY, float ValueZ, EInputActionValueType ValueType, const FGameplayTag Tag);
-	
-	
+		
 	UPROPERTY()
 	TObjectPtr<const UCharonInputConfig> DefaultInputConfig = nullptr;
 	UPROPERTY()

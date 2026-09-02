@@ -86,28 +86,7 @@ void UAbilityAssistComponent::HandleChangeInitState(UGameFrameworkComponentManag
 
 		if (ACharonCharacter* CharonCharacter = Cast<ACharonCharacter>(Pawn))
 		{
-			
-			//
-			if (Pawn->HasAuthority())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("리자몽 Server HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("리자몽 Client HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
-			}
-			
 			InitAbilityAssist(CharonPS->GetCharonAbilitySystemComponent(), CharonPS, CharonCharacter->DefaultAbilityConfig);
-			
-			//
-			if (Pawn->HasAuthority())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("리자몽 After Server HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("리자몽 After Client HandleChangeInitState %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
-			}
 		}
 		
 	}
@@ -141,18 +120,7 @@ void UAbilityAssistComponent::OnAbilitySystemInitialized_RegisterAndCall(FSimple
 	}
 
 	if (AbilitySystemComponent)
-	{
-		//
-		if (GetOwner()->HasAuthority())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized_RegisterAndCall 리자몽 Server %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent) );	
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("OnAbilitySystemInitialized_RegisterAndCall 리자몽 Client %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent) );	
-		}
-		//
-		
+	{		
 		Delegate.Execute();
 	}
 }
@@ -248,16 +216,6 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 	if(GetOwner()->HasAuthority())
 	{
 		AbilitySystemComponent->AbilityCommittedCallbacks.AddUObject(this, &ThisClass::Server_HandleAbilityCommitted);	
-	}
-	
-	//
-	if (GetOwner()->HasAuthority())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("리자몽 Server InitASC %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("리자몽 Client InitASC %s // %s"), *GetNameSafe(GetOwner()), *GetNameSafe(AbilitySystemComponent));	
 	}
 	
 	OnAbilitySystemInitialized.Broadcast();
@@ -367,7 +325,10 @@ void UAbilityAssistComponent::Server_HandleAbilityCommitted(UGameplayAbility* Ab
 	AbilityCommitInfo.Ability = Ability;
 	const FGameplayAbilityActorInfo ActorInfo = Ability->GetActorInfo();
 	Ability->GetCooldownTimeRemainingAndDuration(Ability->GetCurrentAbilitySpecHandle(), &ActorInfo , AbilityCommitInfo.CooldownDuration, AbilityCommitInfo.RemainingCooldown );
-
+	if (Ability->GetCooldownTags()){
+		AbilityCommitInfo.CooldownTags = *Ability->GetCooldownTags();
+	}
+	
 	HandleAbilityCommitted(AbilityCommitInfo);
 	Client_HandleAbilityCommitted(AbilityCommitInfo);
 }

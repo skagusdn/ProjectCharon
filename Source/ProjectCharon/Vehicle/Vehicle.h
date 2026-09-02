@@ -55,24 +55,30 @@ public:
 	AVehicle();
 	
 	virtual void Tick(float DeltaTime) override;
-
-	UFUNCTION(BlueprintCallable)
+	virtual void PostInitializeComponents() override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	UFUNCTION(BlueprintCallable, Category = "Charon|Vehicle")
 	int32 GetMaxRiderNum() const {return MaxRiderNum;};
 	
-	// UPROPERTY(BlueprintReadWrite)
-	// TMap<int32, TObjectPtr<ACharacter>> Riders;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Charon|Vehicle")
 	TArray<TObjectPtr<USceneComponent>> Seats;
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent, Category = "Charon|Vehicle")
 	bool EnterVehicle(ACharacter* Rider);
 
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, BlueprintNativeEvent, Category = "Charon|Vehicle")
 	bool ExitVehicle(ACharacter* Rider, bool bForcedExit = false);
 	
-	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Charon|Vehicle")
 	int32 FindRiderIdx(const ACharacter* Rider);
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Charon|Vehicle")
+	int32 GetCurrentRiderNum() const {return CurrentRiderNum;};
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Charon|Vehicle")
+	bool IsEmptySeat(int32 RiderIndex) const;
 	
 	//~ IAbilitySystemInterface 시작
 	/** 어빌리티 시스템 컴포넌트를 반환합니다. */
@@ -88,6 +94,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	FRiderSpecData GetRiderSpecData(uint8 RiderIdx);
 	
+	UFUNCTION(BlueprintCallable)
+	const TArray<ACharacter*>& GetRiders() {return Riders;};
+	
 	UPROPERTY(BlueprintAssignable)
 	FRiderUpdated OnRiderEntered;
 	
@@ -95,30 +104,23 @@ public:
 	FRiderUpdated OnRiderExited;
 	
 	
+	
 protected:
 	
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, ReplicatedUsing="OnRep_Riders")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, ReplicatedUsing="OnRep_Riders", Category = "Charon|Vehicle|Riders")
 	TArray<ACharacter*> Riders;
 	
 	
 	UFUNCTION()
 	void OnRep_Riders(const TArray<ACharacter*>& OldRiders);
 	
-	//탑승자로 등록
+	//탑승자로 등록 -> 탑승자 목록은 OnRep으로 리플리케이트.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	int32 RegisterRider(ACharacter* Rider);
-	// UFUNCTION(Client, Reliable)
-	// void Client_RegisterRider(ACharacter* Rider, int RiderIdx);
-	// UFUNCTION(NetMulticast, Reliable)
-	// void Multicast_RegisterRider(ACharacter* Rider, int RiderIdx);
 	
 	//탑승자에서 해제. 탑승자 목록에서 없으면 false 리턴.
 	UFUNCTION(BlueprintCallable)
 	bool UnregisterRider(ACharacter* Rider);
-	// UFUNCTION(Client, Reliable)
-	// void Client_UnregisterRider(ACharacter* Rider, int RiderIdx);
-	
-	//void RemoveInvalidRiders();
 	
 	//탑승자의 메시를 Vehicle에 부착
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
@@ -133,9 +135,7 @@ protected:
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void PostInitializeComponents() override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 	
 	
 	//베히클 죽음(파괴) 관련
@@ -148,13 +148,11 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="On Vehicle Death Finished"))
 	void K2_OnVehicleDeathFinished();
 	void DestroyVehicle();
-
-	// //베히클이 어빌리티를 발동했을 때 라이더 컴포넌트로 신호.
-	// void HandleVehicleAbilityActivation(UGameplayAbility* ActivatedAbility);
 	
-	UPROPERTY(BlueprintReadOnly, Replicated, VisibleAnywhere, Category = "Charon | Vehicle")
+	
+	UPROPERTY(BlueprintReadOnly, Replicated, VisibleAnywhere, Category = "Charon|Vehicle")
 	int32 CurrentRiderNum = 0;
-	UPROPERTY(EditDefaultsOnly, Category = "Charon | Vehicle")
+	UPROPERTY(EditDefaultsOnly, Category = "Charon|Vehicle")
 	int32 MaxRiderNum = 1;
 
 	UPROPERTY(VisibleAnywhere)
@@ -170,15 +168,15 @@ protected:
 	
 	//어빌리티 및 입력
 	//베히클 자체가 가지고 있는 어빌리티들
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Charon | Vehicle")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Charon|Vehicle")
 	TSet<UCharonAbilitySet*> VehicleAbilitySets;
 	// 어빌리티셋 핸들. 일단 만들어두긴 했는데 어빌리티를 다시 회수할 일이 있나?
 	FCharonAbilitySet_GrantedHandles VehicleAbilityHandles;
 	//탑승자에게 적용할 어빌리티-입력 설정
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Charon | Vehicle | Riders")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Charon|Vehicle|Riders")
 	TArray<UCharacterAbilityConfig*> AbilityConfigsForRiders;
 	//탑승자에게 적용할 InputFunctionSet
-	UPROPERTY(BlueprintReadOnly, Category = "Charon | Vehicle | Riders")
+	UPROPERTY(BlueprintReadOnly, Category = "Charon|Vehicle|Riders")
 	TArray<TObjectPtr<AInputFunctionSet>> InputFunctionSets;
 	
 	// // 이거 지금 쓰고 있나? TODO : 리뉴얼

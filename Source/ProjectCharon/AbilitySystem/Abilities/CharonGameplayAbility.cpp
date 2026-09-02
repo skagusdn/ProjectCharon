@@ -41,7 +41,7 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
 		// Specialized version to handle death exclusion and AbilityTags expansion via ASC
-
+	
 	bool bBlocked = false;
 	bool bMissing = false;
 
@@ -52,6 +52,8 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 	// Check if any of this ability's tags are currently blocked
 	if (AbilitySystemComponent.AreAbilityTagsBlocked(GetAssetTags()))
 	{
+		/////
+		UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리99 %s"), *GetName(), *GetAssetTags().ToString());
 		bBlocked = true;
 	}
 
@@ -85,11 +87,15 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 			// 	OptionalRelevantTags->AddTag(LyraGameplayTags::Ability_ActivateFail_IsDead);
 			// }
 
+			/////
+			UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리3"), *GetName());
 			bBlocked = true;
 		}
 
 		if (!AbilitySystemComponentTags.HasAll(AllRequiredTags))
 		{
+			/////
+			UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리4"), *GetName());
 			bMissing = true;
 		}
 	}
@@ -100,11 +106,15 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 		{
 			if (SourceTags->HasAny(SourceBlockedTags))
 			{
+				/////
+				UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리5"), *GetName());
 				bBlocked = true;
 			}
 
 			if (!SourceTags->HasAll(SourceRequiredTags))
 			{
+				/////
+				UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리6"), *GetName());
 				bMissing = true;
 			}
 		}
@@ -116,11 +126,15 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 		{
 			if (TargetTags->HasAny(TargetBlockedTags))
 			{
+				/////
+				UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리7"), *GetName());
 				bBlocked = true;
 			}
 
 			if (!TargetTags->HasAll(TargetRequiredTags))
 			{
+				/////
+				UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리8"), *GetName());
 				bMissing = true;
 			}
 		}
@@ -132,6 +146,9 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 		{
 			OptionalRelevantTags->AddTag(BlockedTag);
 		}
+		/////
+		UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리1"), *GetName());
+	
 		return false;
 	}
 	if (bMissing)
@@ -140,6 +157,9 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 		{
 			OptionalRelevantTags->AddTag(MissingTag);
 		}
+		/////
+		UE_LOG(LogTemp, Warning, TEXT("%s 파이파이파이리2"), *GetName());
+	
 		return false;
 	}
 

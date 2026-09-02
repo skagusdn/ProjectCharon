@@ -7,6 +7,7 @@
 #include "SwimBuoyancyComponent.generated.h"
 
 
+class UBoxComponent;
 class USphereComponent;
 /*
  * 무브먼트 컴포넌트와 연계해 수영 관련 기능을 구현할 컴포넌트.
@@ -34,10 +35,10 @@ protected:
 #endif
 
 	UFUNCTION(BlueprintCallable)
-	void NotifyDebugPontoonEnteredWater(const FSphericalPontoon& Pontoon);
+	void HandleDebugPontoonEnteredWater(const FSphericalPontoon& Pontoon);
 
 	UFUNCTION(BlueprintCallable)
-	void NotifyDebugPontoonExitedWater(const FSphericalPontoon& Pontoon);
+	void HandleDebugPontoonExitedWater(const FSphericalPontoon& Pontoon);
 
 	
 
@@ -47,34 +48,40 @@ public:
 	/* OwnerActor가 얼마나 물에 잠겨있는지 리턴. 1이면 물 안, 0이면 물 밖.*/
 	UFUNCTION(BlueprintCallable)
 	float GetImmersionDepth();
-
-	// // 임시 부력
-	// UFUNCTION(BlueprintCallable)
-	// FVector GetSwimBuoyancy();
+	
+	// 아마 임시?
+	float GetWaterHeightAtLocation(const FVector& WorldLocation);
 	
 	/*  물에 잠겨있는 깊이 체크용 폰툰 인덱스. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 WaterCheckPontoonIndex;
-	/* 수영 폰툰 인덱스, 이 폰툰이 물에 닿으면 수영 모드로 바꾸기 -> 구현은 각 액터 클래스에서 알아서. */
+	/* 수영 시작 폰툰 인덱스, 이 폰툰이 물에 닿으면 수영 모드로 바꾸기 -> 구현은 각 액터 클래스에서 알아서. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 SwimCheckPontoonIndex;
+	int32 StartSwimPontoonIndex;
+	/* 수영 끝 폰툰 인덱스. 이 폰툰과 수영 시작 폰툰 모두 물에서 빠져 나가면 수영 모드 종료. -> 역시 구현은 각 액터에서 알아서. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	int32 EndSwimPontoonIndex;
+	
 	
 	// 디버그 용 폰튼 구체를 그릴건지
 	UPROPERTY(EditDefaultsOnly)
 	bool bDrawDebugPontoonShapes;
 	UPROPERTY(VisibleAnywhere)
 	TArray<USphereComponent*> DebugSphereComponents;
+	UPROPERTY(VisibleAnywhere)
+	TArray<UBoxComponent*> DebugAxisBoxComponents;
 
 	UPROPERTY(BlueprintAssignable)
-	FOnPontoonEnteredWater OnSwimPontoonEnteredWaterDelegate;
+	FOnPontoonEnteredWater OnSwimStarterEnteredWater;
 	UPROPERTY(BlueprintAssignable)
-	FOnPontoonExitedWater OnSwimPontoonExitedWaterDelegate;
+	FOnPontoonExitedWater OnSwimEnderExitedWater;
 
 	UFUNCTION()
 	void CheckSwimPontoonEnteredWater(const FSphericalPontoon& Pontoon);
 	UFUNCTION()
 	void CheckSwimPontoonExitedWater(const FSphericalPontoon& Pontoon);
 
-	FSphericalPontoon SwimCheckPontoon;
+	FSphericalPontoon SwimStarterPontoon;
+	FSphericalPontoon SwimEnderPontoon;
 	FSphericalPontoon WaterCheckPontoon;
 };

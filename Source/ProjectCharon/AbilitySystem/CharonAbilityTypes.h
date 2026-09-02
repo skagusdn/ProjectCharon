@@ -1,6 +1,8 @@
 ﻿#pragma once
 
+#include "GameplayTagContainer.h"
 #include "CharonAbilityTypes.generated.h"
+
 
 class UGameplayAbility;
 
@@ -12,6 +14,9 @@ struct FAbilityCommitInfo
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UGameplayAbility> Ability = nullptr;
 
+	UPROPERTY(BlueprintReadOnly)
+	FGameplayTagContainer CooldownTags = FGameplayTagContainer();
+	
 	UPROPERTY(BlueprintReadOnly)
 	float CooldownDuration = 0.f;
 

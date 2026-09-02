@@ -7,18 +7,18 @@
 #include "Components/ActorComponent.h"
 #include "CrewManagerComponent.generated.h"
 
-USTRUCT()
-struct FCrewEntry
-{
-	GENERATED_BODY()
-	
-	UPROPERTY()
-	int32 CrewId;
-
-	UPROPERTY()
-	FCharonCrew Crew;
-	
-};
+// USTRUCT()
+// struct FCrewEntry
+// {
+// 	GENERATED_BODY()
+// 	
+// 	UPROPERTY()
+// 	int32 CrewId;
+//
+// 	UPROPERTY()
+// 	FCharonCrew Crew;
+// 	
+// };
 
 USTRUCT(BlueprintType)
 struct FRepTestStruct

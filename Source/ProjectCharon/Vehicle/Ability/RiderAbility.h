@@ -28,6 +28,9 @@ public :
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText SkillName;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag CooldownTag = FGameplayTag();
 };
 
 /**
@@ -43,34 +46,38 @@ public:
 
 protected:
 
-	//GameplayAbility Interface 시작~
-	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
-	//GameplayAbility Interface 끝~
+	// //GameplayAbility Interface 시작~
+	// virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	// //GameplayAbility Interface 끝~
 
-	void SetVehicleInfo();
-	UFUNCTION(BlueprintCallable, Category = "Charon | RiderAbility")
+	// void InitVehicleInfo();
+	UFUNCTION(BlueprintCallable, Category = "Charon|RiderAbility")
 	bool DoesVehicleImplementsTargetClass() const;
-	UFUNCTION(BlueprintCallable, Category = "Charon | RiderAbility")
+	UFUNCTION(BlueprintCallable, Category = "Charon|RiderAbility")
 	bool DoesVehicleHasTargetAbility() const;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon | RiderAbility")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon|RiderAbility")
 	TSubclassOf<UVehicleAbility> VehicleAbilityClassToTrigger;
 
-	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<AVehicle> TargetVehicle;
+	// UPROPERTY(BlueprintReadOnly)
+	// TObjectPtr<AVehicle> TargetVehicle;
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Charon|RiderAbility")
+	AVehicle* FindTargetVehicle() const;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon | RiderAbility")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon|RiderAbility")
 	TSubclassOf<AVehicle> TargetVehicleClass;
 
 	// 퀵슬롯에 표시해야하는 지 여부.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon | RiderAbility")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon|RiderAbility")
 	bool bShouldRegisterToSlot;
 
 	// 라이더 어빌리티 자체 쿨다운뿐만 아닌 타겟 베히클 쿨다운도 사용할지
 	// 둘 중 하나라도 쿨타임이면 어빌리티 못 씀.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon | RiderAbility")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon|RiderAbility")
 	bool bDoesShareCooldownWithTargetVehicleAbility;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon | RiderAbility")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Charon|RiderAbility")
 	TObjectPtr<URiderSkillInfo> SkillInfo;
+	
+	
 };

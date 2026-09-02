@@ -25,7 +25,7 @@ void ACharonPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProper
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ACharonPlayerState, CharacterMesh);
+	//DOREPLIFETIME(ACharonPlayerState, CharacterMesh);
 	DOREPLIFETIME(ACharonPlayerState, CrewId);
 }
 
@@ -37,13 +37,13 @@ void ACharonPlayerState::PostInitializeComponents()
 	AbilitySystemComponent->InitAbilityActorInfo(this, GetPawn());
 }
 
-void ACharonPlayerState::OnRep_CharacterMesh(const USkeletalMeshComponent* OldCharacterMesh)
-{
-	if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
-	{
-		VehicleManager->UpdateRiderMesh(this, CharacterMesh);
-	}
-}
+// void ACharonPlayerState::OnRep_CharacterMesh(const USkeletalMesh* OldCharacterMesh)
+// {
+// 	if (UVehicleManagerSubsystem* VehicleManager = GetWorld()->GetSubsystem<UVehicleManagerSubsystem>())
+// 	{
+// 		VehicleManager->UpdateRiderMesh(this, CharacterMesh);
+// 	}
+// }
 
 
 
@@ -53,12 +53,12 @@ UAbilitySystemComponent* ACharonPlayerState::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-void ACharonPlayerState::SetCharacterMesh(USkeletalMeshComponent* NewCharacterMesh)
-{
-	CharacterMesh = NewCharacterMesh;
-	if(HasAuthority())
-	{
-		OnRep_CharacterMesh(NewCharacterMesh);
-	}
-}
+// void ACharonPlayerState::SetCharacterMesh(USkeletalMesh* NewCharacterMesh)
+// {
+// 	CharacterMesh = NewCharacterMesh;
+// 	if(HasAuthority())
+// 	{
+// 		OnRep_CharacterMesh(NewCharacterMesh);
+// 	}
+// }
 

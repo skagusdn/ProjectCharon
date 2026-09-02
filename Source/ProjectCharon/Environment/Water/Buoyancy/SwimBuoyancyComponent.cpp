@@ -6,6 +6,7 @@
 #include "Logging.h"
 //#include "MovieSceneTracksComponentTypes.h"
 #include "WaterBodyActor.h"
+#include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 //#include "Subsystems/PropertyVisibilityOverrideSubsystem.h"
 
@@ -14,7 +15,8 @@
 USwimBuoyancyComponent::USwimBuoyancyComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	WaterCheckPontoonIndex = -1;
-	SwimCheckPontoonIndex = -1;
+	StartSwimPontoonIndex = -1;
+	EndSwimPontoonIndex = -1;	
 
 	bDrawDebugPontoonShapes = false;
 	PrimaryComponentTick.bStartWithTickEnabled = true;// 틱이 제대로 안되는 것 같아서 시작부터 틱켜지게.
@@ -47,13 +49,33 @@ void USwimBuoyancyComponent::BeginPlay()
 				DebugSphere->MarkAsEditorOnlySubobject();
 					
 				DebugSphereComponents.Add(DebugSphere);
-			
+				
+				// --- 여기부터 추가: 폰툰이 작아 구체가 메시에 가려질 때를 대비한 축 표시용 얇고 긴 큐브 ---
+				float DebugAxisBoxHalfLength = 100.f;
+				float DebugAxisBoxThickness = 2.f;
+				
+				UBoxComponent* DebugAxisBox = NewObject<UBoxComponent>(GetOwner());
+				DebugAxisBox->SetBoxExtent(FVector(DebugAxisBoxHalfLength, DebugAxisBoxThickness, DebugAxisBoxThickness));
+				DebugAxisBox->SetRelativeLocation(Pontoon.RelativeLocation);
+				DebugAxisBox->SetRelativeRotation(FRotator::ZeroRotator); // 부모(캐릭터) 로컬 X축과 자동 평행
+				DebugAxisBox->ShapeColor = FColor::Emerald;
+				DebugAxisBox->SetLineThickness(1.f);
+
+				DebugAxisBox->AttachToComponent(GetOwner()->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+				DebugAxisBox->RegisterComponent();
+
+				DebugAxisBox->SetHiddenInGame(false);
+				DebugAxisBox->bIsEditorOnly = true;
+				DebugAxisBox->MarkAsEditorOnlySubobject();
+
+				DebugAxisBoxComponents.Add(DebugAxisBox);
+				
 				//UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent DebugSphere Attached on %s"), *Pontoon.CenterLocation.ToString());//
 			}
 		}
 
-		OnEnteredWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::NotifyDebugPontoonEnteredWater);
-		OnExitedWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::NotifyDebugPontoonExitedWater);
+		OnEnteredWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::HandleDebugPontoonEnteredWater);
+		OnExitedWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::HandleDebugPontoonExitedWater);
 	}
 
 	if(InitCheckPontoons())
@@ -64,57 +86,64 @@ void USwimBuoyancyComponent::BeginPlay()
 		
 	}
 
+	// //
+	// if(GetWorld())
+	// {
+	// 	FTimerHandle TimerHandle;
+	// 	FTimerDelegate TimerDelegate;
+	// 	TimerDelegate.BindLambda([This = this]()->void
+	// 	{
+	// 		if(This->WaterCheckPontoonIndex > 0 && This->BuoyancyData.Pontoons.Num() > This->WaterCheckPontoonIndex)
+	// 		{
+	// 			FSphericalPontoon& WaterCheckPontoon = This->BuoyancyData.Pontoons[This->WaterCheckPontoonIndex];
+	// 			if(This->bDrawDebugPontoonShapes)
+	// 			{
+	// 				if(USphereComponent* DebugSphere = This->DebugSphereComponents[This->WaterCheckPontoonIndex])
+	// 				{
+	// 					TArray<AActor*> OutActors;
+	// 					DebugSphere->GetOverlappingActors(OutActors);
 	//
-	if(GetWorld())
-	{
-		FTimerHandle TimerHandle;
-		FTimerDelegate TimerDelegate;
-		TimerDelegate.BindLambda([This = this]()->void
-		{
-			if(This->WaterCheckPontoonIndex > 0 && This->BuoyancyData.Pontoons.Num() > This->WaterCheckPontoonIndex)
-			{
-				FSphericalPontoon& WaterCheckPontoon = This->BuoyancyData.Pontoons[This->WaterCheckPontoonIndex];
-				if(This->bDrawDebugPontoonShapes)
-				{
-					if(USphereComponent* DebugSphere = This->DebugSphereComponents[This->WaterCheckPontoonIndex])
-					{
-						TArray<AActor*> OutActors;
-						DebugSphere->GetOverlappingActors(OutActors);
-
-						bool bOverlappingWaterBody = false;
-						for(AActor* Actor : OutActors)
-						{
-							if(Cast<AWaterBody>(Actor))
-							{
-								bOverlappingWaterBody = true;
-								break;
-							}
-						}
-						
-					}
-				}
-				
-				// UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f, LocalForce : %s"),
-				// 	WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, This->GetImmersionDepth(),*WaterCheckPontoon.LocalForce.ToString());	
-			}
-			
-		});
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.f, true);
-	}
-	//
+	// 					bool bOverlappingWaterBody = false;
+	// 					for(AActor* Actor : OutActors)
+	// 					{
+	// 						if(Cast<AWaterBody>(Actor))
+	// 						{
+	// 							bOverlappingWaterBody = true;
+	// 							break;
+	// 						}
+	// 					}
+	// 					
+	// 				}
+	// 			}
+	// 			
+	// 			// UE_LOG(LogTemp, Display, TEXT("USwimBuoyancyComponent Test WaterCheckPontoon Immersion Depth : %f, WaterHeight : %f, CenterLocation : %s, PontoonRadius : %f ,SwimImmersionDepth : %f, LocalForce : %s"),
+	// 			// 	WaterCheckPontoon.ImmersionDepth, WaterCheckPontoon.WaterHeight, *WaterCheckPontoon.CenterLocation.ToString(), WaterCheckPontoon.Radius, This->GetImmersionDepth(),*WaterCheckPontoon.LocalForce.ToString());	
+	// 		}
+	// 		
+	// 	});
+	// 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.f, true);
+	// }
+	// //
 	
 	
 }
 
 bool USwimBuoyancyComponent::InitCheckPontoons()
 {
-	if(SwimCheckPontoonIndex >= BuoyancyData.Pontoons.Num() || SwimCheckPontoonIndex < 0)
+	if(StartSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || StartSwimPontoonIndex < 0)
 	{
-		UE_LOG(LogCharon, Error, TEXT("USwimBuoyancyComponent Error : SwimCheckPontoonIndex is Invalid. "));
+		UE_LOG(LogCharon, Error, TEXT("USwimBuoyancyComponent Error : StartSwimPontoonIndex is Invalid. "));
+		return false;
+	}
+	if(EndSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || EndSwimPontoonIndex < 0)
+	{
+		UE_LOG(LogCharon, Error, TEXT("USwimBuoyancyComponent Error : EndSwimPontoonIndex is Invalid. "));
 		return false;
 	}
 	
-	SwimCheckPontoon = BuoyancyData.Pontoons[SwimCheckPontoonIndex];
+	
+	SwimStarterPontoon = BuoyancyData.Pontoons[StartSwimPontoonIndex];
+	SwimEnderPontoon = BuoyancyData.Pontoons[EndSwimPontoonIndex];
 	
 	if(WaterCheckPontoonIndex >= BuoyancyData.Pontoons.Num() || WaterCheckPontoonIndex < 0)
 	{
@@ -136,18 +165,26 @@ void USwimBuoyancyComponent::PostEditChangeProperty(struct FPropertyChangedEvent
 	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, WaterCheckPontoonIndex))
 	{
-		if (WaterCheckPontoonIndex >= BuoyancyData.Pontoons.Num())
+		if (WaterCheckPontoonIndex >= BuoyancyData.Pontoons.Num() || WaterCheckPontoonIndex < 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("인덱스가 폰툰 사이즈보다 큼. 먼저 폰툰 생성!")));
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("입력한 인덱스가 폰툰 개수 범위에서 벗어났음!")));
 			//SwimBasePontoonIndex = -1;
 		}		
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, SwimCheckPontoonIndex))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, StartSwimPontoonIndex))
 	{
-		if (SwimCheckPontoonIndex >= BuoyancyData.Pontoons.Num())
+		if (StartSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || StartSwimPontoonIndex < 0)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("인덱스가 폰툰 사이즈보다 큼. 먼저 폰툰 생성!")));
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("입력한 인덱스가 폰툰 개수 범위에서 벗어났음!")));
+		}		
+	}
+	
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, EndSwimPontoonIndex))
+	{
+		if (StartSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || StartSwimPontoonIndex < 0)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("입력한 인덱스가 폰툰 개수 범위에서 벗어났음!")));
 		}		
 	}
 
@@ -201,11 +238,20 @@ void USwimBuoyancyComponent::PostEditChangeChainProperty(struct FPropertyChanged
 			//SwimBasePontoonIndex = -1;
 		}
 
-		if(SwimCheckPontoonIndex >= BuoyancyData.Pontoons.Num() || SwimCheckPontoonIndex < 0)
+		if(StartSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || StartSwimPontoonIndex < 0)
 		{
-			const FName SwimBasePontoonIndexName = GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, WaterCheckPontoonIndex);
+			const FName SwimBasePontoonIndexName = GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, StartSwimPontoonIndex);
 		
-			FString Message = FString::Printf(TEXT("경고 : 폰툰 개수(%d) 범위 안에 인덱스 %s(%d)가 없습니다."), BuoyancyData.Pontoons.Num(), *SwimBasePontoonIndexName.ToString(), SwimCheckPontoonIndex);
+			FString Message = FString::Printf(TEXT("경고 : 폰툰 개수(%d) 범위 안에 인덱스 %s(%d)가 없습니다."), BuoyancyData.Pontoons.Num(), *SwimBasePontoonIndexName.ToString(), StartSwimPontoonIndex);
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Message));
+			//SwimBasePontoonIndex = -1;
+		}
+		
+		if (EndSwimPontoonIndex >= BuoyancyData.Pontoons.Num() || EndSwimPontoonIndex < 0)
+		{
+			const FName SwimBasePontoonIndexName = GET_MEMBER_NAME_CHECKED(USwimBuoyancyComponent, EndSwimPontoonIndex);
+		
+			FString Message = FString::Printf(TEXT("경고 : 폰툰 개수(%d) 범위 안에 인덱스 %s(%d)가 없습니다."), BuoyancyData.Pontoons.Num(), *SwimBasePontoonIndexName.ToString(), StartSwimPontoonIndex);
 			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Message));
 			//SwimBasePontoonIndex = -1;
 		}
@@ -254,7 +300,7 @@ void USwimBuoyancyComponent::PostEditChangeChainProperty(struct FPropertyChanged
 #endif
 
 
-void USwimBuoyancyComponent::NotifyDebugPontoonEnteredWater(const FSphericalPontoon& Pontoon)
+void USwimBuoyancyComponent::HandleDebugPontoonEnteredWater(const FSphericalPontoon& Pontoon)
 {
 	if(DebugSphereComponents.Num() != BuoyancyData.Pontoons.Num())
 	{
@@ -279,7 +325,7 @@ void USwimBuoyancyComponent::NotifyDebugPontoonEnteredWater(const FSphericalPont
 	}
 }
 
-void USwimBuoyancyComponent::NotifyDebugPontoonExitedWater(const FSphericalPontoon& Pontoon)
+void USwimBuoyancyComponent::HandleDebugPontoonExitedWater(const FSphericalPontoon& Pontoon)
 {
 	if(DebugSphereComponents.Num() != BuoyancyData.Pontoons.Num())
 	{
@@ -306,11 +352,17 @@ void USwimBuoyancyComponent::NotifyDebugPontoonExitedWater(const FSphericalPonto
 
 bool USwimBuoyancyComponent::GetIsSwimming() const
 {
-	if(SwimCheckPontoonIndex >= 0 && SwimCheckPontoonIndex < BuoyancyData.Pontoons.Num())
+	bool IsSwimming = false;
+	if(StartSwimPontoonIndex >= 0 && StartSwimPontoonIndex < BuoyancyData.Pontoons.Num())
 	{
-		return BuoyancyData.Pontoons[SwimCheckPontoonIndex].bIsInWater;
+		IsSwimming |= BuoyancyData.Pontoons[StartSwimPontoonIndex].bIsInWater;
 	}
-	return false;
+	if(EndSwimPontoonIndex >= 0 && EndSwimPontoonIndex < BuoyancyData.Pontoons.Num())
+	{
+		IsSwimming |= BuoyancyData.Pontoons[EndSwimPontoonIndex].bIsInWater;
+	}
+	
+	return IsSwimming;
 }
 
 
@@ -332,11 +384,45 @@ float USwimBuoyancyComponent::GetImmersionDepth()
 		//폰툰의 immersionDepth 가 어떤식으로 작동하는지 자세하게는 모르지만 그냥 잠겨있는 깊이라고 가정하면,
 		//폰툰의 radius(반경) 기준으로.. 반경 맞지? 잠겨있는 깊이가 폰툰의 직경을 넘으면 1, 반경 넘으면 0.5, 물에 안닿이있으면 0.
 		// 를 취소하고 수정중
-		return FMath::Min(3.0f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius))));
+		return FMath::Min(3.0f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius * 2))));
 	}
 
 	return 0.0f;
 }
+
+float USwimBuoyancyComponent::GetWaterHeightAtLocation(const FVector& WorldLocation)
+{
+	// TMap<const UWaterBodyComponent*, float> EmptySplineKeys;
+	// return GetWaterHeight(WorldLocation, EmptySplineKeys, WorldLocation.Z);
+	float BestHeight = WorldLocation.Z;
+	float MaxImmersionDepth = -1.f;
+
+	for (UWaterBodyComponent* WaterBody : GetCurrentWaterBodyComponents())
+	{
+		if (!WaterBody)
+		{
+			continue;
+		}
+
+		// 세 번째 인자를 아예 안 넘김 -> TOptional이 비어있는 채로 들어가서 매번 제대로 재탐색됨
+		TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult =
+			WaterBody->TryQueryWaterInfoClosestToWorldLocation(WorldLocation,
+				EWaterBodyQueryFlags::ComputeLocation | EWaterBodyQueryFlags::ComputeImmersionDepth);
+
+		if (QueryResult.HasValue())
+		{
+			const FWaterBodyQueryResult& Query = QueryResult.GetValue();
+			if (Query.IsInWater() && Query.GetImmersionDepth() > MaxImmersionDepth)
+			{
+				MaxImmersionDepth = Query.GetImmersionDepth();
+				BestHeight = WorldLocation.Z + Query.GetImmersionDepth();
+			}
+		}
+	}
+
+	return BestHeight;
+}
+
 
 // FVector USwimBuoyancyComponent::GetSwimBuoyancy()
 // {
@@ -356,19 +442,30 @@ float USwimBuoyancyComponent::GetImmersionDepth()
 void USwimBuoyancyComponent::CheckSwimPontoonEnteredWater(const FSphericalPontoon& Pontoon)
 {
 	// 따로 Pontoon에서 ==를 오버라이드 해두지 않아서 그냥 이렇게 체크
-	if(SwimCheckPontoon.Radius == Pontoon.Radius
-		&& SwimCheckPontoon.RelativeLocation == Pontoon.RelativeLocation && SwimCheckPontoon.CenterSocket == Pontoon.CenterSocket)
+	if(SwimStarterPontoon.Radius == Pontoon.Radius
+		&& SwimStarterPontoon.RelativeLocation == Pontoon.RelativeLocation && SwimStarterPontoon.CenterSocket == Pontoon.CenterSocket)
 	{
-		OnSwimPontoonEnteredWaterDelegate.Broadcast(Pontoon);
+		OnSwimStarterEnteredWater.Broadcast(Pontoon);
 	}
 }
 
 void USwimBuoyancyComponent::CheckSwimPontoonExitedWater(const FSphericalPontoon& Pontoon)
 {
 	// 따로 Pontoon에서 ==를 오버라이드 해두지 않아서 그냥 이렇게 체크
-	if( SwimCheckPontoon.Radius == Pontoon.Radius
-		&& SwimCheckPontoon.RelativeLocation == Pontoon.RelativeLocation && SwimCheckPontoon.CenterSocket == Pontoon.CenterSocket)
+	if( SwimEnderPontoon.Radius == Pontoon.Radius
+		&& SwimEnderPontoon.RelativeLocation == Pontoon.RelativeLocation && SwimEnderPontoon.CenterSocket == Pontoon.CenterSocket)
 	{
-		OnSwimPontoonExitedWaterDelegate.Broadcast(Pontoon);
+		// SwimStarter가 있을 땐 SwimStarter와 SwimEnder, 둘 모두 물 밖에 있어야 수영 종료.  
+		if (StartSwimPontoonIndex >= 0 && StartSwimPontoonIndex < BuoyancyData.Pontoons.Num())
+		{
+			if (!BuoyancyData.Pontoons[StartSwimPontoonIndex].bIsInWater)
+			{
+				OnSwimEnderExitedWater.Broadcast(Pontoon);
+			}
+		}
+		else
+		{
+			OnSwimEnderExitedWater.Broadcast(Pontoon);	
+		}
 	}
 }

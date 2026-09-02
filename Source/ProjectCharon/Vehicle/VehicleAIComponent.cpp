@@ -4,6 +4,7 @@
 #include "VehicleAIComponent.h"
 
 #include "CharonGameplayTags.h"
+#include "Logging.h"
 #include "Vehicle.h"
 #include "VehicleRiderComponent.h"
 #include "AI/CharonAIController.h"
@@ -28,7 +29,7 @@ void UVehicleAIComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	
+	// 봇 스폰 후 봇 초기화가 끝나면 베히클에 태움. (임시)
 	SpawnAIRiders();
 	
 	UGameInstance* GameInstance = GetWorld()->GetGameInstance();
@@ -38,57 +39,52 @@ void UVehicleAIComponent::BeginPlay()
 		for (ACharacter* AIRider : AIRiders)
 		{
 			ComponentManager->RegisterAndCallForActorInitState(AIRider, UPawnInitStateComponent::NAME_ActorFeatureName ,CharonGameplayTags::InitState_GameplayReady, FActorInitStateChangedDelegate::CreateUObject(this, &UVehicleAIComponent::OnBotReady));
-			ForceAIRide(AIRider);
+			ForceBotToRide(AIRider);
 		}
-		
-		
 	}
-	
-	
-	
-	
-	// if(GetWorld())
-	// {
-	// 	FTimerHandle TimerHandle;
-	// 	FTimerDelegate TimerDelegate;
-	// 	TimerDelegate.BindLambda([This = this]()->void
-	// 	{
-	// 		This->SpawnAIRiders();
-	// 		
-	// 		for (ACharacter* AIRider : This->AIRiders)
-	// 		{
-	// 			This->ForceAIRide(AIRider);
-	// 		}
-	// 		
-	// 	});
-	// 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, 3.f, false);
-	// }
 	
 	
 	
 }
 
-void UVehicleAIComponent::PushAIInput(ACharacter* Rider, int32 DestinationSeat,
+void UVehicleAIComponent::SendInputCommand(ACharacter* Commander, int32 TargetRiderIndex,
 	const FInputActionValue& InputActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed)
 {
-	if (!OwnerVehicle ||  OwnerVehicle->FindRiderIdx(Rider) < 0)
+	UVehicleAIComponent* TargetComponent = FindVehicleAIComponentFromRider(Commander);
+	if (!TargetComponent)
 	{
+		UE_LOG(LogCharon, Warning, TEXT("UVehicleAIComponent::SendInputCommand - No VehicleAIComponent Found!"));
 		return;
 	}
 	
-	for (ACharacter* AIRider : AIRiders)
+	check(TargetComponent->GetOwner());
+	
+	AVehicle* TargetVehicle = Cast<AVehicle>(TargetComponent->GetOwner());
+	if (!TargetVehicle || TargetVehicle->FindRiderIdx(Commander) < 0)
 	{
-		if (OwnerVehicle->FindRiderIdx(AIRider) == DestinationSeat)
-		{
-			Server_PushAIInput(Rider, DestinationSeat, InputActionValue, InputTag, bIsAbilityAction, bIsButtonPressed);
-			
-			return;
-		}
+		UE_LOG(LogCharon, Warning, TEXT("UVehicleAIComponent::SendInputCommand - No Vehicle Found!"));
+		return;
 	}
 	
+	
+	if (TargetVehicle->GetMaxRiderNum() <= TargetRiderIndex || TargetVehicle->IsEmptySeat(TargetRiderIndex))
+	{
+		UE_LOG(LogCharon, Warning, TEXT("UVehicleAIComponent::SendInputCommand - No TargetSeat or TargetSeat Empty"));
+		return;
+	}
+	
+	if (TargetComponent->InputOrderDelegates.Num() <= TargetRiderIndex)
+	{
+		UE_LOG(LogCharon, Error, TEXT("UVehicleAIComponent::SendInputCommand - InputOrderDelegates 길이 초과 : 이 로그가 보이면 뭔가 잘못된것."));
+		return;
+	}
+	
+	// TODO : 해당 좌석에 탑승자가 봇이 맞는지 체크. 
+	
+	TargetComponent->InputOrderDelegates[TargetRiderIndex].Broadcast(InputActionValue, InputTag, bIsAbilityAction, bIsButtonPressed, true);
 }
 
-UVehicleAIComponent* UVehicleAIComponent::FindVehicleAIComponent(const ACharacter* Rider)
+UVehicleAIComponent* UVehicleAIComponent::FindVehicleAIComponentFromRider(const ACharacter* Rider)
 {
 	if (UVehicleRiderComponent* RiderComponent =  Rider->FindComponentByClass<UVehicleRiderComponent>())
 	{
@@ -139,26 +135,6 @@ void UVehicleAIComponent::SpawnAIRiders()
 	
 	if (GetWorld())
 	{
-		// if (UCharonAIManager* AIManager = GetWorld()->GetSubsystem<UCharonAIManager>())
-		// {
-		// 	FVector Location = OwnerVehicle->GetActorLocation();
-		// 	Location += {0,0,500};
-		// 	FRotator Rotation(0.f, 0.f, 0.f);
-		// 	FVector Scale(1.f);
-		//
-		// 	FTransform Transform(Rotation, Location, Scale);
-		// 	
-		// 	if (AICharacterClass && AIControllerClass)
-		// 	{
-		// 		if (ACharacter* SpawnedAICharacter = AIManager->TrySpawnAICharacter(AICharacterClass, Transform, AIControllerClass))
-		// 		{
-		// 			AIRiders.AddUnique(SpawnedAICharacter);
-		// 		}
-		// 		
-		// 	}
-		// 	
-		// }
-		
 		if (AGameModeBase* GameMode = GetWorld()->GetAuthGameMode())
 		{
 			AGameStateBase* GameState = GameMode->GameState;
@@ -196,7 +172,7 @@ void UVehicleAIComponent::SpawnAIRiders()
 	
 }
 
-void UVehicleAIComponent::ForceAIRide(ACharacter* Rider)
+void UVehicleAIComponent::ForceBotToRide(ACharacter* Rider)
 {
 	if (!OwnerVehicle || !OwnerVehicle->HasAuthority())
 	{
@@ -236,7 +212,7 @@ void UVehicleAIComponent::OnBotReady(const FActorInitStateChangedParams& Params)
 		{
 			if (ACharacter* AIRider = Cast<ACharacter>(Params.OwningActor))
 			{
-				ForceAIRide(AIRider);	
+				ForceBotToRide(AIRider);	
 			}
 					
 		}

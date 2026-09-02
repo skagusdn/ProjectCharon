@@ -35,9 +35,11 @@ public:
 	
 	// 플레이어가 특정 좌석의 AI 캐릭터에게 입력을 보내는 함수
 	UFUNCTION(BlueprintCallable)
-	void PushAIInput(ACharacter* Rider, int32 DestinationSeat, const FInputActionValue& InputActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed);
+	static void SendInputCommand(ACharacter* Commander, int32 TargetRiderIndex, const FInputActionValue& InputActionValue, FGameplayTag InputTag, bool bIsAbilityAction, bool bIsButtonPressed);
 	
-	static UVehicleAIComponent* FindVehicleAIComponent(const ACharacter* Rider);
+	static UVehicleAIComponent* FindVehicleAIComponentFromRider(const ACharacter* Rider);
+	
+	
 	
 protected:
 	
@@ -45,7 +47,7 @@ protected:
 	virtual void OnRegister() override;
 	
 	void SpawnAIRiders();
-	void ForceAIRide(ACharacter* Rider);
+	void ForceBotToRide(ACharacter* Rider);
 	void OnBotReady(const FActorInitStateChangedParams& Params);
 	
 	int32 FindRiderIdx(AActor* Rider) const;
@@ -69,6 +71,8 @@ protected:
 	TArray<FOnInputActionTriggered> InputOrderDelegates;
 	
 public:
+	
+	
 	
 };
 

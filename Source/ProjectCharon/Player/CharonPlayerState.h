@@ -21,15 +21,15 @@ class PROJECTCHARON_API ACharonPlayerState : public APlayerState, public IAbilit
 protected:
 	virtual void PostInitializeComponents() override;
 
-	UFUNCTION()
-	void OnRep_CharacterMesh(const USkeletalMeshComponent* OldCharacterMesh);
+	// UFUNCTION()
+	// void OnRep_CharacterMesh(const USkeletalMesh* OldCharacterMesh);
 	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	UPROPERTY(VisibleAnywhere, Category = "Charon|Abilities")
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 
-	// 일단은 OnRep 함수 호출용으로 만듬. 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing="OnRep_CharacterMesh")
-	TObjectPtr<USkeletalMeshComponent> CharacterMesh;
+	// // 일단은 OnRep 함수 호출용으로 만듬. 
+	// UPROPERTY(BlueprintReadOnly, ReplicatedUsing="OnRep_CharacterMesh")
+	// TObjectPtr<USkeletalMesh> CharacterMesh;
 	
 public : 
 	ACharonPlayerState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
@@ -42,7 +42,7 @@ public :
 	UFUNCTION(BlueprintCallable)
 	UCharonAbilitySystemComponent* GetCharonAbilitySystemComponent() const{return AbilitySystemComponent;};
 	
-	void SetCharacterMesh(USkeletalMeshComponent* NewCharacterMesh);
+	//void SetCharacterMesh(USkeletalMesh* NewCharacterMesh);
 	
 	UPROPERTY(BlueprintReadOnly, Replicated)
 	int CrewId;

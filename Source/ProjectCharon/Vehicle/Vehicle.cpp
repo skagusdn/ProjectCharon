@@ -216,6 +216,7 @@ bool AVehicle::EnterVehicle_Implementation(ACharacter* Rider)
 	if(Ret >= 0)
 	{
 		AttachToVehicle(Rider);
+		OnRiderEntered.Broadcast(Rider, Ret);
 		//Rider->OnDestroyed.AddDynamic(this, &ThisClass::OnRiderDestroyed);
 	}
 	
@@ -241,6 +242,7 @@ bool AVehicle::ExitVehicle_Implementation(ACharacter* Rider, bool bForcedExit)
 	if(UnregisterRider(Rider))
 	{
 		DetachFromVehicle(Rider);
+		OnRiderExited.Broadcast(Rider, -1);
 		return true;
 	}
 	
@@ -259,6 +261,11 @@ int32 AVehicle::FindRiderIdx (const ACharacter* Rider)
 		}
 	}
 	return -1;
+}
+
+bool AVehicle::IsEmptySeat(int32 RiderIndex) const
+{
+	return MaxRiderNum > RiderIndex && Riders[RiderIndex] == nullptr;
 }
 
 UAbilitySystemComponent* AVehicle::GetAbilitySystemComponent() const
@@ -302,11 +309,13 @@ void AVehicle::OnRep_Riders(const TArray<ACharacter*>& OldRiders)
 	for (ACharacter* EnteredRider : EnteredRiders)
 	{
 		AttachToVehicle(EnteredRider);
+		OnRiderEntered.Broadcast(EnteredRider, FindRiderIdx(EnteredRider));
 	}
 	
 	for (ACharacter* ExitedRider : ExitedRiders)
 	{
 		DetachFromVehicle(ExitedRider);
+		OnRiderExited.Broadcast(ExitedRider, -1);
 	}
 }
 

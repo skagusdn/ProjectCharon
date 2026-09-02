@@ -16,7 +16,7 @@ struct FRentKey
 	UPROPERTY()
 	TObjectPtr<AActor> Renter;
 	UPROPERTY()
-	TObjectPtr<APlayerState> PlayerState;
+	TObjectPtr<ACharacter> Rider;
 	// UPROPERTY()
 	// TObjectPtr<USkeletalMeshComponent> Mesh;
 	
@@ -32,14 +32,14 @@ struct FRentKey
 	
 	bool operator==(const FRentKey& Other) const
 	{
-		return Renter == Other.Renter && PlayerState == Other.PlayerState;
+		return Renter == Other.Renter && Rider == Other.Rider;
 	}
 	
 	friend uint32 GetTypeHash(const FRentKey& Key)
 	{
 		// 두 멤버의 해시 값을 조합하여 고유한 해시 값을 생성합니다.
 		// GetTypeHash는 포인터에 대해서도 잘 동작합니다.
-		return HashCombine(GetTypeHash(Key.Renter), GetTypeHash(Key.PlayerState));
+		return HashCombine(GetTypeHash(Key.Renter), GetTypeHash(Key.Rider));
 	}
 };
 
@@ -54,16 +54,16 @@ class PROJECTCHARON_API UVehicleManagerSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public :
-	void UpdateRiderMesh(APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshComp);
+	void UpdateRiderMesh(ACharacter* Rider, USkeletalMesh* CharacterMesh);
 	
 	UFUNCTION(BlueprintCallable)
-	USkeletalMeshComponent* RentRiderMesh(AActor* Renter, APlayerState* PlayerState, const USkeletalMeshComponent* SourceMeshCompForCheck);
+	USkeletalMeshComponent* RentRiderMesh(AActor* Renter, ACharacter* Rider);
 	
 	
 	//UFUNCTION(BlueprintCallable)
 	//void ReturnRentedRiderMesh(USkeletalMeshComponent* RentedRiderMesh);
 	UFUNCTION(BlueprintCallable)
-	void ReturnRentedRiderMesh(AActor* Renter, APlayerState* PlayerState);
+	void ReturnRentedRiderMesh(AActor* Renter, ACharacter* Rider);
 	UFUNCTION()
 	void ReturnAllMeshOfRentor(AActor* Renter);
 	// UFUNCTION()
@@ -88,7 +88,7 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly)
 	//TMap<APlayerController*, USkeletalMeshComponent*> RiderMeshes;
-	TMap<APlayerState*, USkeletalMeshComponent*> RiderMeshes;
+	TMap<ACharacter*, USkeletalMeshComponent*> RiderMeshes;
 
 	// TObjectPtr<AVehicleManager> VehicleManager;
 
