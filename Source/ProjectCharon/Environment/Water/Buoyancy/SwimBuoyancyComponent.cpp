@@ -384,7 +384,7 @@ float USwimBuoyancyComponent::GetImmersionDepth()
 		//폰툰의 immersionDepth 가 어떤식으로 작동하는지 자세하게는 모르지만 그냥 잠겨있는 깊이라고 가정하면,
 		//폰툰의 radius(반경) 기준으로.. 반경 맞지? 잠겨있는 깊이가 폰툰의 직경을 넘으면 1, 반경 넘으면 0.5, 물에 안닿이있으면 0.
 		// 를 취소하고 수정중
-		return FMath::Min(3.0f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius * 2))));
+		return FMath::Min(8.0f, ((SwimBasePontoon.ImmersionDepth) / (FMath::Max(1.f, SwimBasePontoon.Radius * 2))));
 	}
 
 	return 0.0f;

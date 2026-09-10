@@ -20,15 +20,43 @@ public:
 
 	virtual float ImmersionDepth() const override;
 
-	// 테스트중~
+	// 테스트중~~~~~~
 	UPROPERTY(BlueprintReadOnly)
 	float Slope = 0.0001f;
-	// 테스트중~
 	UPROPERTY(BlueprintReadOnly)
-	float DesiredVelZ = 0.f;
+	float SlopeAccelZ = 0.f;
+	UPROPERTY(BlueprintReadOnly)
+	FVector HorizontalVelocity;
+	UPROPERTY(BlueprintReadOnly)
+	FVector TotalTestVelocity;
+	// ~~~~~~~~테스트중
 
 protected:
 
+	///// 캐릭터의 수영 및 부력 관련 계수들. 
+	
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming")
+	float BuoyancyDamp = 2.f;
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming")
+	float BuoyancyDamp2 = 0.f;
+
+	// 수면이 굴곡져 있으면 수영시 따라가기.
+	
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float SlopeFollowMinHorizontalSpeed = 10.f;
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float SlopeSampleTimeAhead = 0.08f;
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float MinSlopeSampleDistance = 15.f;
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float MaxSlopeSampleDistance = 50.f;
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float MaxSlopeFollowVerticalSpeed = 600.f;
+	// UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	// float SlopeFollowResponseSpeed = 5.f;   
+	UPROPERTY(EditAnywhere, Category="Charon|Swimming|SlopeFollow")
+	float DepthCorrectionGain = 1.f;
+	
 	USwimBuoyancyComponent* GetSwimBuoyancyComponent();
 	TObjectPtr<USwimBuoyancyComponent> SwimBuoyancyComponent;
 	

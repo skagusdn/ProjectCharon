@@ -11,7 +11,8 @@ class UHealthAttributeSet;
 class UCharonAbilitySystemComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLifeState_DeathEvent, AActor*, OwningActor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator, FHitResult, HitResult);
 
 UENUM(BlueprintType)
 enum class ECharonLifeState : uint8
