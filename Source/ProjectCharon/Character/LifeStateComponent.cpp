@@ -116,7 +116,7 @@ void ULifeStateComponent::OnRep_AbilitySystemComponent(UCharonAbilitySystemCompo
 	HealthSet->OnMaxHealthChanged.AddUObject(this, &ThisClass::HandleMaxHealthChanged);
 	HealthSet->OnOutOfHealth.AddUObject(this, &ThisClass::HandleOutOfHealth);
 	
-	OnHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr, FHitResult());
+	OnHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr, FHealthChangeInfo());
 	OnMaxHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr);
 }
 
@@ -134,8 +134,21 @@ void ULifeStateComponent::HandleHealthChanged(AActor* DamageInstigator, AActor* 
 	// 	}
 	// }
 	// ///////
+	FHealthChangeInfo HealthChangedInfo;
 	
-	OnHealthChanged.Broadcast(this, OldValue, NewValue, DamageInstigator);
+	if (DamageEffectSpec)
+	{
+		FGameplayEffectContextHandle EffectContextHandle = DamageEffectSpec->GetEffectContext();
+		
+		if (EffectContextHandle.GetHitResult())
+		{
+			HealthChangedInfo.bHasHitInfo = true;
+			FHitResult HitInfo = FHitResult(*EffectContextHandle.GetHitResult());
+			HealthChangedInfo.HitResult = HitInfo;
+		}
+	}
+	
+	OnHealthChanged.Broadcast(this, OldValue, NewValue, DamageInstigator, HealthChangedInfo);
 }
 
 void ULifeStateComponent::HandleMaxHealthChanged(AActor* DamageInstigator, AActor* DamageCauser,
@@ -254,7 +267,7 @@ void ULifeStateComponent::InitializeWithAbilitySystem(UCharonAbilitySystemCompon
 	// 		TestOnOutOfHealthHandle.IsValid()? TEXT("O ") : TEXT("X "));
 	// }
 	// //////
-	OnHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr);
+	OnHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr, FHealthChangeInfo());
 	OnMaxHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr);
 
 

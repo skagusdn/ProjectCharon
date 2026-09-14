@@ -10,9 +10,28 @@
 class UHealthAttributeSet;
 class UCharonAbilitySystemComponent;
 
+// 체력이 바뀌었을 때 델리게이트를 통해 전달할 추가 정보. 
+USTRUCT(BlueprintType)
+struct FHealthChangeInfo
+{
+	GENERATED_BODY()
+	
+	// UPROPERTY(BlueprintReadOnly)
+	// bool bIsHealed = false;
+	
+	UPROPERTY(BlueprintReadOnly)
+	bool bHasHitInfo = false;
+	
+	UPROPERTY(BlueprintReadOnly)
+	FHitResult HitResult;
+	
+	// 추가적으로 데미지 타입이라던가 필요하면 같이 전달하면 될듯.  
+};
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLifeState_DeathEvent, AActor*, OwningActor);
-//DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator, FHitResult, HitResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FLifeState_AttributeChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnHealthChanged, ULifeStateComponent*, LifeStateComponent, float, OldValue, float, NewValue, AActor*, Instigator, FHealthChangeInfo, HealthChangeInfo);
 
 UENUM(BlueprintType)
 enum class ECharonLifeState : uint8
@@ -49,7 +68,7 @@ public :
 
 	// Delegate fired when the health value has changed. This is called on the client but the instigator may not be valid
 	UPROPERTY(BlueprintAssignable)
-	FLifeState_AttributeChanged OnHealthChanged;
+	FOnHealthChanged OnHealthChanged;
 
 	// Delegate fired when the max health value has changed. This is called on the client but the instigator may not be valid
 	UPROPERTY(BlueprintAssignable)

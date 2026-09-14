@@ -10,6 +10,7 @@
 
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Status_DamageImmunity);
 
+
 /**
  * 
  */
