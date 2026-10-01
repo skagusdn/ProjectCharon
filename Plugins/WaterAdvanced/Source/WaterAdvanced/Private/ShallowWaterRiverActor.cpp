@@ -27,6 +27,7 @@
 #include "Engine/World.h"
 #include "Engine/Texture2D.h"
 #include "Math/Float16Color.h"
+#include "Kismet/GameplayStatics.h"
 #include "Landscape.h"
 #include "LandscapeStreamingProxy.h"
 #include "LevelInstance/LevelInstanceActor.h"
@@ -70,8 +71,11 @@ UShallowWaterRiverComponent::UShallowWaterRiverComponent(const FObjectInitialize
 	SourceSize = 1000;
 	ChunkGridDimensions = {1,1};
 	
-	// initialize landscape array with all landscapes
-	if (GetWorld())
+	// Initialize landscape array with all landscapes.
+	// Guard with IsInGameThread() because TActorIterator asserts game-thread access,
+	// and this constructor can run on the async loading thread. During async loading
+	// the serialized BottomContourLandscapeActors will be restored from disk anyway.
+	if (IsInGameThread() && GetWorld())
 	{
 		for (TActorIterator<ALandscape> It(GetWorld(), ALandscape::StaticClass()); It; ++It)
 		{
@@ -97,12 +101,12 @@ TObjectPtr<UTextureRenderTarget2D> UShallowWaterRiverComponent::GetSharedFFTOcea
 		}
 		else
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("No valid FFT ocean patch subsystem."));	
+			UE_LOGF(LogShallowWater, Warning, "No valid FFT ocean patch subsystem.");	
 		}
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("No valid World."));
+		UE_LOGF(LogShallowWater, Warning, "No valid World.");
 	}
 
 	return nullptr;
@@ -119,7 +123,8 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(const FName& D
 				FMath::Max(WorldGridSize.X, WorldGridSize.Y),
 				true,
 				false,
-				RawActorPtrArray);
+				RawActorPtrArray,
+				SceneCaptureLODDistanceFactor);
 
 	// accumulate bounding box for river water bodies
 	FBoxSphereBounds::Builder BottomContourCombinedWorldBoundsBuilder;
@@ -135,7 +140,7 @@ FBoxSphereBounds UShallowWaterRiverComponent::InitializeCaptureDI(const FName& D
 		}
 		else
 		{
-			UE_LOG(LogShallowWater, Verbose, TEXT("UShallowWaterRiverComponent::Rebuild() - skipping null bottom contour boundary actor found"));
+			UE_LOGF(LogShallowWater, Verbose, "UShallowWaterRiverComponent::Rebuild() - skipping null bottom contour boundary actor found");
 			continue;
 		}
 	}
@@ -664,29 +669,53 @@ void UShallowWaterRiverComponent::ConvertToVirtualTextures()
 
 	bUseVirtualTextures = true;
 
-	if (BakedWaterSurfaceTexture != NULL && !BakedWaterSurfaceTexture->VirtualTextureStreaming)
+	if (BakedWaterSurfaceTexture != NULL && !BakedWaterSurfaceTexture->VirtualTextureStreaming && bUseVirtualTextures)
 	{	
 		SimRes = FVector2D(BakedWaterSurfaceTexture->Source.GetSizeX(), BakedWaterSurfaceTexture->Source.GetSizeY());
 		RiverSimSystem->SetVariableVec2(FName("SimRes"), SimRes);
 
 		InitializeVirtualTexture(BakedWaterSurfaceTexture);
-		UE_LOG(LogShallowWater, Warning, TEXT("Baked water surface texture was not virtual- converting.  Recommended resave."));
+		UE_LOGF(LogShallowWater, Warning, "Baked water surface texture was not virtual- converting.  Recommended resave.");
+
+		HasChanged = true;
+	}
+	else if (BakedWaterSurfaceTexture != NULL && BakedWaterSurfaceTexture->VirtualTextureStreaming && 
+		BakedWaterSurfaceTexture->PowerOfTwoMode != ETexturePowerOfTwoSetting::StretchToPowerOfTwo && bUseVirtualTextures)
+	{
+		InitializeVirtualTexture(BakedWaterSurfaceTexture);
+		UE_LOGF(LogShallowWater, Warning, "Baked water surface texture wrong power of two mode - converting.  Recommended resave.");
 
 		HasChanged = true;
 	}
 	
-	if (BakedWaterSurfaceNormalTexture != NULL && !BakedWaterSurfaceNormalTexture->VirtualTextureStreaming)
+	if (BakedWaterSurfaceNormalTexture != NULL && !BakedWaterSurfaceNormalTexture->VirtualTextureStreaming && bUseVirtualTextures)
 	{
 		InitializeVirtualTexture(BakedWaterSurfaceNormalTexture);
-		UE_LOG(LogShallowWater, Warning, TEXT("Baked water surface normal texture was not virtual- converting.  Recommended resave."));
+		UE_LOGF(LogShallowWater, Warning, "Baked water surface normal texture was not virtual- converting.  Recommended resave.");
+
+		HasChanged = true;
+	}
+	else if (BakedWaterSurfaceNormalTexture != NULL && BakedWaterSurfaceNormalTexture->VirtualTextureStreaming && 
+		BakedWaterSurfaceNormalTexture->PowerOfTwoMode != ETexturePowerOfTwoSetting::StretchToPowerOfTwo && bUseVirtualTextures)
+	{
+		InitializeVirtualTexture(BakedWaterSurfaceNormalTexture);
+		UE_LOGF(LogShallowWater, Warning, "Baked water surface normal texture wrong power of two mode - converting.  Recommended resave.");
 
 		HasChanged = true;
 	}
 
-	if (BakedFoamTexture != NULL && !BakedFoamTexture->VirtualTextureStreaming)
+	if (BakedFoamTexture != NULL && !BakedFoamTexture->VirtualTextureStreaming && bUseVirtualTextures)
 	{
 		InitializeVirtualTexture(BakedFoamTexture);
-		UE_LOG(LogShallowWater, Warning, TEXT("Baked foam texture was not virtual- converting.  Recommended resave."));
+		UE_LOGF(LogShallowWater, Warning, "Baked foam texture was not virtual- converting.  Recommended resave.");
+
+		HasChanged = true;
+	}
+	else if (BakedFoamTexture != NULL && BakedFoamTexture->VirtualTextureStreaming && 
+		BakedFoamTexture->PowerOfTwoMode != ETexturePowerOfTwoSetting::StretchToPowerOfTwo && bUseVirtualTextures)
+	{
+		InitializeVirtualTexture(BakedFoamTexture);
+		UE_LOGF(LogShallowWater, Warning, "Baked water surface foam texture wrong power of two mode - converting.  Recommended resave.");
 
 		HasChanged = true;
 	}
@@ -733,10 +762,22 @@ void UShallowWaterRiverComponent::PostLoad()
 
 void UShallowWaterRiverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	// nothing to do on a server
+	if (!FApp::CanEverRender() || IsRunningDedicatedServer())
+	{
+		return;
+	}
+	else if (UWorld* World = GetWorld()) // PIE server
+	{
+		if (World->IsNetMode(NM_DedicatedServer))
+		{
+			return;
+		}
+	}
+
 #if WITH_EDITOR
 	
 	// 여기도 수정.
-	
 	bool bNeedsRebuild = ShallowWaterChunks.Num() == 0;
 	
 	// lots of tick ordering issues, so we try to initialize on the first tick too
@@ -1379,6 +1420,11 @@ void UShallowWaterRiverComponent::Rebuild()
 		NiagaraRiverSimulation = LoadObject<UNiagaraSystem>(nullptr, TEXT("/WaterAdvanced/Niagara/Systems/Grid2D_SW_River.Grid2D_SW_River"));
 	}
 
+	if (OceanPatchSystem == nullptr)
+	{
+		OceanPatchSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/WaterAdvanced/Niagara/Systems/Grid2D_OceanPatch.Grid2D_OceanPatch"));
+	}
+
 	if (RiverSimSystem != nullptr)
 	{
 		RiverSimSystem->SetActive(false);
@@ -1388,25 +1434,25 @@ void UShallowWaterRiverComponent::Rebuild()
 	
 	if (ResolutionMaxAxis <= 0)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - resolution must be greater than 0"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - resolution must be greater than 0");
 		return;
 	}
 
 	if (NumSteps <= 0)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - num steps must be greater than 0"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - num steps must be greater than 0");
 		return;
 	}
 
 	if (SimSpeed <= 1e-8)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - speed must be greater than zero"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - speed must be greater than zero");
 		return;
 	}
 
 	if (NiagaraRiverSimulation == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - null Niagara system asset"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - null Niagara system asset");
 		return;
 	}
 
@@ -1423,20 +1469,20 @@ void UShallowWaterRiverComponent::Rebuild()
 			}
 			else 
 			{
-				UE_LOG(LogShallowWater, Verbose, TEXT("UShallowWaterRiverComponent::Rebuild() - skipping null water body actor found"));
+				UE_LOGF(LogShallowWater, Verbose, "UShallowWaterRiverComponent::Rebuild() - skipping null water body actor found");
 				continue;
 			}
 		}
 	}
 	else	
 	{
-		UE_LOG(LogShallowWater, Verbose, TEXT("UShallowWaterRiverComponent::Rebuild() - No source water bodies specified"));
+		UE_LOGF(LogShallowWater, Verbose, "UShallowWaterRiverComponent::Rebuild() - No source water bodies specified");
 		return;
 	}
 	
 	if (AllWaterBodies.Num() == 0)
 	{
-		UE_LOG(LogShallowWater, Verbose, TEXT("UShallowWaterRiverComponent::Rebuild() - No valid source water bodies specified"));
+		UE_LOGF(LogShallowWater, Verbose, "UShallowWaterRiverComponent::Rebuild() - No valid source water bodies specified");
 		return;
 	}
 
@@ -1450,7 +1496,7 @@ void UShallowWaterRiverComponent::Rebuild()
 		}
 		else
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - skipping null sink water body actor found"));
+			UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - skipping null sink water body actor found");
 			continue;
 		}
 	}
@@ -1471,7 +1517,7 @@ void UShallowWaterRiverComponent::Rebuild()
 
 	if (!HasValidSinks)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - no valid sinks, using the first source as a sink"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - no valid sinks, using the first source as a sink");
 		SinkRiverWaterBodies.Add(*AllWaterBodies.CreateConstIterator());
 	}
 
@@ -1494,7 +1540,7 @@ void UShallowWaterRiverComponent::Rebuild()
 
 	if (CombinedBounds.BoxExtent.Length() < SMALL_NUMBER)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - river bodies have zero bounds"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - river bodies have zero bounds");
 		return;
 	}
 	
@@ -1651,18 +1697,16 @@ void UShallowWaterRiverComponent::Rebuild()
 			for (TSoftObjectPtr<AActor> CurrLandscapeActor : BottomContourLandscapeActors)
 			{
 				// only accept Landscapes and LandscapeStreamingProxies
-				if (!Cast<ALandscape>(CurrLandscapeActor.Get()) && !Cast<
-					ALandscapeStreamingProxy>(CurrLandscapeActor.Get()))
+				if (!Cast<ALandscape>(CurrLandscapeActor.Get()) && !Cast<ALandscapeStreamingProxy>(CurrLandscapeActor.Get()))
 				{
-					UE_LOG(LogShallowWater, Warning,
-						   TEXT(
-							   "UShallowWaterRiverComponent::Rebuild() - Landscape bottom contour actors can only be ALandscape actors or ALandscapeStreamingProxy actors"
-						   ));
+					UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - Landscape bottom contour actors can only be ALandscape actors or ALandscapeStreamingProxy actors");
 					continue;
 				}
 
 				LandscapeBottomContourActorsRawPtr.Add(CurrLandscapeActor.Get());
 			}
+			
+			//FBoxSphereBounds LandscapeBottomContourBounds = InitializeCaptureDI("User.LandscapeBottomCapture", LandscapeBottomContourActorsRawPtr);
 			
 			// undilated captures
 			TArray<AActor*> BottomContourActorsRawPtr;
@@ -1740,7 +1784,7 @@ void UShallowWaterRiverComponent::Rebuild()
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - World not initialized"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - World not initialized");
 		return;
 	}
 
@@ -1802,7 +1846,7 @@ void UShallowWaterRiverComponent::Rebuild()
 		FVector CurrSourceDir;
 		if (!QueryWaterAtSplinePoint(CurrWaterBody, 0, CurrSourcePos, CurrSourceDir, CurrSourceWidth, CurrSourceDepth))
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - water source query failed"));
+			UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - water source query failed");
 			continue;
 		}		
 		
@@ -1844,7 +1888,6 @@ void UShallowWaterRiverComponent::Rebuild()
 		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(Chunk.RiverSimSystem, "User.SourceAngleArray", SourceAngleArray);
 	}
 
-	
 	// get sinks		
 	TArray<FVector> SinkPosArray;
 	TArray<FVector3f> FullSinkSizeArray;
@@ -1858,7 +1901,7 @@ void UShallowWaterRiverComponent::Rebuild()
 		FVector SinkDir(1, 0, 0);
 		if (!QueryWaterAtSplinePoint(CurrWaterBody, -1, SinkPos, SinkDir, SinkWidth, SinkDepth))
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - water sink query failed"));
+			UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - water sink query failed");
 			continue;
 		}
 
@@ -2018,11 +2061,11 @@ void UShallowWaterRiverComponent::Rebuild()
 		// 이건 또 뭘까. 바다 쪽이랑 관련있는거 같은데.
 		TObjectPtr<UTextureRenderTarget2D>  OceanPatchNormalRT = GetSharedFFTOceanPatchNormalRTFromSubsystem(GetWorld());
 
-		if (OceanPatchNormalRT == nullptr)
-		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Rebuild() - ocean patch normal RT is not initialized"));
-			return;
-		}
+	if (OceanPatchNormalRT == nullptr)
+	{
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Rebuild() - ocean patch normal RT is not initialized");
+		return;
+	}
 
 		Chunk.NormalDetailRT = OceanPatchNormalRT;
 		Chunk.RiverSimSystem->SetVariableTextureRenderTarget(FName("NormalDetailRT"), NormalDetailRT);
@@ -2152,7 +2195,7 @@ void UShallowWaterRiverComponent::Bake()
 
 	if (RenderState != EShallowWaterRenderState::LiveSim)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Bake() - Must be in live sim mode to bake"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::Bake() - Must be in live sim mode to bake");
 		return;
 	}
 
@@ -2161,150 +2204,6 @@ void UShallowWaterRiverComponent::Bake()
 		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::Bake() - 청크 0개"));
 		return;
 	}
-	
-	
-	// // 1. 기존에 스폰했던 RVT Plane들이 있다면 깔끔하게 청소
-	// for (UStaticMeshComponent* Plane : ChunkRVTPlanes)
-	// {
-	// 	if (Plane)
-	// 	{
-	// 		Plane->DestroyComponent();
-	// 	}
-	// }
-	// ChunkRVTPlanes.Empty();
-	//
-	// // ... [초반 예외 처리 및 변수 초기화] ...
-	// int32 TotalPhysicsPixels = SimRes.X * SimRes.Y;
-	// TArray<FVector4> ShallowWaterSimArrayValues;
-	// ShallowWaterSimArrayValues.SetNumZeroed(TotalPhysicsPixels);
-	//
-	//
-	// // ------------------------------------------------------------
-	// // 🚨 [추가] 마진을 잘라내기 위한 UV Scale과 Offset 계산
-	// // ------------------------------------------------------------
-	// // 전체 해상도 = 알맹이 해상도 + 양쪽 마진
-	// float TotalResX = (float)(BaseChunkRes.X + (MarginCells * 2));
-	// float TotalResY = (float)(BaseChunkRes.Y + (MarginCells * 2));
-	//
-	// // UV Scale: 전체 텍스처에서 알맹이가 차지하는 비율
-	// float UVScaleX = (float)BaseChunkRes.X / TotalResX;
-	// float UVScaleY = (float)BaseChunkRes.Y / TotalResY;
-	//
-	// // UV Offset: 시작점(여백)이 UV 공간(0~1)에서 어디서부터 시작하는지
-	// float UVOffsetX = (float)MarginCells / TotalResX;
-	// float UVOffsetY = (float)MarginCells / TotalResY;
-	//
-	// // 2. 각 청크를 순회하며 데이터 처리
-	// for (FShallowWaterChunk& Chunk : ShallowWaterChunks)
-	// {
-	// 	// ==========================================
-	// 	// A. CPU 물리 연산(부력)을 위한 데이터만 가볍게 추출
-	// 	// ==========================================
-	// 	if (Chunk.SimGridRT)
-	// 	{
-	// 		TArray<FFloat16Color> RawPixels;
-	// 		Chunk.SimGridRT->GameThread_GetRenderTargetResource()->ReadFloat16Pixels(RawPixels);
-	// 		
-	// 		int32 GlobalOffsetX = Chunk.GridIndex.X * BaseChunkRes.X;
-	// 		int32 GlobalOffsetY = Chunk.GridIndex.Y * BaseChunkRes.Y;
-	//
-	// 		for (int32 y = 0; y < BaseChunkRes.Y; ++y)
-	// 		{
-	// 			for (int32 x = 0; x < BaseChunkRes.X; ++x)
-	// 			{
-	// 				int32 ReadIdx = ((y + MarginCells) * Chunk.SimGridRT->SizeX) + (x + MarginCells);
-	// 				int32 PhysicsWriteIdx = ((GlobalOffsetY + y) * SimRes.X) + (GlobalOffsetX + x);
-	// 				
-	// 				if (RawPixels.IsValidIndex(ReadIdx) && ShallowWaterSimArrayValues.IsValidIndex(PhysicsWriteIdx))
-	// 				{
-	// 					FFloat16Color P = RawPixels[ReadIdx];
-	// 					ShallowWaterSimArrayValues[PhysicsWriteIdx] = FVector4(P.R, P.G, P.B, P.A);
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	//
-	// 	// ==========================================
-	// 	// B. GPU 렌더링(RVT)을 위한 Plane 컴포넌트 스폰
-	// 	// ==========================================
-	// 	UStaticMeshComponent* ChunkPlane = NewObject<UStaticMeshComponent>(this);
-	// 	ChunkPlane->SetStaticMesh(DefaultPlaneMesh);
-	// 	ChunkPlane->SetupAttachment(this); // 현재 워터 컴포넌트에 부착
-	// 	ChunkPlane->RegisterComponent();
-	//
-	// 	// 위치 지정 (청크의 중앙)
-	// 	//ChunkPlane->SetWorldLocation(Chunk.SystemPos);
-	// 	ChunkPlane->SetWorldLocation({Chunk.SystemPos.X, Chunk.SystemPos.Y, 10000});
-	// 	
-	// 	
-	// 	// 스케일 지정 (언리얼 기본 Plane은 100x100 크기이므로, 100으로 나누어 스케일링)
-	// 	ChunkPlane->SetWorldScale3D(FVector(BaseChunkSize.X / 100.0f, BaseChunkSize.Y / 100.0f, 1.0f));
-	//
-	// 	// 머티리얼 세팅 (개별 RT 할당)
-	// 	if (RVTWriterMaterial)
-	// 	{
-	// 		UMaterialInstanceDynamic* PlaneMID = UMaterialInstanceDynamic::Create(RVTWriterMaterial, this);
-	// 		
-	// 		// 하나의 Vector(R, G, B, A) 파라미터로 묶어서 전달합니다.
-	// 		PlaneMID->SetVectorParameterValue(FName("UVScaleOffset"), FLinearColor(UVScaleX, UVScaleY, UVOffsetX, UVOffsetY));
-	// 		
-	// 		Chunk.BakedWaterSurfaceTexture = Chunk.SimGridRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedSim_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
-	// 		Chunk.BakedFoamTexture = Chunk.FoamRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedFoam_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
-	// 		Chunk.BakedWaterSurfaceNormalTexture = Chunk.NormalRT->ConstructTexture2D(this, FString::Printf(TEXT("BakedNormal_%d_%d"), Chunk.GridIndex.X, Chunk.GridIndex.Y), EObjectFlags::RF_Public);
-	// 		
-	// 		PlaneMID->SetTextureParameterValue(FName("ChunkSimRT"), Chunk.BakedWaterSurfaceTexture);
-	// 		PlaneMID->SetTextureParameterValue(FName("ChunkFoamRT"), Chunk.BakedFoamTexture);
-	// 		PlaneMID->SetTextureParameterValue(FName("ChunkNormalRT"), Chunk.BakedWaterSurfaceNormalTexture);
-	// 	
-	// 		ChunkPlane->SetMaterial(0, PlaneMID);
-	// 	}
-	//
-	// 	// 🚨 핵심 설정: 이 Plane은 메인 화면에 그리지 않고 RVT에만 그립니다!
-	// 	//ChunkPlane->bRenderInMainPass = false;
-	// 	
-	// 	
-	// 	if (WaterHeightRVT)
-	// 	{
-	// 		ChunkPlane->RuntimeVirtualTextures.Add(WaterHeightRVT);
-	// 	}
-	// 	if (ExtraWaterDataRVT)
-	// 	{
-	// 		ChunkPlane->RuntimeVirtualTextures.Add(ExtraWaterDataRVT);
-	// 	}
-	// 	if (WaterVelocityRVT)
-	// 	{
-	// 		ChunkPlane->RuntimeVirtualTextures.Add(WaterVelocityRVT);
-	// 	}
-	//
-	// 	ChunkRVTPlanes.Add(ChunkPlane);
-	// }
-	//
-	// // 3. 기존의 거대 UTexture2D 생성 및 InitializeVirtualTexture 호출 로직은 전부 삭제!
-	//
-	//
-	//
-	// if (BakedSim != nullptr)
-	// { 
-	// 	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : BakedSim->WaterBodies)
-	// 	{
-	// 		TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-	//
-	// 		if (CurrWaterBodyComponent != nullptr)
-	// 		{
-	// 			CurrWaterBodyComponent->SetBakedShallowWaterSimulation(nullptr);
-	// 			CurrWaterBodyComponent->PostEditChange();
-	// 		}
-	// 	}
-	// }
-	//
-	// // 4. 물리 시뮬레이션 컴포넌트 초기화 (텍스처 포인터는 nullptr 전달)
-	// // (GPU 렌더링은 RVT가 담당하므로, BakedSim은 CPU 데이터(ShallowWaterSimArrayValues)만 있으면 완벽하게 작동합니다)
-	// BakedSim = NewObject<UBakedShallowWaterSimulationComponent>(this, NAME_None, RF_Public);
-	// BakedSim->SimulationData = FShallowWaterSimulationGrid(ShallowWaterSimArrayValues, nullptr, FIntVector2(SimRes.X, SimRes.Y), SystemPos, WorldGridSize);
-	// BakedSim->WaterBodies = AllWaterBodies;	
-
-	////////테스트를 위해 기존 베이킹 로직 부활
-	
 		
 	int32 TotalPixels = SimRes.X * SimRes.Y;
 	
@@ -2316,10 +2215,9 @@ void UShallowWaterRiverComponent::Bake()
 	GlobalSimPixels.SetNumZeroed(TotalPixels);
 	GlobalFoamPixels.SetNumZeroed(TotalPixels);
 	GlobalNormalPixels.SetNumZeroed(TotalPixels);
-
-	//ShallowWaterSimArrayValues.Empty();
-	TArray<FVector4> ShallowWaterSimArrayValues;
-	ShallowWaterSimArrayValues.SetNumZeroed(TotalPixels);
+	
+	// TArray<FVector4> ShallowWaterSimArrayValues;
+	// ShallowWaterSimArrayValues.SetNumZeroed(TotalPixels);
 	
 	// -------------------------------------------------------------------
 	// [람다 1: RT 마진 크롭 및 배열 병합 함수]
@@ -2362,11 +2260,11 @@ void UShallowWaterRiverComponent::Bake()
 					{
 						GlobalPixels[GlobalWriteIdx] = PixelColor;
 
-						// SimGrid일 때만 CPU 배열의 정확한 제 위치(GlobalWriteIdx)에 물리 데이터 삽입
-						if (bExtractPhysics)
-						{
-							ShallowWaterSimArrayValues[GlobalWriteIdx] = FVector4(PixelColor.R, PixelColor.G, PixelColor.B, PixelColor.A);
-						}
+						// // SimGrid일 때만 CPU 배열의 정확한 제 위치(GlobalWriteIdx)에 물리 데이터 삽입
+						// if (bExtractPhysics)
+						// {
+						// 	ShallowWaterSimArrayValues[GlobalWriteIdx] = FVector4(PixelColor.R, PixelColor.G, PixelColor.B, PixelColor.A);
+						// }
 					}
 				}
 			}
@@ -2457,7 +2355,7 @@ void UShallowWaterRiverComponent::Bake()
 				// 노말맵은 위를 향하도록 (0, 0, 1) 평탄화
 				GlobalNormalPixels[EdgeIdx] = FFloat16Color({0.f, 0.f, 1.f, 0.f}); 
 			
-				ShallowWaterSimArrayValues[EdgeIdx] = FVector4(SafeHeight, 0.f, 0.f, 0.f);
+				//ShallowWaterSimArrayValues[EdgeIdx] = FVector4(SafeHeight, 0.f, 0.f, 0.f);
 			}
 		}
 	}
@@ -2488,190 +2386,213 @@ void UShallowWaterRiverComponent::Bake()
 	{ 
 		for (TSoftObjectPtr<AWaterBody > CurrWaterBody : BakedSim->WaterBodies)
 		{
-			TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-
-			if (CurrWaterBodyComponent != nullptr)
+			if (CurrWaterBody != nullptr)
 			{
-				CurrWaterBodyComponent->SetBakedShallowWaterSimulation(nullptr);
-				CurrWaterBodyComponent->PostEditChange();
+				TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
+
+				if (CurrWaterBodyComponent != nullptr)
+				{
+					CurrWaterBodyComponent->SetBakedShallowWaterSimulation(nullptr);
+					CurrWaterBodyComponent->PostEditChange();
+				}
 			}
 		}
 	}
 
 	BakedSim = NewObject<UBakedShallowWaterSimulationComponent>(this, NAME_None, RF_Public);
-	BakedSim->SimulationData = FShallowWaterSimulationGrid(ShallowWaterSimArrayValues, BakedWaterSurfaceTexture, FIntVector2(SimRes.X, SimRes.Y), SystemPos, WorldGridSize);
-	BakedSim->WaterBodies = AllWaterBodies;	
+	
+	TObjectPtr<UShallowWaterSimulationDataSparse> BakedSimulationData = NewObject<UShallowWaterSimulationDataSparse>(BakedSim, NAME_None, RF_Public);
+	BakedSim->BakedSimulationData = BakedSimulationData;
+	
+	BakedSimulationData->Build(GlobalSimPixels, FIntVector2(SimRes.X, SimRes.Y));
+	
+	if (BakedSimulationData->GetTotalNumCells() > 0)
+	{
+		UE_LOGF(LogShallowWater, Log, "Baked Shallow Water Simulation: Sparseness: %f", ((float) BakedSimulationData->GetNumAllocatedCells()) / BakedSimulationData->GetTotalNumCells());
+	}
+	UE_LOGF(LogShallowWater, Log, "Baked Shallow Water Simulation: CPU Memory Usage: %d", BakedSimulationData->GetMemoryInBytes());
 
+	BakedSimulationData->Position = SystemPos;
+	BakedSimulationData->Size = WorldGridSize;
+	BakedSimulationData->BakedTexture = BakedWaterSurfaceTexture;
 
-	
-	
-	////////////////////////////////////////
-	
-	
-	
-	
-	TMap<FKConvexElem*, float> ConvexToMaxHeight;
-	for (int32 y = 0; y < SimRes.Y; ++y) {
-	for (int32 x = 0; x < SimRes.X; ++x) {
-		FVector WorldPos = BakedSim->SimulationData.IndexToWorld(FIntVector2(x, y));
+	BakedSim->WaterBodies = AllWaterBodies;
 
-		FVector Vel;
-		float Height, Depth;
-		BakedSim->SimulationData.QueryShallowWaterSimulationAtIndex(FIntVector2(x, y), Vel, Height, Depth);
-		WorldPos.Z = Height;
-				
-		if (Depth > 1e-5)
-		{
-			for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
-			{		
-				////////이따가 삭제 - 임시로 Lake도 bake에 포함하기 위해 추가.
-				if (Cast<AWaterBodyLake>(CurrWaterBody.Get()))
+	// Compute the maximum water height for each convex in each water body simulated by this river.
+	// We use this to modify the collision geometry so it fully encompasses the baked water sim.
+
+	// Gather all convex elements once to avoid redundant lookups per cell
+	struct FConvexInfo
+	{
+		FKConvexElem* Convex;
+		FTransform Transform;
+		FBox AABBox;
+		USplineMeshComponent* SplineComponent; // Needed for PostEditChange after vertex modification
+	};
+	TArray<FConvexInfo> AllConvexes;
+
+	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : AllWaterBodies)
+	{
+		if (TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent())
+		{		
+			TArray<UPrimitiveComponent*> CollisionComponents = CurrWaterBodyComponent->GetCollisionComponents();
+
+			for (UPrimitiveComponent* CurrCollisionComponent : CollisionComponents)
+			{
+				if (USplineMeshComponent* CurrSplineComponent = Cast<USplineMeshComponent>(CurrCollisionComponent))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("CurrWaterBody: WaterBodyLake 피카츄"));
-					continue;
-					
-				}
-				//~~~~이따가 삭제
-				
-				TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-
-				TArray<UPrimitiveComponent*> CollisionComponents = CurrWaterBodyComponent->GetCollisionComponents();
-				
-				
-				
-				for (UPrimitiveComponent* CurrCollisionComponent : CollisionComponents)
-				{
-					USplineMeshComponent* CurrSplineComponent = StaticCast<USplineMeshComponent*>(CurrCollisionComponent);
-					TObjectPtr<UBodySetup> CurrBodySetup = CurrSplineComponent->BodySetup;
-
-					const FTransform CurrMeshTransform = CurrCollisionComponent->GetComponentTransform();
-
-					// make sure the collision convex hull vertices are clamped to the min/max water height
-					for (FKConvexElem& ConvexElem : CurrBodySetup->AggGeom.ConvexElems)
-					{					
-						const TArray<FVector>& VertexData = ConvexElem.VertexData;		
-
-						// see if the current point is inside the convex projected to the xy plane
-						const FBox CurrBox = ConvexElem.CalcAABB(CurrMeshTransform, FVector(1, 1, 1));										
-
-						if (CurrBox.IsInsideXY(FBox(WorldPos, WorldPos)))
-						{						
-							float* TmpMaxHeight = ConvexToMaxHeight.Find(&ConvexElem);
-							if (TmpMaxHeight == nullptr)
-							{							
-								ConvexToMaxHeight.Emplace(&ConvexElem, WorldPos.Z);
-							}
-							else
-							{
-								*TmpMaxHeight = FMath::Max(*TmpMaxHeight, WorldPos.Z);
-							}
+					if (TObjectPtr<UBodySetup> CurrBodySetup = CurrSplineComponent->BodySetup)
+					{
+						const FTransform CurrMeshTransform = CurrCollisionComponent->GetComponentTransform();
+						for (FKConvexElem& ConvexElem : CurrBodySetup->AggGeom.ConvexElems)
+						{
+							const FBox CurrBox = ConvexElem.CalcAABB(CurrMeshTransform, FVector(1, 1, 1));
+							AllConvexes.Add({ &ConvexElem, CurrMeshTransform, CurrBox, CurrSplineComponent });
 						}
 					}
 				}
 			}
 		}
-	}}
+	}
+
+	// Iterate over allocated blocks only (sparse storage is always used - see line 929)
 	
-	
-	// set the sim texture on each water body that is in the simulated river.  
-	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
+	// Map each convex to the maximum water height found within its bounds
+	TMap<FKConvexElem*, float> ConvexToMaxHeight;
+
+	for (const auto& BlockPair : BakedSimulationData->GridIndexToBlockIndex)
 	{
-		////////이따가 삭제2 - 임시로 Lake도 bake에 포함하기 위해 추가.
-		if (Cast<AWaterBodyLake>(CurrWaterBody.Get()))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("CurrWaterBody: WaterBodyLake 라이츄"));
-			continue;
-		}
-		//~~~~이따가 삭제
-		
-		TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent();
-				
-		CurrWaterBodyComponent->SetBakedShallowWaterSimulation(BakedSim);
+		const FIntVector2 BlockIndex = BlockPair.Key;
 
-		// grow bounds in z to include the tallest height
-		TArray<UPrimitiveComponent*> CollisionComponents = CurrWaterBodyComponent->GetCollisionComponents();
-		
-		// Make sure that the collision objects includes the maximum height of the baked water sim otherwise
-		// we will miss collisions.
-		for (UPrimitiveComponent* CurrCollisionComponent : CollisionComponents)
-		{
-			USplineMeshComponent* CurrSplineComponent = StaticCast<USplineMeshComponent*>(CurrCollisionComponent);
-			
-			TObjectPtr<UBodySetup> CurrBodySetup = CurrSplineComponent->BodySetup;
+		// Compute cell range for this block
+		const int32 StartX = BlockIndex.X * UShallowWaterSimulationDataSparse::BlockSize;
+		const int32 StartY = BlockIndex.Y * UShallowWaterSimulationDataSparse::BlockSize;
+		const int32 EndX = FMath::Min(StartX + UShallowWaterSimulationDataSparse::BlockSize, SimRes.X);
+		const int32 EndY = FMath::Min(StartY + UShallowWaterSimulationDataSparse::BlockSize, SimRes.Y);
 
-			FTransform CurrMeshTransform = CurrCollisionComponent->GetComponentTransform();
+		// Process only cells within this allocated block
+		for (int32 y = StartY; y < EndY; ++y) {
+		for (int32 x = StartX; x < EndX; ++x) {
+			FVector WorldPos = BakedSimulationData->IndexToWorld(FIntVector2(x, y));
 
-			// make sure the collision convex hull vertices are clamped to the min/max water height
-			for (FKConvexElem& ConvexElem : CurrBodySetup->AggGeom.ConvexElems)
+			FVector Vel;
+			float Height, Depth;
+			BakedSimulationData->QueryShallowWaterSimulationAtIndex(FIntVector2(x, y), Vel, Height, Depth);
+			WorldPos.Z = Height;
+
+			// Depth check still needed since sparse blocks can have some zero-depth cells
+			if (Depth > 1e-5)
 			{
-				TArray<FVector>& VertexData = ConvexElem.VertexData;
-
-				if (const float* WorldMaxZForConvex = ConvexToMaxHeight.Find(&ConvexElem))
+				// Test against pre-gathered convex elements
+				for (const FConvexInfo& ConvexInfo : AllConvexes)
 				{
-					// for each vertex in the convex hull, set the Z to the maximum baked water sim Z height for the convex
-					int32 Idx = 0;
-					for (FVector& Vertex : VertexData)
+					// See if the current point is inside the convex projected to the xy plane
+					if (ConvexInfo.AABBox.IsInsideXY(FBox(WorldPos, WorldPos)))
 					{
-						// only top vertices are 4,5,6,7
-						if (Idx >= 4)
+						float* TmpMaxHeight = ConvexToMaxHeight.Find(ConvexInfo.Convex);
+						if (TmpMaxHeight == nullptr)
 						{
-							FVector VWorld = CurrMeshTransform.TransformPosition(Vertex);
-
-							VWorld.Z = FMath::Max(VWorld.Z, *WorldMaxZForConvex);
-
-							const FVector VLocal = CurrMeshTransform.InverseTransformPosition(VWorld);
-							Vertex.X = VLocal.X;
-							Vertex.Y = VLocal.Y;
-							Vertex.Z = VLocal.Z;
+							ConvexToMaxHeight.Emplace(ConvexInfo.Convex, WorldPos.Z);
 						}
-
-
-						#if ENABLE_DRAW_DEBUG
-						if (bShallowWaterRiverDebugVisualize)
-						{		
-							FVector VWorld = CurrMeshTransform.TransformPosition(Vertex);
-
-							switch (Idx)
-							{
-								case 0:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 2, FColor::Red, true);		
-								break;
-								case 1:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 3, FColor::Green, true);		
-								break;
-								case 2:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 4, FColor::Blue, true);		
-								break;
-								case 3:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 5, FColor::Black, true);		
-								break;
-								case 4:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 6, FColor::White, true);	//	
-								break;
-								case 5:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 7, FColor::Magenta, true); //		
-								break;
-								case 6:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 8, FColor::Orange, true);	//	
-								break;
-								case 7:
-								DrawDebugSphere(GetWorld() , VWorld, 10., 9, FColor::Purple, true);	//	
-								break;								
-							}
-							
+						else
+						{
+							*TmpMaxHeight = FMath::Max(*TmpMaxHeight, WorldPos.Z);
 						}
-						#endif
-												
-						Idx++;
 					}
 				}
-			}			
+			}
+		}}
+	}
 
-			CurrSplineComponent->PostEditChange();
+	// Apply the maximum water heights to convex collision geometry
+	// Use AllConvexes list to avoid redundant component traversal
+	// Convex를 최고 높이로 수정하기 전에, 일단 죄다 최저 높이로 낮춰주는 과정 추가. 
+	TSet<USplineMeshComponent*> ModifiedSplineComponents;
+	for (const FConvexInfo& ConvexInfo : AllConvexes)
+	{
+		//if (const float* WorldMaxZForConvex = ConvexToMaxHeight.Find(ConvexInfo.Convex))
+
+		TArray<FVector>& VertexData = ConvexInfo.Convex->VertexData;
+		const float* WorldMaxZForConvex = ConvexToMaxHeight.Find(ConvexInfo.Convex);
+
+		// For each vertex in the convex hull, set the Z to the maximum baked water sim Z height
+		int32 Idx = 0;
+		for (FVector& Vertex : VertexData)
+		{
+			// Only top vertices are 4,5,6,7
+			if (Idx >= 4)
+			{
+				// 대응하는 바닥 정점(Idx-4)의 월드 Z를 기준선으로 사용
+				const FVector BottomVWorld = ConvexInfo.Transform.TransformPosition(VertexData[Idx - 4]);
+				FVector VWorld = ConvexInfo.Transform.TransformPosition(Vertex);
+				
+				// 이번 Bake에 물이 있었으면 그 높이로, 없었으면 바닥 높이로 "설정"(Max 아님)
+				VWorld.Z = WorldMaxZForConvex ? *WorldMaxZForConvex : BottomVWorld.Z;
+				//VWorld.Z = FMath::Max(VWorld.Z, *WorldMaxZForConvex);
+
+				const FVector VLocal = ConvexInfo.Transform.InverseTransformPosition(VWorld);
+				Vertex.X = VLocal.X;
+				Vertex.Y = VLocal.Y;
+				Vertex.Z = VLocal.Z;
+			}
+
+#if ENABLE_DRAW_DEBUG
+			if (bShallowWaterRiverDebugVisualize)
+			{
+				FVector VWorld = ConvexInfo.Transform.TransformPosition(Vertex);
+
+				switch (Idx)
+				{
+				case 0:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 2, FColor::Red, true);
+					break;
+				case 1:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 3, FColor::Green, true);
+					break;
+				case 2:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 4, FColor::Blue, true);
+					break;
+				case 3:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 5, FColor::Black, true);
+					break;
+				case 4:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 6, FColor::White, true);
+					break;
+				case 5:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 7, FColor::Magenta, true);
+					break;
+				case 6:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 8, FColor::Orange, true);
+					break;
+				case 7:
+					DrawDebugSphere(GetWorld(), VWorld, 10., 9, FColor::Purple, true);
+					break;
+				}
+			}
+#endif
+
+			Idx++;
 		}
+
+		// Track modified components for PostEditChange
+		ModifiedSplineComponents.Add(ConvexInfo.SplineComponent);
 		
-		
-		CurrWaterBodyComponent->PostEditChange();
+	}
+
+	// Notify modified spline components
+	for (USplineMeshComponent* SplineComponent : ModifiedSplineComponents)
+	{
+		SplineComponent->PostEditChange();
+	}
+
+	// Set the sim texture on each water body that is in the simulated river
+	for (TSoftObjectPtr<AWaterBody> CurrWaterBody : AllWaterBodies)
+	{
+		if (TObjectPtr<UWaterBodyComponent> CurrWaterBodyComponent = CurrWaterBody->GetWaterBodyComponent())		
+		{
+			CurrWaterBodyComponent->SetBakedShallowWaterSimulation(BakedSim);
+			CurrWaterBodyComponent->PostEditChange();
+		}
 	}
 }
 
@@ -2679,11 +2600,11 @@ void UShallowWaterRiverComponent::InitializeVirtualTexture(TObjectPtr<UTexture2D
 {	
 	InTexture->Modify();
 	InTexture->MipGenSettings = TextureMipGenSettings::TMGS_SimpleAverage;
-	InTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+	InTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::StretchToPowerOfTwo;
 	InTexture->VirtualTextureStreaming = true;
 
 	InTexture->UpdateResource();	
-	InTexture->WaitForStreaming(true, true);	
+	InTexture->WaitForStreaming(UStreamableRenderAsset::ETickStreamingFlags::SendCompletionEvents);
 	InTexture->BlockOnAnyAsyncBuild();
 	InTexture->PostEditChange();
 }
@@ -2721,19 +2642,19 @@ bool UShallowWaterRiverComponent::QueryWaterAtSplinePoint(TSoftObjectPtr<AWaterB
 			}
 			else
 			{
-				UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water spline metadata is null"));
+				UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water spline metadata is null");
 				return false;
 			}
 		}
 		else
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water spline component is null"));
+			UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water spline component is null");
 			return false;
 		}
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water actor is null"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::QueryWaterAtSplinePoint() - Water actor is null");
 		return false;
 	}
 
@@ -2744,7 +2665,7 @@ void UShallowWaterRiverComponent::OnWaterInfoTextureArrayCreated(const UTextureR
 {	
 	if (InWaterInfoTexture == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::OnWaterInfoTextureCreated was called with NULL WaterInfoTexture"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::OnWaterInfoTextureCreated was called with NULL WaterInfoTexture");
 		return;
 	}
 	
@@ -2835,6 +2756,11 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 		BakedSimMaterial = LoadObject<UMaterialInstance>(nullptr, TEXT("/WaterAdvanced/Niagara/Materials/SW_Water_Material_River.SW_Water_Material_River"));
 	}
 	
+	if (BakedSimUnderWaterMaterial == nullptr)
+	{
+		BakedSimUnderWaterMaterial = LoadObject<UMaterialInstance>(nullptr, TEXT("/WaterAdvanced/Materials/M_UnderWater_PostProcess_Volume_SW.M_UnderWater_PostProcess_Volume_SW"));
+	}
+
 	if (BakedSimRiverToLakeTransitionMaterial == nullptr)
 	{
 		BakedSimRiverToLakeTransitionMaterial = LoadObject<UMaterialInstance>(nullptr, TEXT("/WaterAdvanced/Niagara/Materials/SW_Water_Material_River_To_Lake_Transition.SW_Water_Material_River_To_Lake_Transition"));
@@ -2858,6 +2784,11 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 	if (SplineRiverToOceanTransitionMaterial == nullptr)
 	{
 		SplineRiverToOceanTransitionMaterial = LoadObject<UMaterialInstance>(nullptr, TEXT("/WaterAdvanced/Niagara/Materials/SW_Water_Material_River_To_Ocean_Transition_Spline.SW_Water_Material_River_To_Ocean_Transition_Spline"));
+	}
+
+	if (SplineRiverUnderWaterMaterial == nullptr)
+	{
+		SplineRiverUnderWaterMaterial = LoadObject<UMaterialInstance>(nullptr, TEXT("/WaterAdvanced/Materials/M_UnderWater_PostProcess_Volume_Spline.M_UnderWater_PostProcess_Volume_Spline"));
 	}
 
 	bool bReadBakedSim = RenderState == EShallowWaterRenderState::BakedSim || RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim || RenderState == EShallowWaterRenderState::WaterComponent;
@@ -2957,14 +2888,14 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 	if ((RenderState == EShallowWaterRenderState::BakedSim || RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim) && 
 		(BakedWaterSurfaceTexture == nullptr || BakedWaterSurfaceTexture->GetSizeX() == 0 || BakedWaterSurfaceTexture->GetSizeY() == 0))
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::UpdateRenderState() - No baked sim to render"));		
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::UpdateRenderState() - No baked sim to render");		
 	}
 
 	for (TSoftObjectPtr<AWaterBody > CurrWaterBody : AllWaterBodies)
 	{
 		if (!CurrWaterBody)
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::UpdateRenderState() - Water Body Actor is null- skipping setting render state"));
+			UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::UpdateRenderState() - Water Body Actor is null- skipping setting render state");
 			continue;
 		}
 
@@ -2979,6 +2910,10 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 				CurrWaterBodyComponent->SetWaterMaterial(BakedSimMaterial);
 				UMaterialInstanceDynamic* WaterMID = CurrWaterBodyComponent->GetWaterMaterialInstance();			
 				SetWaterMIDParameters(WaterMID);
+
+				CurrWaterBodyComponent->SetUnderwaterPostProcessMaterial(BakedSimUnderWaterMaterial);
+				UMaterialInstanceDynamic* UnderWaterMID = CurrWaterBodyComponent->GetUnderwaterPostProcessMaterialInstance();
+				SetWaterMIDParameters(UnderWaterMID);
 
 				CurrWaterBodyComponent->SetLakeTransitionMaterial(BakedSimRiverToLakeTransitionMaterial);
 				UMaterialInstanceDynamic* WaterLakeTransitionMID = CurrWaterBodyComponent->GetRiverToLakeTransitionMaterialInstance();
@@ -3000,7 +2935,7 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 				}
 				else
 				{
-					UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::UpdateRenderState() - Water Component Water Info MID is null"));
+					UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::UpdateRenderState() - Water Component Water Info MID is null");
 					return;
 				}
 			}
@@ -3009,6 +2944,7 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 				CurrWaterBodyComponent->SetWaterMaterial(SplineRiverMaterial);
 				CurrWaterBodyComponent->SetLakeTransitionMaterial(SplineRiverToLakeTransitionMaterial);
 				CurrWaterBodyComponent->SetOceanTransitionMaterial(SplineRiverToOceanTransitionMaterial);
+				CurrWaterBodyComponent->SetUnderwaterPostProcessMaterial(SplineRiverUnderWaterMaterial);
 			}
 
 			CurrWaterBodyComponent->SetUseBakedSimulationForQueriesAndPhysics(
@@ -3029,66 +2965,7 @@ void UShallowWaterRiverComponent::UpdateRenderState()
 			}
 			*/			
 		}
-		
-		//// 나중에 삭제 3
-		TObjectPtr<UWaterBodyLakeComponent> CurrWaterBodyComponent2 = Cast<UWaterBodyLakeComponent>(CurrWaterBody->GetWaterBodyComponent());
-		if (CurrWaterBodyComponent2 != nullptr)
-		{
-			CurrWaterBodyComponent2->SetVisibility(RenderWaterBody);
-
-			if (RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim)
-			{				
-				//CurrWaterBodyComponent2->SetWaterMaterial(BakedSimMaterial);
-				CurrWaterBodyComponent2->SetWaterMaterial(MyTestLakeMaterial);
-				UMaterialInstanceDynamic* WaterMID = CurrWaterBodyComponent->GetWaterMaterialInstance();			
-				SetWaterMIDParameters(WaterMID);
-				
-												
-				UMaterialInstanceDynamic* WaterInfoMID = CurrWaterBodyComponent2->GetWaterInfoMaterialInstance();
-				if (WaterInfoMID)
-				{
-					WaterInfoMID->SetTextureParameterValue("BakedWaterSimTex", BakedWaterSurfaceTexture);
-					WaterInfoMID->SetTextureParameterValue("FoamTex", BakedFoamTexture);
-					WaterInfoMID->SetTextureParameterValue("BakedWaterSimNormalTex", BakedWaterSurfaceNormalTexture);
-					WaterInfoMID->SetVectorParameterValue("BakedWaterSimLocation", SystemPos);
-					WaterInfoMID->SetDoubleVectorParameterValue("BakedWaterSimLocationDouble", SystemPos);
-					WaterInfoMID->SetVectorParameterValue("BakedWaterSimSize", FVector(WorldGridSize.X, WorldGridSize.Y, 1));
-				}
-				else
-				{
-					UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::UpdateRenderState() - Water Component Water Info MID is null"));
-					return;
-				}
-			}
-			else if (RenderState == EShallowWaterRenderState::WaterComponent)
-			{
-				CurrWaterBodyComponent2->SetWaterMaterial(SplineRiverMaterial);
-			}
-
-			CurrWaterBodyComponent2->SetUseBakedSimulationForQueriesAndPhysics(
-				RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim || RenderState == EShallowWaterRenderState::BakedSim);
-
-			/*
-			// #todo(dmp): I'd prefer if we could set an editor time only static switch to control using baked sims in the material or not
-			TArray<FMaterialParameterInfo> OutMaterialParameterInfos;
-			TArray<FGuid> Guids;
-			WaterMID->GetAllStaticSwitchParameterInfo(OutMaterialParameterInfos, Guids);
-
-			for (FMaterialParameterInfo& MaterialParameterInfo : OutMaterialParameterInfos)
-			{
-				if (MaterialParameterInfo.Name == "UseBakedSim")
-				{
-					WaterMID->SetStaticSwitchParameterValueEditorOnly(MaterialParameterInfo, RenderState == EShallowWaterRenderState::WaterComponentWithBakedSim);
-				}
-			}
-			*/			
-		}
-		/// ~~~~~~나중에 삭제3
 	}
-	
-	
-	
-	
 
 	bRenderStateTickInitialize = true;
 }
@@ -3135,7 +3012,7 @@ void UShallowWaterRiverComponent::SetWaterMIDParameters(UMaterialInstanceDynamic
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterRiverComponent::UpdateRenderState() - Water Component MID is null"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterRiverComponent::UpdateRenderState() - Water Component MID is null");
 		return;
 	}
 }

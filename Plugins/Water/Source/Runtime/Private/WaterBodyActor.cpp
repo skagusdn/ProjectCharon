@@ -299,7 +299,7 @@ void AWaterBody::InitializeBody()
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (WaterBodyComponentClass)
 			{
-				UE_LOG(LogWater, Error, TEXT("Found non-null deprecated setting for %s water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting."), *UEnum::GetValueAsString(GetWaterBodyType()));
+				UE_LOGF(LogWater, Error, "Found non-null deprecated setting for %ls water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting.", *UEnum::GetValueAsString(GetWaterBodyType()));
 			}
 			else
 			{
@@ -312,7 +312,7 @@ void AWaterBody::InitializeBody()
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (WaterBodyComponentClass)
 			{
-				UE_LOG(LogWater, Error, TEXT("Found non-null deprecated setting for %s water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting."), *UEnum::GetValueAsString(GetWaterBodyType()));
+				UE_LOGF(LogWater, Error, "Found non-null deprecated setting for %ls water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting.", *UEnum::GetValueAsString(GetWaterBodyType()));
 			}
 			else
 			{
@@ -325,7 +325,7 @@ void AWaterBody::InitializeBody()
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (WaterBodyComponentClass)
 			{
-				UE_LOG(LogWater, Error, TEXT("Found non-null deprecated setting for %s water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting."), *UEnum::GetValueAsString(GetWaterBodyType()));
+				UE_LOGF(LogWater, Error, "Found non-null deprecated setting for %ls water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting.", *UEnum::GetValueAsString(GetWaterBodyType()));
 			}
 			else
 			{
@@ -338,7 +338,7 @@ void AWaterBody::InitializeBody()
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			if (WaterBodyComponentClass)
 			{
-				UE_LOG(LogWater, Error, TEXT("Found non-null deprecated setting for %s water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting."), *UEnum::GetValueAsString(GetWaterBodyType()));
+				UE_LOGF(LogWater, Error, "Found non-null deprecated setting for %ls water bodies. Global WaterBodyComponent class overrides are no longer supported. Please create a new WaterBodyActor class within the same plugin as the component class to override the setting.", *UEnum::GetValueAsString(GetWaterBodyType()));
 			}
 			else
 			{
@@ -438,7 +438,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				OldLakeCollision->DestroyComponent();
 				// Rename it so we can use the name
-				OldLakeCollision->Rename(TEXT("LakeCollision_Old"), this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				OldLakeCollision->Rename(TEXT("LakeCollision_Old"), this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_AllowPackageLinkerMismatch);
 				It.RemoveCurrent();
 			}
 		}
@@ -576,7 +576,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			WaterWaves->ClearFlags(RF_Public);
 			// At one point, WaterWaves's outer was the level. We need them to be outered by the water body : 
-			WaterWaves->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			WaterWaves->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_AllowPackageLinkerMismatch);
 		}
 	}
 	

@@ -194,7 +194,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			{
 				if (!bFoundIntersectingLandscape)
 				{
-					UE_LOG(LogWaterEditor, Warning, TEXT("Could not find a suitable landscape to which to assign the water brush! Defaulting to the first landscape."));
+					UE_LOGF(LogWaterEditor, Warning, "Could not find a suitable landscape to which to assign the water brush! Defaulting to the first landscape.");
 				}
 
 				// Spawn a Water brush for every landscape this actor overlaps with.
@@ -236,7 +236,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 						{
 							if (!WaterBrushActorFactory)
 							{
-								UE_LOG(LogWaterEditor, Warning, TEXT("WaterManager Actor Factory could not be found! The newly spawned %s may have incorrect defaults!"), *NewBrush->GetActorLabel());
+								UE_LOGF(LogWaterEditor, Warning, "WaterManager Actor Factory could not be found! The newly spawned %ls may have incorrect defaults!", *NewBrush->GetActorLabel());
 							}
 
 							bHasWaterManager = true;
@@ -248,7 +248,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			}
 			else
 			{
-				UE_LOG(LogWaterEditor, Warning, TEXT("Could not find Water Manager class %s to spawn"), *WaterEditorSettings->GetWaterManagerClassPath().GetAssetPathString());
+				UE_LOGF(LogWaterEditor, Warning, "Could not find Water Manager class %ls to spawn", *WaterEditorSettings->GetWaterManagerClassPath().GetAssetPathString());
 			}
 		}
 
@@ -275,7 +275,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 					{
 						if (!WaterZoneActorFactory)
 						{
-							UE_LOG(LogWaterEditor, Warning, TEXT("WaterZone Actor Factory could not be found! The newly spawned %s may have incorrect defaults!"), *WaterZoneActor->GetActorLabel());
+							UE_LOGF(LogWaterEditor, Warning, "WaterZone Actor Factory could not be found! The newly spawned %ls may have incorrect defaults!", *WaterZoneActor->GetActorLabel());
 						}
 
 						// TODO [jonathan.bard] : when we can tag static meshes as "water ground", add these to the bounds
@@ -315,7 +315,7 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 				}
 				else
 				{
-					UE_LOG(LogWaterEditor, Warning, TEXT("Could not find Water Zone class %s to spawn"), *WaterEditorSettings->GetWaterZoneClassPath().GetAssetPathString());
+					UE_LOGF(LogWaterEditor, Warning, "Could not find Water Zone class %ls to spawn", *WaterEditorSettings->GetWaterZoneClassPath().GetAssetPathString());
 				}
 
 			}

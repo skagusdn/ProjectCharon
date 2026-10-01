@@ -52,11 +52,13 @@ struct FBuoyancySettings
 	// Source: https://en.wikipedia.org/wiki/Properties_of_water
 	float WaterDensity = 0.0001f; // kg/cm^3
 
-	float MaxDeltaV = 200.f; // cm/s
+	float MaxDeltaV = 500.f; // cm/s
 
-	float MaxDeltaW = 2.f; // rad/s
+	float MaxDeltaW = 5.f; // rad/s
 
 	float WaterDrag = 1.f; // unitless
+
+	float WaterLift = 0.f; // unitless
 
 	int32 MaxNumBoundsSubdivisions = 2;
 
@@ -78,18 +80,42 @@ struct FBuoyancySettings
 class FBuoyancyCollisionData
 {
 	public:
-		FBuoyancyCollisionData(UBuoyancySubsystem *InTheBuoyancySubsystem, TArray<const TSharedPtr<FBuoyancyWaterSplineData>> InWaterBodyCollisionData)
+		FBuoyancyCollisionData(UBuoyancySubsystem *InTheBuoyancySubsystem, 
+			TArray<const TSharedPtr<FBuoyancyWaterSplineData>> InWaterBodyCollisionData, FBox InWorldBounds,
+			bool InHasCollision,
+			bool InHasPlane,
+			FVector InWaterPlaneLocation,
+			FVector InWaterPlaneNormal,
+			FVector InWaterPlaneVelocity)
 		: TheBuoyancySubsystem(InTheBuoyancySubsystem)
-		, WaterBodyCollisionData(InWaterBodyCollisionData) 
+		, WaterBodyCollisionData(InWaterBodyCollisionData)
+		, WorldBounds(InWorldBounds)
+		, HasCollision(InHasCollision)
+		, HasPlane(InHasPlane)
+		, WaterPlaneLocation(InWaterPlaneLocation)
+		, WaterPlaneNormal(InWaterPlaneNormal)
+		, WaterPlaneVelocity(InWaterPlaneVelocity)
 		{}
 		
 		FBuoyancyCollisionData() 
 		: TheBuoyancySubsystem(nullptr)
 		, WaterBodyCollisionData(TArray<const TSharedPtr<FBuoyancyWaterSplineData>>()) 
+		, WorldBounds()
+		, HasCollision(false)
+		, HasPlane(false)
+		, WaterPlaneLocation(0,0,0)
+		, WaterPlaneNormal(0,0,1)
+		, WaterPlaneVelocity(0,0,0)
 		{}
 
 		UBuoyancySubsystem *TheBuoyancySubsystem;
 		TArray<const TSharedPtr<FBuoyancyWaterSplineData>> WaterBodyCollisionData;
+		FBox WorldBounds;
+		bool HasCollision;
+		bool HasPlane;
+		FVector WaterPlaneLocation;
+		FVector WaterPlaneNormal;
+		FVector WaterPlaneVelocity;
 };
 
 //
@@ -127,18 +153,22 @@ public:
 	UE_API SIZE_T GetAllocatedSize() const;
 #endif
 
-	// given a bounding box, perform an overlap test and filter for water bodies.  There could be some potential threading
-	// issues here since we are querying the FBuoyancyWaterSplineDataManager physics thread data presumably from the gt to
-	// do the overlap test.  We need a better way of communicating the buoyancy data so we can capture it on the gt, 
-	// then use it on the physics or other thread (ie: cloth).
+	// Given a bounding box, perform an overlap test and filter for water bodies, returning the data needed for buoyancy.  
+	// There are threading issues here since we are storing pointers to FBuoyancyWaterSplineDataManager
+	// physics thread data on the gt to use for tests later on (with FindOverlappingWaterBodies).  
+	// Ideally the Cloth solver would be able to make use of TUserDataManagerPT even if it doesn't run on the pt	
 	UE_API bool FindOverlappingWaterBodies(
-		const FBox BoundingBox, TArray<const TSharedPtr<FBuoyancyWaterSplineData>> &WaterBodyPhysicsProxies);
+		const FBox BoundingBox, 
+		bool ComputePlane, 
+		FVector &ClosestWaterPlaneLocation,
+		FVector &ClosestWaterPlaneNormal,
+		FVector &ClosestWaterPlaneVelocity,
+		TArray<const TSharedPtr<FBuoyancyWaterSplineData>> &CollisionWaterBodySplineData);
 
-	// query a water body given a FBuoyancyWaterSplineData object representing a water body
-	// note this is designed to only work on the physics thread, but the FBuoyancyWaterSplineData data is 
-	// generated once and then only written to if water bodies change (uncommon).  In the future, we should consider
-	// restructuring usage such that there aren't potential threading issues, but it is problematic since Chaos and
-	// Cloth are evaluated on separate threads.
+	// Query a water body given a FBuoyancyWaterSplineData object representing a water body
+	// #todo(dmp): This is designed to only work on the physics thread, needs to be more robust if used elsewhere
+	// IE: Ideally the Cloth solver would be able to make use of TUserDataManagerPT even if it doesn't run on the pt
+	// and it'd need to support the spline cache
 	UE_API bool QueryWaterBody(const FVector& InputPosition,  const TSharedPtr<FBuoyancyWaterSplineData> WaterData,
 		FVector& WaterVel, FVector& WaterPlaneN, FVector& WaterPlanePos);
 
@@ -173,6 +203,9 @@ private:
 	// Put updated settings struct onto async input to be sent to sim callback
 	void UpdateBuoyancySettings();
 
+	// Send wave reference time to physics thread each frame
+	void UpdateWaveReferenceTime();
+
 	// Process async outputs which hold data for triggering callbacks
 	void ProcessSurfaceTouchCallbacks();
 
@@ -184,6 +217,9 @@ private:
 	bool bWaterObjectsChanged;
 
 	bool bBuoyancySettingsChanged;
+
+	// Cached pointer to r.Water.OceanFallbackDepth CVar (looked up once in PostInitialize)
+	IConsoleVariable* OceanFallbackDepthCVar = nullptr;
 
 	FBuoyancySettings BuoyancySettings;
 
@@ -217,6 +253,9 @@ struct FBuoyancySubsystemSimCallbackInput : public Chaos::FSimCallbackInput
 
 	// Set when net mode changes - should be one time on initialization.
 	TOptional<ENetMode> NetMode;
+
+	// Wave reference time, sent every frame when waves are active
+	TOptional<float> WaveReferenceTime;
 
 	void Reset();
 };
@@ -291,6 +330,9 @@ private:
 	// Used to track the net mode of the world that owns the phys scene that this
 	// sim tick is taking place in.
 	ENetMode NetMode = ENetMode::NM_MAX;
+
+	// Wave reference time for evaluating wave heights on the physics thread
+	float WaveReferenceTime = 0.0f;
 
 	// Local cache of spline keys to reduce spline evaluations.
 	FSplineKeyCacheGrid SplineKeyCache;

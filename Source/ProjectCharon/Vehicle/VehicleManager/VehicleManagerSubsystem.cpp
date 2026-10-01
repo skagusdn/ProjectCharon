@@ -93,7 +93,7 @@ USkeletalMeshComponent* UVehicleManagerSubsystem::RentRiderMesh( AActor* Renter,
 	//LentRiderMeshes.Add(Renter, RiderMesh);
 	// TODO : LentRiderMeshes 없애고 그냥 한곳에서 관리해. 이게 뭐여. 
 	LentRiderMeshes.Add(RentKey, RiderMesh);
-	Renter->OnDestroyed.AddDynamic(this, &ThisClass::ReturnAllMeshOfRentor);
+	Renter->OnDestroyed.AddUniqueDynamic(this, &ThisClass::ReturnAllMeshOfRentor);
 	// 라이더가 파괴되는 경우 알아서 베히클에서 내리게 하겟지 뭐
 	return RiderMesh;
 }

@@ -13,6 +13,7 @@
 #include "Interaction/InteractiveInterface.h"
 #include "Vehicle.generated.h"
 
+class UAIPerceptionStimuliSourceComponent;
 class ULifeStateComponent;
 struct FCharonAbilitySet_GrantedHandles;
 class UDeprecated_VehicleLifeStateComponent;
@@ -157,6 +158,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
+	
+	UPROPERTY()
+	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIPerceptionStimuliSource;
 	
 	UPROPERTY()
 	TObjectPtr<const class UHealthAttributeSet> VehicleHealthAttributeSet;

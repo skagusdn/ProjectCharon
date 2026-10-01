@@ -208,8 +208,6 @@ struct FSolverSafeWaterBodyData
 	float GetSimpleWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime) const;
 	/** Computes the attenuation factor to apply to the raw wave perturbation. Attenuates : normal/wave height/max wave height. */
 	float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth) const;
-	FVector GetWaveOffsetAtPosition(const FGerstnerWave& InWaveParams, const FVector& InPosition, float InTime, FVector& OutNormal, float& OutOffset1D) const;
-	float GetSimpleWaveOffsetAtPosition(const FGerstnerWave& InParams, const FVector& InPosition, float InTime) const;
 };
 
 /* async structs end here */

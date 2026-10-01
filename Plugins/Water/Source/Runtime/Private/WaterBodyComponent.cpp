@@ -675,7 +675,7 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 
 	if (bUseShallowWaterValues)
 	{		
-		BakedShallowWaterSim->SimulationData.SampleShallowWaterSimulationAtPosition(InWorldLocation,
+		BakedShallowWaterSim->BakedSimulationData->SampleShallowWaterSimulationAtPosition(InWorldLocation,
 			ShallowWaterVelocity, ShallowWaterHeight, ShallowWaterDepth);
 	}
 
@@ -727,7 +727,7 @@ FWaterBodyQueryResult UWaterBodyComponent::QueryWaterInfoClosestToWorldLocation(
 		{
 			if (bUseShallowWaterValues)
 			{
-				WaterPlaneNormal = BakedShallowWaterSim->SimulationData.ComputeShallowWaterSimulationNormalAtPosition(InWorldLocation);
+				WaterPlaneNormal = BakedShallowWaterSim->BakedSimulationData->ComputeShallowWaterSimulationNormalAtPosition(InWorldLocation);
 			}
 			else
 			{
@@ -1336,6 +1336,16 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus(
 								FOnActionTokenExecuted::CreateUObject(this, &UWaterBodyComponent::SetWaterBodyStaticMeshEnabled, true), true))
 								);
 					}
+					
+					if (GetWaterInfoMeshComponent() == nullptr || GetWaterInfoMeshComponent()->GetStaticMesh() == nullptr)
+					{
+						Result.Add(FTokenizedMessage::Create(EMessageSeverity::Warning)
+							->AddToken(FUObjectToken::Create(this))
+							->AddToken(FTextToken::Create(FText::Format(
+								LOCTEXT("MapCheck_Message_MissingWaterBodyMesh", "Water body {0} has no mesh information. This is caused by the water spline forming invalid geometry or not having enough spline points to be a valid shape. Adjust the water spline to resolve this issue."),
+								FText::FromString(GetWaterBodyActor()->GetActorLabel()))))
+							);
+					}
 				}
 			}
 
@@ -1481,7 +1491,7 @@ void UWaterBodyComponent::GetNavigationData(struct FNavigationRelevantData& Data
 			UPrimitiveComponent* PrimComp = LocalCollisionComponents[CompIdx];
 			if (PrimComp == nullptr)
 			{
-				UE_LOG(LogNavigation, Warning, TEXT("%s: skipping null collision component at index %d in %s"), ANSI_TO_TCHAR(__FUNCTION__), CompIdx, *GetFullNameSafe(this));
+				UE_LOGF(LogNavigation, Warning, "%ls: skipping null collision component at index %d in %ls", ANSI_TO_TCHAR(__FUNCTION__), CompIdx, *GetFullNameSafe(this));
 				continue;
 			}
 
@@ -1648,10 +1658,16 @@ void UWaterBodyComponent::OnPostRegisterAllComponents()
 		}
 	}
 
-	UWaterBodyInfoMeshComponent* WaterInfoMeshComponent = GetWaterInfoMeshComponent();
-	const bool bHasConservativeRasterMesh = IsValid(WaterInfoMeshComponent) && WaterInfoMeshComponent->bIsConservativeRasterCompatible;
-	const bool bShouldHaveConservativeRastermesh = CVarWaterBodyBuildConservativeRasterizationMesh.GetValueOnGameThread() != 0;
-	if (AffectsWaterInfo() && ((bHasConservativeRasterMesh != bShouldHaveConservativeRastermesh) || GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshFixup))
+	
+	bool bIsConservativeRasterMeshInvalid = false;
+	if (UWaterBodyInfoMeshComponent* WaterInfoMeshComponent = GetWaterInfoMeshComponent(); IsValid(WaterInfoMeshComponent) && IsValid(WaterInfoMeshComponent->GetStaticMesh()))
+	{
+		const bool bHasConservativeRasterMesh = WaterInfoMeshComponent->bIsConservativeRasterCompatible;
+		const bool bShouldHaveConservativeRastermesh = CVarWaterBodyBuildConservativeRasterizationMesh.GetValueOnGameThread() != 0;
+		bIsConservativeRasterMeshInvalid = (bHasConservativeRasterMesh != bShouldHaveConservativeRastermesh);
+	}
+
+	if (AffectsWaterInfo() && (bIsConservativeRasterMeshInvalid || GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshFixup))
 	{
 		const IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
 		if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
@@ -1779,6 +1795,13 @@ void UWaterBodyComponent::PostLoad()
 
 	DeprecateData();
 
+#if WITH_EDITORONLY_DATA
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyPhysicalMaterialPropertyRemoval)
+	{
+		SetPhysMaterialOverride(PhysicalMaterial_DEPRECATED);
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	if ((IsComponentPSOPrecachingEnabled() && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform)))
 	{
 		FPSOPrecacheParams PrecachePSOParams;
@@ -1801,10 +1824,6 @@ void UWaterBodyComponent::PostLoad()
 	}
 
 #if WITH_EDITOR
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshComponents)
-	{
-		UpdateWaterBodyRenderData();
-	}
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);
 
 	if (IsTemplate() && ((OwningWaterZone != nullptr) || (!OwningWaterZone.GetAssetName().IsEmpty())))
@@ -1830,6 +1849,8 @@ void UWaterBodyComponent::PostLoad()
 		OwningWaterZone.Reset();
 	}
 
+	
+	bool bNotifyModifiedPackage = false;
 	// If the detail mode of the water body component or the water spline component are ever not DM_Low,
 	// depending on per platform project settings they may be culled out in a cooked build for certain platforms
 	// breaking our assumptions that the waterbodycomponent/watersplinecomponent should always be present in game.
@@ -1844,8 +1865,19 @@ void UWaterBodyComponent::PostLoad()
 		{
 			SplineComp->DetailMode = DM_Low;
 		}
+		bNotifyModifiedPackage = true;
+	}
 
-		// Push the request to the user that they should mark this modified water package as dirty and resave it to persist the DetailMode change.
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::RebuildWaterMeshDataTSetChange)
+	{
+		UpdateWaterBodyRenderData();
+
+		bNotifyModifiedPackage = true;
+	}
+
+	// Push the request to the user that they should mark this modified water package as dirty and resave it to persist the DetailMode change.
+	if (bNotifyModifiedPackage)
+	{
 		const IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
 		if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 		{
@@ -1880,11 +1912,6 @@ void UWaterBodyComponent::DeprecateData()
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshComponents)
 	{
 		WaterStaticMeshMaterial = WaterLODMaterial_DEPRECATED;
-	}
-
-	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyPhysicalMaterialPropertyRemoval)
-	{
-		SetPhysMaterialOverride(PhysicalMaterial_DEPRECATED);
 	}
 #endif // WITH_EDITORONLY_DATA
 }

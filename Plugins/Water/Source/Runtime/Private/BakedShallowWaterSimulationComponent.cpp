@@ -1,24 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "BakedShallowWaterSimulationComponent.h"
 #include "WaterBodyActor.h"
+#include "WaterModule.h"
+#include "WaterVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakedShallowWaterSimulationComponent)
 
-void FShallowWaterSimulationGrid::SampleShallowWaterSimulationAtIndex(const FVector2D &QueryFloatIndex, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
+UBakedShallowWaterSimulationComponent::UBakedShallowWaterSimulationComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{}
+
+void UShallowWaterSimulationDataBase::SampleShallowWaterSimulationAtIndex(const FVector2D& QueryFloatIndex, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
 {
 	OutWaterHeight = 0;
 	OutWaterDepth = 0;
 	OutWaterVelocity = FVector(0, 0, 0);
-
+	
 	if (QueryFloatIndex.X > 0 && QueryFloatIndex.X < NumCells.X - 1 && QueryFloatIndex.Y > 0 && QueryFloatIndex.Y < NumCells.Y - 1)
 	{
+		check(GetTotalNumCells() == NumCells.X * NumCells.Y);
+
 		const FIntVector2 BaseIndex = FIntVector2(QueryFloatIndex.X, QueryFloatIndex.Y);
 		const FVector2D LerpValue = QueryFloatIndex - FVector2D(BaseIndex.X, BaseIndex.Y);
 
-		const FVector4 Sample00 = ArrayValues[(BaseIndex.X + 0) + (BaseIndex.Y + 0) * NumCells.X];
-		const FVector4 Sample10 = ArrayValues[(BaseIndex.X + 1) + (BaseIndex.Y + 0) * NumCells.X];
-		const FVector4 Sample01 = ArrayValues[(BaseIndex.X + 0) + (BaseIndex.Y + 1) * NumCells.X];
-		const FVector4 Sample11 = ArrayValues[(BaseIndex.X + 1) + (BaseIndex.Y + 1) * NumCells.X];
+		const FVector4 Sample00 = QueryLowLevelGridAtIndex(BaseIndex);
+		const FVector4 Sample10 = QueryLowLevelGridAtIndex(BaseIndex + FIntVector2(1, 0));
+		const FVector4 Sample01 = QueryLowLevelGridAtIndex(BaseIndex + FIntVector2(0, 1));
+		const FVector4 Sample11 = QueryLowLevelGridAtIndex(BaseIndex + FIntVector2(1, 1));
 		
 		const FVector4 Sample0 = Sample00 * (1. - LerpValue.X) + Sample10 * (LerpValue.X);
 		const FVector4 Sample1 = Sample01 * (1. - LerpValue.X) + Sample11 * (LerpValue.X);
@@ -31,7 +39,7 @@ void FShallowWaterSimulationGrid::SampleShallowWaterSimulationAtIndex(const FVec
 	}
 }
 
-void FShallowWaterSimulationGrid::QueryShallowWaterSimulationAtIndex(const FIntVector2 &QueryIndex, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
+void UShallowWaterSimulationDataBase::QueryShallowWaterSimulationAtIndex(const FIntVector2& QueryIndex, FVector& OutWaterVelocity, float& OutWaterHeight, float& OutWaterDepth) const
 {
 	OutWaterHeight = 0;
 	OutWaterDepth = 0;
@@ -39,7 +47,9 @@ void FShallowWaterSimulationGrid::QueryShallowWaterSimulationAtIndex(const FIntV
 
 	if (QueryIndex.X >= 0 && QueryIndex.X < NumCells.X && QueryIndex.Y >= 0 && QueryIndex.Y < NumCells.Y)
 	{
-		const FVector4 Sample = ArrayValues[QueryIndex.X + QueryIndex.Y * NumCells.X];
+		check(GetTotalNumCells() == NumCells.X * NumCells.Y);
+
+		const FVector4 Sample = QueryLowLevelGridAtIndex(QueryIndex);
 
 		OutWaterHeight = Sample.X + Position.Z;
 		OutWaterDepth = Sample.Y;
@@ -47,7 +57,7 @@ void FShallowWaterSimulationGrid::QueryShallowWaterSimulationAtIndex(const FIntV
 	}
 }
 
-FVector FShallowWaterSimulationGrid::ComputeShallowWaterSimulationNormalAtPosition(const FVector &QueryPos) const
+FVector UShallowWaterSimulationDataBase::ComputeShallowWaterSimulationNormalAtPosition(const FVector& QueryPos) const
 {
 	const FVector2D FloatIndexPos = WorldToFloatIndex(QueryPos);
 
@@ -87,6 +97,30 @@ FVector FShallowWaterSimulationGrid::ComputeShallowWaterSimulationNormalAtPositi
 	return Normal;
 }
 
-UBakedShallowWaterSimulationComponent::UBakedShallowWaterSimulationComponent(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{}
+void UBakedShallowWaterSimulationComponent::PostLoad()
+{
+	Super::PostLoad();
+
+  #if WITH_EDITORONLY_DATA
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) <
+		FWaterCustomVersion::MigrateShallowWaterSimulationToUObject)
+	{
+		if (BakedSimulationData == nullptr && SimulationData_DEPRECATED.IsValid())
+		{
+			BakedSimulationData = NewObject<UShallowWaterSimulationData>(this);
+
+			UShallowWaterSimulationData *BakedSimulationDataDerived = Cast<UShallowWaterSimulationData>(BakedSimulationData);
+
+			BakedSimulationDataDerived->ArrayValues = MoveTemp(SimulationData_DEPRECATED.ArrayValues);
+			BakedSimulationDataDerived->NumCells = SimulationData_DEPRECATED.NumCells;
+			BakedSimulationDataDerived->Position = SimulationData_DEPRECATED.Position;
+			BakedSimulationDataDerived->Size = SimulationData_DEPRECATED.Size;
+			BakedSimulationDataDerived->BakedTexture = SimulationData_DEPRECATED.BakedTexture;
+
+			SimulationData_DEPRECATED = FShallowWaterSimulationGrid_DEPRECATED();
+
+			UE_LOGF(LogWater, Warning, "Water simulation data was stored in deprecated format.  Converted to new format.  Recommended resave.");
+		}
+	}
+#endif
+}

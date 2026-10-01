@@ -29,6 +29,7 @@
 #include "UObject/Package.h"
 #include "StaticMeshCompiler.h"
 #include "Algo/AnyOf.h"
+#include "WaterModule.h"
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -46,6 +47,19 @@ void FWaterBodyMeshBuilder::BuildWaterInfoMeshes(UWaterBodyComponent* WaterBodyC
 	FDynamicMesh3 WaterInfoMesh(EMeshComponents::None);
 	FDynamicMesh3 WaterInfoDilatedMesh(EMeshComponents::None);
 	GetDynamicMesh(WaterBodyComponent, WaterInfoMesh, &WaterInfoDilatedMesh, bMakeWaterInfoMeshConservativeRasterCompatible);
+	
+	if (IsRunningCookCommandlet())
+	{
+		if (!WaterInfoMesh.CheckValidity(FDynamicMesh3::FValidityOptions(), EValidityCheckFailMode::ReturnOnly))
+		{
+			UE_LOGF(LogWater, Warning, "Mesh for %ls failed validation", *GetNameSafe(WaterBodyComponent));
+		}
+
+		if (!WaterInfoDilatedMesh.CheckValidity(FDynamicMesh3::FValidityOptions(), EValidityCheckFailMode::ReturnOnly))
+		{
+			UE_LOGF(LogWater, Warning, "Dilated Mesh for %ls failed validation", *GetNameSafe(WaterBodyComponent));
+		}
+	}
 
 	UMaterialInterface* WaterInfoMID = WaterBodyComponent->GetWaterInfoMaterialInstance();
 	UObject* Outer = WaterBodyComponent->GetOwner();
@@ -54,6 +68,8 @@ void FWaterBodyMeshBuilder::BuildWaterInfoMeshes(UWaterBodyComponent* WaterBodyC
 	{
 		if (DynamicMesh.TriangleCount() == 0)
 		{
+			// if the generated mesh has no information, clear the previous static mesh.
+			MeshComponent->SetStaticMesh(nullptr);
 			return nullptr;
 		}
 
@@ -581,7 +597,7 @@ void FWaterBodyMeshBuilder::UpdateStaticMesh(UStaticMesh* WaterMesh, const FMesh
 	FStaticMeshSourceModel& SrcModel = WaterMesh->GetSourceModel(0);
 	SrcModel.BuildSettings.bRecomputeNormals = true;
 	SrcModel.BuildSettings.bRecomputeTangents = true;
-	SrcModel.BuildSettings.bRemoveDegenerates = false;
+	SrcModel.BuildSettings.bRemoveDegenerates = true;
 	SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
 	SrcModel.BuildSettings.bUseFullPrecisionUVs = bIsConservativeRasterMesh; // CR mesh stores vertex positions in the UVs and needs full 32bit precision
 	SrcModel.BuildSettings.bGenerateLightmapUVs = false;

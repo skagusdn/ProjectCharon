@@ -44,12 +44,12 @@ FShallowWaterRiverDetails::~FShallowWaterRiverDetails()
 
 void FShallowWaterRiverDetails::OnPiEEnd()
 {
-	UE_LOG(LogTemp, Log, TEXT("onPieEnd"));
+	UE_LOGF(LogTemp, Log, "onPieEnd");
 	if (Component.IsValid())
 	{
 		if (Component->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
-			UE_LOG(LogTemp, Log, TEXT("onPieEnd - has package flags"));
+			UE_LOGF(LogTemp, Log, "onPieEnd - has package flags");
 			UWorld* TheWorld = UWorld::FindWorldInPackage(Component->GetOutermost());
 			if (TheWorld)
 			{
@@ -67,7 +67,7 @@ void FShallowWaterRiverDetails::OnWorldDestroyed(class UWorld* InWorld)
 	{
 		if (Component->GetWorld() == InWorld)
 		{
-			UE_LOG(LogTemp, Log, TEXT("OnWorldDestroyed - matched up"));
+			UE_LOGF(LogTemp, Log, "OnWorldDestroyed - matched up");
 			Builder = nullptr;
 		}
 	}

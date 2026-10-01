@@ -31,7 +31,9 @@ public class ProjectCharon : ModuleRules
 				"NetCore",
 				"Slate",
 				"SlateCore",
-				"AIModule"
+				"AIModule",
+				"NavigationSystem",
+				
 	        }
         );
 	

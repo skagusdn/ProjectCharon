@@ -24,7 +24,7 @@ bool UJumpFloodComponent2D::ValidateJumpFloodRenderTargets()
 		|| (RTA->SizeX != RTB->SizeX) 
 		|| (RTA->SizeY != RTB->SizeY))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Target used in Jump Flood Component 2D."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Target used in Jump Flood Component 2D.");
 		return false;
 	}
 
@@ -35,19 +35,19 @@ bool UJumpFloodComponent2D::ValidateJumpFloodRequirements()
 {
 	if (JumpStepMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Jump Step material used in Jump Flood Component 2D."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Jump Step material used in Jump Flood Component 2D.");
 		return false;		
 	}
 
 	if (UseBlur && (BlurEdgesMID == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Blur Edges material used in Jump Flood Component 2D."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Blur Edges material used in Jump Flood Component 2D.");
 		return false;
 	}
 
 	if (FindEdgesMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Find Edges material used in Jump Flood Component 2D."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Find Edges material used in Jump Flood Component 2D.");
 		return false;
 	}
 
@@ -60,7 +60,7 @@ void UJumpFloodComponent2D::JumpFlood(UTextureRenderTarget2D* SeedRT, float Scen
 	
 	if (!ValidateJumpFloodRequirements())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid setup for Jump Flood Component 2D. Aborting JumpFlood."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid setup for Jump Flood Component 2D. Aborting JumpFlood.");
 		return;
 	}
 
@@ -96,7 +96,7 @@ bool UJumpFloodComponent2D::CreateMIDs()
 
 	if ((JumpStepMID == nullptr) || (BlurEdgesMID == nullptr) || (FindEdgesMID == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid JumpFlood materials."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid JumpFlood materials.");
 		return false;
 	}
 
@@ -113,13 +113,13 @@ UTextureRenderTarget2D* UJumpFloodComponent2D::SingleJumpStep()
 {
 	if (JumpStepMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Jump Step material for Jump Flood Component 2D. Aborting SingleJumpStep."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Jump Step material for Jump Flood Component 2D. Aborting SingleJumpStep.");
 		return nullptr;
 	}
 
 	if (!ValidateJumpFloodRenderTargets())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Targetfor Jump Flood Component 2D. Aborting SingleJumpStep."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Targetfor Jump Flood Component 2D. Aborting SingleJumpStep.");
 		return nullptr;
 	}
 
@@ -144,13 +144,13 @@ UTextureRenderTarget2D* UJumpFloodComponent2D::FindEdges(UTextureRenderTarget2D*
 {
 	if (FindEdgesMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Find Edges material for Jump Flood Component 2D. Aborting FindEdges."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Find Edges material for Jump Flood Component 2D. Aborting FindEdges.");
 		return nullptr;
 	}
 
 	if (!ValidateJumpFloodRenderTargets())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Targetfor Jump Flood Component 2D. Aborting FindEdges."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Targetfor Jump Flood Component 2D. Aborting FindEdges.");
 		return nullptr;
 	}
 
@@ -176,13 +176,13 @@ void UJumpFloodComponent2D::FindEdges_Debug(UTextureRenderTarget2D* InSeed, floa
 {
 	if (FindEdgesMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Find Edges material for Jump Flood Component 2D. Aborting FindEdges_Debug."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Find Edges material for Jump Flood Component 2D. Aborting FindEdges_Debug.");
 		return;
 	}
 
 	if (!ValidateJumpFloodRenderTargets())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Targetfor Jump Flood Component 2D. Aborting FindEdges_Debug."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Targetfor Jump Flood Component 2D. Aborting FindEdges_Debug.");
 		return;
 	}
 
@@ -205,13 +205,13 @@ UTextureRenderTarget2D* UJumpFloodComponent2D::SingleBlurStep()
 {
 	if (BlurEdgesMID == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Blur Edges material for Jump Flood Component 2D. Aborting SingleBlurStep."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Blur Edges material for Jump Flood Component 2D. Aborting SingleBlurStep.");
 		return nullptr;
 	}
 
 	if (!ValidateJumpFloodRenderTargets())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Targetfor Jump Flood Component 2D. Aborting SingleBlurStep."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Targetfor Jump Flood Component 2D. Aborting SingleBlurStep.");
 		return nullptr;
 	}
 

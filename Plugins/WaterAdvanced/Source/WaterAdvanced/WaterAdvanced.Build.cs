@@ -9,6 +9,9 @@ public class WaterAdvanced : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
+		////////////////// 플러그인 엔진 모듈로 취급하기
+		bTreatAsEngineModule = true; 
+		
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...

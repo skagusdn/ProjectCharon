@@ -523,7 +523,6 @@ void FWaterQuadTreeGPU::Init(FRDGBuilder& GraphBuilder, const FInitParams& Param
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FWaterQuadTreeGPU::Init);
 	RDG_EVENT_SCOPE_STAT(GraphBuilder, FWaterQuadTreeGPU_Init, "FWaterQuadTreeGPU::Init");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, FWaterQuadTreeGPU_Init);
 
 	// Create resources
 	{
@@ -754,7 +753,6 @@ void FWaterQuadTreeGPU::Traverse(FRDGBuilder& GraphBuilder, const FTraverseParam
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FWaterQuadTreeGPU::Traverse);
 	RDG_EVENT_SCOPE_STAT(GraphBuilder, FWaterQuadTreeGPU_Traverse, "FWaterQuadTreeGPU::Traverse");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, FWaterQuadTreeGPU_Traverse);
 
 	const uint32 NumViews = Params.Views.Num();
 

@@ -28,18 +28,30 @@ void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const 
 
 		if (TransitionWaterBodyRenderData.IsLake())
 		{
-			check(InWaterBodyRenderData.RiverToLakeMaterial);
+			if (InWaterBodyRenderData.RiverToLakeMaterial)
+			{
+				MaterialIndex = InWaterBodyRenderData.RiverToLakeMaterialIndex;
+			}
+			else
+			{
+				MaterialIndex = InWaterBodyRenderData.MaterialIndex;
+			}
 
-			MaterialIndex = InWaterBodyRenderData.RiverToLakeMaterialIndex;
 			NodeWaterBodyIndex = (uint32)TransitionWaterBodyRenderData.WaterBodyIndex;
 			BaseHeight = TransitionWaterBodyRenderData.SurfaceBaseHeight;
 			TileDebugID = 3;
 		}
 		if (TransitionWaterBodyRenderData.IsOcean())
 		{
-			check(InWaterBodyRenderData.RiverToOceanMaterial);
+			if (InWaterBodyRenderData.RiverToOceanMaterial)
+			{
+				MaterialIndex = InWaterBodyRenderData.RiverToOceanMaterialIndex;
+			}
+			else
+			{
+				MaterialIndex = InWaterBodyRenderData.MaterialIndex;
+			}
 
-			MaterialIndex = InWaterBodyRenderData.RiverToOceanMaterialIndex;
 			NodeWaterBodyIndex = (uint32)TransitionWaterBodyRenderData.WaterBodyIndex;
 			BaseHeight = TransitionWaterBodyRenderData.SurfaceBaseHeight;
 			TileDebugID = 4;
@@ -614,7 +626,7 @@ void FWaterQuadTree::Unlock(bool bPruneRedundantNodes)
 			int32 NumElements = 0;
 		};
 		
-		FQueue Queue(GetMaxLeafCount());
+		FQueue Queue(FMath::Max(NodeData.Nodes.Num(), 1));
 		uint32 NextBreadthFirstIndex = 0;
 		
 		check(BreadthFirstOrder.IsEmpty());
@@ -631,7 +643,7 @@ void FWaterQuadTree::Unlock(bool bPruneRedundantNodes)
 
 			for (uint32 ChildIndex : Node.Children)
 			{
-				if (ChildIndex > 0)
+				if (ChildIndex > 0 && ensure(NodeData.Nodes.IsValidIndex(ChildIndex)))
 				{
 					Queue.Add(ChildIndex);
 				}

@@ -17,6 +17,7 @@ enum class EWaterSamplerType : uint8
 {
 	ConstantSpline,
 	ShallowWater,
+	ConstantSplineWithWaves,
 	Invalid,
 };
 
@@ -29,7 +30,7 @@ public:
 	{
 	};
 
-	virtual ~FBuoyancyWaterSampler() {}
+	virtual ~FBuoyancyWaterSampler() = default;
 
 	bool UsePerShapeWaterPlane() const { return bUsePerShapeWaterPlane;  }
 	FVector GetClosestWaterPointToParticle() const { return ClosestWaterPointToParticle; }
@@ -53,7 +54,7 @@ protected:
 class FBuoyancyShallowWaterSampler : public FBuoyancyWaterSampler
 {
 public:
-	FBuoyancyShallowWaterSampler(const FShallowWaterSimulationGrid& InWaterSampler, const FVector& InClosestWaterPointToParticle, const FVector &InAverageVelocity) :
+	FBuoyancyShallowWaterSampler(const TWeakObjectPtr<UShallowWaterSimulationDataBase> InWaterSampler, const FVector& InClosestWaterPointToParticle, const FVector &InAverageVelocity) :
 		WaterSampler(InWaterSampler)
 	{
 		SamplerType = EWaterSamplerType::ShallowWater;
@@ -64,25 +65,45 @@ public:
 
 	virtual void SampleWaterAtPosition(const FVector& WorldPosition, FVector& OutVelocity, float& OutHeight, float& OutDepth) const override
 	{
-		WaterSampler.SampleShallowWaterSimulationAtPosition(WorldPosition, OutVelocity, OutHeight, OutDepth);
+		if (WaterSampler.IsValid() && WaterSampler->HasValidData())
+		{
+			WaterSampler->SampleShallowWaterSimulationAtPosition(WorldPosition, OutVelocity, OutHeight, OutDepth);
+		}
+		else
+		{
+			OutVelocity = {0.f,0.f,0.f};
+			OutHeight = 0.f;
+			OutDepth = 0.f;
+		}
 	}
 
 	virtual FVector SampleVelocityAtPosition(const FVector& WorldPosition) const override
 	{
-		FVector WaterVelocity;
-		float TmpWaterVal;
-		WaterSampler.SampleShallowWaterSimulationAtPosition(WorldPosition, WaterVelocity, TmpWaterVal, TmpWaterVal);
+		FVector WaterVelocity = {0,0,0};
+
+		if (WaterSampler.IsValid() && WaterSampler->HasValidData())
+		{
+			float TmpWaterVal;
+			WaterSampler->SampleShallowWaterSimulationAtPosition(WorldPosition, WaterVelocity, TmpWaterVal, TmpWaterVal);
+		}
 
 		return WaterVelocity;
 	}
 
 	virtual FVector SampleNormalAtPosition(const FVector& WorldPosition) const override
 	{
-		return WaterSampler.ComputeShallowWaterSimulationNormalAtPosition(WorldPosition);
+		if (WaterSampler.IsValid() && WaterSampler->HasValidData())
+		{
+			return WaterSampler->ComputeShallowWaterSimulationNormalAtPosition(WorldPosition);
+		}
+		else
+		{
+			return FVector(0,0,1);
+		}
 	}
 
 private:
-	const FShallowWaterSimulationGrid& WaterSampler;
+	const TWeakObjectPtr<UShallowWaterSimulationDataBase> WaterSampler;
 };
 
 // sampler for spline rivers, but we are only doing 1 spline sample per interaction to 
@@ -107,6 +128,8 @@ public:
 		WaterVel = WaterSpline.Velocity.IsSet()
 			? WaterSpline.Velocity->Eval(ClosestSplineKey) * ClosestPointDerivative.GetSafeNormal()
 			: Chaos::FVec3::ZeroVector;
+
+		AverageVelocity = WaterVel;
 	}
 
 	virtual void SampleWaterAtPosition(const FVector& WorldPosition, FVector& OutVelocity, float& OutHeight, float& OutDepth) const override
@@ -138,6 +161,96 @@ public:
 	FVector WaterN = FVector::ZeroVector;
 	FVector WaterVel = FVector::ZeroVector;
 	bool WaterVelSet = false;
+};
+
+// Sampler for water bodies with Gerstner waves. Evaluates wave height and normal
+// per-position using the wave data stored on the spline data struct.
+class FBuoyancyConstantSplineWithWavesSampler : public FBuoyancyWaterSampler
+{
+public:
+	FBuoyancyConstantSplineWithWavesSampler(
+		const FBuoyancyWaterSplineData& InWaterSpline,
+		const FVector& InParticlePosition,
+		const FVector& InClosestPoint,
+		const FVector& InClosestPointDerivative,
+		const float InClosestSplineKey,
+		const FVector& InWaterN,
+		float InWaveReferenceTime,
+		bool bInUseSimpleWaves = false)
+		: WaterSpline(InWaterSpline)
+		, SplineBaseHeight(InClosestPoint.Z)
+		, ClosestPointDerivative(InClosestPointDerivative)
+		, ClosestSplineKey(InClosestSplineKey)
+		, BaseWaterN(InWaterN)
+		, WaveReferenceTime(InWaveReferenceTime)
+		, bUseSimpleWaves(bInUseSimpleWaves)
+	{
+		SamplerType = EWaterSamplerType::ConstantSplineWithWaves;
+		bUsePerShapeWaterPlane = true;
+		ClosestWaterPointToParticle = InClosestPoint;
+
+		// Compute velocity from spline (same as ConstantSpline sampler)
+		AverageVelocity = WaterSpline.Velocity.IsSet()
+			? WaterSpline.Velocity->Eval(ClosestSplineKey) * ClosestPointDerivative.GetSafeNormal()
+			: FVector::ZeroVector;
+
+		// Estimate water depth at the particle's position.
+		EstimatedDepth = InWaterSpline.EstimateWaterDepth(InParticlePosition, InClosestPoint, InClosestSplineKey);
+		WaveAttenuationFactor = InWaterSpline.WaveData.IsValid()
+			? InWaterSpline.WaveData->GetWaveAttenuationFactor(InParticlePosition, EstimatedDepth)
+			: 1.f;
+	}
+
+	virtual void SampleWaterAtPosition(const FVector& WorldPosition, FVector& OutVelocity, float& OutHeight, float& OutDepth) const override
+	{
+		OutVelocity = AverageVelocity;
+
+		// Base spline height + wave perturbation at query position, attenuated by depth
+		float WaveHeight = 0.f;
+		if (WaterSpline.WaveData.IsValid())
+		{
+			if (bUseSimpleWaves)
+			{
+				WaveHeight = WaterSpline.WaveData->GetSimpleWaveHeightAtPosition(WorldPosition, WaveReferenceTime);
+			}
+			else
+			{
+				FVector WaveNormal;
+				WaveHeight = WaterSpline.WaveData->GetWaveHeightAtPosition(WorldPosition, WaveReferenceTime, WaveNormal);
+			}
+		}
+		OutHeight = SplineBaseHeight + WaveHeight * WaveAttenuationFactor;
+
+		OutDepth = EstimatedDepth;
+	}
+
+	virtual FVector SampleVelocityAtPosition(const FVector& WorldPosition) const override
+	{
+		return AverageVelocity;
+	}
+
+	virtual FVector SampleNormalAtPosition(const FVector& WorldPosition) const override
+	{
+		if (!bUseSimpleWaves && WaterSpline.WaveData.IsValid())
+		{
+			FVector WaveNormal;
+			WaterSpline.WaveData->GetWaveHeightAtPosition(WorldPosition, WaveReferenceTime, WaveNormal);
+			WaveNormal = FMath::Lerp(BaseWaterN, WaveNormal, WaveAttenuationFactor);
+			return WaveNormal.IsZero() ? BaseWaterN : WaveNormal.GetSafeNormal();
+		}
+		return BaseWaterN;
+	}
+
+public:
+	const FBuoyancyWaterSplineData& WaterSpline;
+	float SplineBaseHeight = 0.f;
+	FVector ClosestPointDerivative = FVector::ZeroVector;
+	float ClosestSplineKey = 0.f;
+	FVector BaseWaterN = FVector::ZeroVector;
+	float WaveReferenceTime = 0.f;
+	bool bUseSimpleWaves = false;
+	float EstimatedDepth = MAX_FLT;
+	float WaveAttenuationFactor = 1.f;
 };
 
 // Each particle will have a list of potential midphases to process,

@@ -11,11 +11,10 @@ public class ProjectCharonEditorTarget : TargetRules
 		//DefaultBuildSettings = BuildSettingsVersion.V5;
 		
 		/////////
-		DefaultBuildSettings = BuildSettingsVersion.V6; // 5.7 버전 기준 V6로 업데이트
+		//DefaultBuildSettings = BuildSettingsVersion.V6; // 5.7 버전 기준 V6로 업데이트
+		DefaultBuildSettings = BuildSettingsVersion.V7; // 5.8 버전 기준 V7로 업데이트
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-		// ✨ 이 줄을 추가하세요!
-		//BuildEnvironment = TargetBuildEnvironment.Unique;
-		///////////
+		
 
 		ExtraModuleNames.AddRange( new string[] { "ProjectCharon" } );
 		RegisterModulesCreatedByRider();

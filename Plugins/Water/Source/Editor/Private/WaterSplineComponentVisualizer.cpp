@@ -661,7 +661,7 @@ void FWaterSplineComponentVisualizer::GenerateContextMenuSections(FMenuBuilder& 
 {
 	FSplineComponentVisualizer::GenerateContextMenuSections(InMenuBuilder);
 
-	check(GetEditedWaterSplineComponent());
+	ensure(GetEditedWaterSplineComponent());
 	if (const UWaterSplineMetadata* Metadata = GetEditedWaterSplineMetaData())
 	{
 		InMenuBuilder.BeginSection("Water Visualization", LOCTEXT("Water Visualization", "Water Visualization"));

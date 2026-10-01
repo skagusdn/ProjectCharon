@@ -75,7 +75,7 @@ void UBotCommandAbility::InjectAbilityInput()
 				// 	UE_LOG(LogTemp, Warning, TEXT("Left Cooldown : %f"), CooldownInfo.TimeRemaining);
 				// }
 				
-				if (UGameplayAbility* Ability = AbilitySpec->Ability)
+				if (UGameplayAbility* Ability = AbilitySpec->GetPrimaryInstance())
 				{
 					float CooldownTimeRemaining, CooldownTimeDuration;
 					FGameplayAbilityActorInfo AbilityActorInfo = Ability->GetActorInfo();

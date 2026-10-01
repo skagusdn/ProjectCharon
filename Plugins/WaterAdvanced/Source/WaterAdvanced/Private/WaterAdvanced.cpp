@@ -4,6 +4,7 @@
 #include "ShallowWaterRiverDetails.h"
 #include "ShallowWaterRiverActor.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 
 #if WITH_EDITOR
 #include "PropertyCustomizationHelpers.h"

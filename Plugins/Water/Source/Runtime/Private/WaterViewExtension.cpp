@@ -470,7 +470,7 @@ void FWaterViewExtension::RenderWaterInfoTexture(FSceneViewFamily& InViewFamily,
 	}
 	else if (WaterInfoRenderMethod == 0)
 	{
-		UE_LOG(LogWater, Error, TEXT("Water Info Render Method 0 is deprecated and no longer functions! Please set r.Water.WaterInfo.RenderMethod to either 1 or 2"));
+		UE_LOGF(LogWater, Error, "Water Info Render Method 0 is deprecated and no longer functions! Please set r.Water.WaterInfo.RenderMethod to either 1 or 2");
 	}
 }
 
@@ -555,7 +555,7 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 						}
 					}
 
-					UE_LOG(LogWater, Verbose, TEXT("Number of views changed. Water Zone (%s) ViewInfos was reset."), *GetNameSafe(WaterZone));
+					UE_LOGF(LogWater, Verbose, "Number of views changed. Water Zone (%ls) ViewInfos was reset.", *GetNameSafe(WaterZone));
 				}
 
 				CurrentNumViews = NumViews;
@@ -591,7 +591,7 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 					{
 						UpdateViewInfo(WaterZone, InView);
 
-						UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s) ViewInfo for view %d updated."), *GetNameSafe(WaterZone), ViewPlayerIndex);
+						UE_LOGF(LogWater, Verbose, "Water Zone (%ls) ViewInfo for view %d updated.", *GetNameSafe(WaterZone), ViewPlayerIndex);
 
 						// make sure that if !IsLocalOnlyTessellationEnabled, we only update the WaterInfoTexture for a single view
 						if (WaterZone->IsLocalOnlyTessellationEnabled() || ViewPlayerIndex == 0)
@@ -625,7 +625,7 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 			bForceBoundsUpdate = true;
 			bRequestForcedBoundsUpdate = false;
 
-			UE_LOG(LogWater, Verbose, TEXT("Forced Bounds Update requested for view %d."), ViewPlayerIndex);
+			UE_LOGF(LogWater, Verbose, "Forced Bounds Update requested for view %d.", ViewPlayerIndex);
 		}
 		else
 		{
@@ -654,6 +654,8 @@ void FWaterViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 		return;
 	}
 
+	bool bHadWaterZoneViewData = false;
+
 	for (const FSceneView* View : InViewFamily.Views)
 	{
 		// Warning: Do not capture View in ENQUEUE_RENDER_COMMAND lambdas, since the RT's view hasn't been created yet,
@@ -661,6 +663,8 @@ void FWaterViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 
 		if (ShouldHaveWaterZoneViewData(*View))
 		{
+			bHadWaterZoneViewData = true;
+
 			if (!bAnyQuadTreeUpdateRequired)
 			{
 				continue;
@@ -708,7 +712,7 @@ void FWaterViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 									}
 								});
 
-							UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s) queued a quadtree update for view %d updated."), *GetNameSafe(WaterZone), ViewPlayerIndex);
+							UE_LOGF(LogWater, Verbose, "Water Zone (%ls) queued a quadtree update for view %d updated.", *GetNameSafe(WaterZone), ViewPlayerIndex);
 							
 							WaterZoneViewInfo.bShouldUpdateQuadtree = false;
 						}
@@ -753,7 +757,7 @@ void FWaterViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 									}
 								});
 
-							UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s) queued a search for the closest quadtree for a View (0x%p) which has no WaterInfo."), *GetNameSafe(WaterZone), View);
+							UE_LOGF(LogWater, Verbose, "Water Zone (%ls) queued a search for the closest quadtree for a View (0x%p) which has no WaterInfo.", *GetNameSafe(WaterZone), View);
 						}
 					}
 				}
@@ -762,14 +766,21 @@ void FWaterViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 
 	}
 
-	bAnyQuadTreeUpdateRequired = false;
+	// Only reset the flag if this view family contained views that could consume it.
+	// Otherwise, a scene capture's view family (which has no water zone view data) would
+	// clear the flag before the main camera's view family gets a chance to process it.
+	if (bHadWaterZoneViewData)
+	{
+		bAnyQuadTreeUpdateRequired = false;
+	}
 }
 
 bool FWaterViewExtension::ShouldHaveWaterZoneViewData(const FSceneView& InView) const
 {
-	// Don't dirty the water info texture when we're rendering from a scene capture. Due to the frame delay after marking the texture as dirty, scene captures wouldn't have the right texture anyways.
+	// Don't dirty the water info texture when we're rendering from a scene capture (unless we're in a commandlet in order to support world partition minimap captures).
+	// Due to the frame delay after marking the texture as dirty, scene captures wouldn't have the right texture anyways.
 	// #todo_water [roey]: Once we have no frame-delay for updating the texture and lesser performance impact, we can re-enable updates within scene captures.
-	return !InView.bIsSceneCapture && !InView.bIsSceneCaptureCube && !InView.bIsReflectionCapture && !InView.bIsPlanarReflection && !InView.bIsVirtualTexture 
+	return (!InView.bIsSceneCapture || IsRunningCommandlet()) && !InView.bIsSceneCaptureCube && !InView.bIsReflectionCapture && !InView.bIsPlanarReflection && !InView.bIsVirtualTexture 
 		// Also don't update water info texture when rendering hit proxies as it bypasses custom render passes 
 		&& !InView.Family->EngineShowFlags.HitProxies;
 }
@@ -883,14 +894,14 @@ void FWaterViewExtension::AddWaterZone(AWaterZone* InWaterZone)
 	CurrentNumViews = 0;
 	WaterZoneInfo.ViewInfos.Emplace(FWaterZoneInfo::FWaterZoneViewInfo());
 
-	UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s): AddWaterZone was called."), *GetNameSafe(InWaterZone));
+	UE_LOGF(LogWater, Verbose, "Water Zone (%ls): AddWaterZone was called.", *GetNameSafe(InWaterZone));
 }
 
 void FWaterViewExtension::RemoveWaterZone(AWaterZone* InWaterZone)
 {
 	WaterZoneInfos.FindAndRemoveChecked(InWaterZone);
 
-	UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s): RemoveWaterZone was called."), *GetNameSafe(InWaterZone));
+	UE_LOGF(LogWater, Verbose, "Water Zone (%ls): RemoveWaterZone was called.", *GetNameSafe(InWaterZone));
 }
 
 bool FWaterViewExtension::GetZoneLocation(const AWaterZone* InWaterZone, int32 PlayerIndex, FVector& OutLocation) const
@@ -910,7 +921,7 @@ bool FWaterViewExtension::GetZoneLocation(const AWaterZone* InWaterZone, int32 P
 		}
 	}
 
-	UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s) called FWaterViewExtension::GetZoneLocation() but didn't get a valid location because of missing/uninitialized WaterZoneInfo->ViewInfos."), *GetNameSafe(InWaterZone));
+	UE_LOGF(LogWater, Verbose, "Water Zone (%ls) called FWaterViewExtension::GetZoneLocation() but didn't get a valid location because of missing/uninitialized WaterZoneInfo->ViewInfos.", *GetNameSafe(InWaterZone));
 
 	return false;
 }

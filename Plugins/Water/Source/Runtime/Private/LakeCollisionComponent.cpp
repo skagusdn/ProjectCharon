@@ -30,7 +30,7 @@ ULakeCollisionComponent::ULakeCollisionComponent(const FObjectInitializer& Objec
 {
 	bHiddenInGame = true;
 	bCastDynamicShadow = false;
-	bIgnoreStreamingManagerUpdate = true;
+	SetIgnoreStreamingManagerUpdate(true);
 	bUseEditorCompositing = true;
 }
 
@@ -56,7 +56,7 @@ void ULakeCollisionComponent::UpdateCollision(FVector InBoxExtent, bool bSplineP
 	}
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 
 FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 {
@@ -129,7 +129,7 @@ FPrimitiveSceneProxy* ULakeCollisionComponent::CreateSceneProxy()
 
 	return new FLakeCollisionSceneProxy(this);
 }
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 FBoxSphereBounds ULakeCollisionComponent::CalcBounds(const FTransform& LocalToWorld) const
 {

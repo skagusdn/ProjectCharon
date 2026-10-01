@@ -13,6 +13,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Curve/PolygonOffsetUtils.h"
 #include "Engine/World.h"
+#include "UObject/UObjectGlobalsInternal.h"
 
 #if WITH_EDITOR
 #include "Misc/UObjectToken.h"
@@ -24,6 +25,15 @@
 #define LOCTEXT_NAMESPACE "Water"
 
 // ----------------------------------------------------------------------------------
+
+namespace
+{
+	static TAutoConsoleVariable<bool> CVarEnableDeterministicOceanCollisionComponentNames(
+		TEXT("r.Water.EnableDeterministicOceanCollisionComponentNames"),
+		true,
+		TEXT("When enabled, old ocean collision components are trashed and new components are generated with deterministic, consistent object names. This is required for them to be net adressable"),
+		ECVF_Default);
+}
 
 UWaterBodyOceanComponent::UWaterBodyOceanComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -237,7 +247,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 	Triangulation.Add(Island);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the Ocean's spline does not form any loops."), *GetOwner()->GetActorNameOrLabel());
+		UE_LOGF(LogWater, Warning, "Failed to triangulate Ocean mesh for %ls. Ensure that the Ocean's spline does not form any loops.", *GetOwner()->GetActorNameOrLabel());
 	}
 
 	if (Triangulation.Triangles.Num() == 0)
@@ -401,7 +411,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 		{
 			if (Poly.SignedArea() <= 0.)
 			{
-				UE_LOG(LogWater, Warning, TEXT("Failed to apply offset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+				UE_LOGF(LogWater, Warning, "Failed to apply offset for shape dilation (%ls", *GetOwner()->GetActorNameOrLabel());
 				continue;
 			}
 
@@ -410,7 +420,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 
 		if (!DilationTriangulation.Triangulate())
 		{
-			UE_LOG(LogWater, Warning, TEXT("Failed to triangulate dilated ocean mesh (%s"), *GetOwner()->GetActorNameOrLabel());
+			UE_LOGF(LogWater, Warning, "Failed to triangulate dilated ocean mesh (%ls", *GetOwner()->GetActorNameOrLabel());
 			return false;
 		}
 
@@ -444,11 +454,18 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 
 void UWaterBodyOceanComponent::Reset()
 {
+	const bool bEnableDeterministicCollisionComponentNames = CVarEnableDeterministicOceanCollisionComponentNames.GetValueOnGameThread();
 	for (UBoxComponent* Component : CollisionBoxes)
 	{
 		if (Component)
 		{
 			Component->DestroyComponent();
+			if (bEnableDeterministicCollisionComponentNames)
+			{
+				// Trash the object so it gets renamed into a different package, freeing up its deterministic name.
+				// This ensures that newly generated components always have a consistent name.
+				TrashObject(Component);
+			}
 		}
 	}
 	CollisionBoxes.Reset();
@@ -457,6 +474,12 @@ void UWaterBodyOceanComponent::Reset()
 		if (Component)
 		{
 			Component->DestroyComponent();
+			if (bEnableDeterministicCollisionComponentNames)
+			{
+				// Trash the object so it gets renamed into a different package, freeing up its deterministic name.
+				// This ensures that newly generated components always have a consistent name.
+				TrashObject(Component);
+			}
 		}
 	}
 	CollisionHullSets.Reset();
@@ -605,14 +628,22 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			Reset();
 		}
 
+		const bool bEnableDeterministicCollisionComponentNames = CVarEnableDeterministicOceanCollisionComponentNames.GetValueOnGameThread();
+
 		// create the box components
 		for (int32 i = 0; i < Boxes.Num(); ++i)
 		{
 			const FBoxSphereBounds& Box = Boxes[i];
-			// We want a deterministic name within this water body component's outer to avoid non-deterministic cook issues but we also want to avoid reusing a component that might have been deleted
-			//  prior to that (in order to avoid potentially stalls caused by the primitive component not having been FinishDestroy-ed) (because OnUpdateBody runs 2 times in a row, 
-			//  once with bWithExclusionVolumes == false, once with bWithExclusionVolumes == true) so we use MakeUniqueObjectName for the name here :
-			FName Name = MakeUniqueObjectName(OwnerActor, UOceanCollisionComponent::StaticClass(), *FString::Printf(TEXT("OceanCollisionBoxComponent_%d"), i));
+			FName Name;
+			if (bEnableDeterministicCollisionComponentNames)
+			{
+				Name = *FString::Printf(TEXT("OceanBoxCollisionComponent_%d"), i);
+			}
+			else
+			{
+				Name = MakeUniqueObjectName(OwnerActor, UOceanBoxCollisionComponent::StaticClass(), *FString::Printf(TEXT("OceanBoxCollisionComponent_%d"), i));
+			}
+
 			UOceanBoxCollisionComponent* BoxComponent = nullptr;
 			if (CollisionBoxes.IsValidIndex(i) && (CollisionBoxes[i] != nullptr))
 			{
@@ -647,10 +678,17 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		for (int32 i = 0; i < ConvexSets.Num(); ++i)
 		{
 			const TArray<FKConvexElem>& ConvexSet = ConvexSets[i];
-			// We want a deterministic name within this water body component's outer to avoid non-deterministic cook issues but we also want to avoid reusing a component that might have been deleted
-			//  prior to that (in order to avoid potentially stalls caused by the primitive component not having been FinishDestroy-ed) (because OnUpdateBody runs 2 times in a row, 
-			//  once with bWithExclusionVolumes == false, once with bWithExclusionVolumes == true) so we use MakeUniqueObjectName for the name here :
-			FName Name = MakeUniqueObjectName(OwnerActor, UOceanCollisionComponent::StaticClass(), *FString::Printf(TEXT("OceanCollisionComponent_%d"), i));
+			FName Name;
+			
+			if (bEnableDeterministicCollisionComponentNames)
+			{
+				Name = *FString::Printf(TEXT("OceanCollisionComponent_%d"), i);
+			}
+			else
+			{
+				Name = MakeUniqueObjectName(OwnerActor, UOceanCollisionComponent::StaticClass(), *FString::Printf(TEXT("OceanCollisionComponent_%d"), i));
+			}
+
 			UOceanCollisionComponent* CollisionComponent = nullptr;
 			if (CollisionHullSets.IsValidIndex(i) && (CollisionHullSets[i] != nullptr))
 			{

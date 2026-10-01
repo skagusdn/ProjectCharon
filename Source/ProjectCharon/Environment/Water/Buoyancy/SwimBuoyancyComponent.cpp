@@ -79,10 +79,10 @@ void USwimBuoyancyComponent::BeginPlay()
 	}
 
 	if(InitCheckPontoons())
-	{
+	{		
 		// SwimCheckPontoon이 물에 들어가고 나올때 체크하기 위해서.
-		OnEnteredWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::USwimBuoyancyComponent::CheckSwimPontoonEnteredWater);
-		OnExitedWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::USwimBuoyancyComponent::CheckSwimPontoonExitedWater);
+		OnEnteredWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::CheckSwimPontoonEnteredWater);
+		OnExitedWaterDelegate.AddDynamic(this, &USwimBuoyancyComponent::CheckSwimPontoonExitedWater);
 		
 	}
 

@@ -39,6 +39,9 @@ class PROJECTCHARON_API UCharonGameplayAbility : public UGameplayAbility
 	//friend class UCharonAbilitySystemComponent;
 	
 public :
+	
+	UCharonGameplayAbility(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	
 	UFUNCTION(BlueprintCallable)
 	ECharonAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; };
 	

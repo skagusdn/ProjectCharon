@@ -35,9 +35,13 @@ namespace UE::WaterInfo { struct FRenderingContext; }
 
 bool IsWaterEnabled(bool bIsRenderThread);
 
-struct FUnderwaterPostProcessVolume : public IInterface_PostProcessVolume
+UCLASS(Transient, MinimalAPI)
+class UUnderwaterPostProcessVolume : public UObject, public IInterface_PostProcessVolume
 {
-	FUnderwaterPostProcessVolume()
+	GENERATED_BODY()
+
+public:
+	UUnderwaterPostProcessVolume()
 		: PostProcessProperties()
 	{
 		PostProcessProperties.VolumeGuid = FGuid(0x857a3d0e, 0x222e4c40, 0x833b5e81, 0x499b8d95);
@@ -272,7 +276,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
 
-	FUnderwaterPostProcessVolume UnderwaterPostProcessVolume;
+	UPROPERTY()
+	TObjectPtr<UUnderwaterPostProcessVolume> UnderwaterPostProcessVolume;
 
 	FWaterBodyManager WaterBodyManager;
 

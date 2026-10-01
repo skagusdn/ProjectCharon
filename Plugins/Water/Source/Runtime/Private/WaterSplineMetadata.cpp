@@ -38,11 +38,32 @@ bool UWaterSplineMetadata::CanEditVelocity() const
 void UWaterSplineMetadata::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
+
+	// Keep the four parallel curves co-indexed with the owning spline when the edit landed on one of them
+	// (or on a bulk/unknown change where the property is null, e.g. multi-property writes from SetEditorProperty(ies) and MCP tools that skip the UI).
+	const FName ChangedPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+	const bool bIsParallelCurveProperty =
+		ChangedPropertyName == NAME_None ||
+		ChangedPropertyName == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth) ||
+		ChangedPropertyName == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, WaterVelocityScalar) ||
+		ChangedPropertyName == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth) ||
+		ChangedPropertyName == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, AudioIntensity);
+
+	if (bIsParallelCurveProperty)
+	{
+		if (AWaterBody* Body = GetTypedOuter<AWaterBody>())
+		{
+			if (UWaterSplineComponent* OwningSpline = Body->GetWaterSpline())
+			{
+				Fixup(OwningSpline->GetNumberOfSplinePoints(), OwningSpline);
+			}
+		}
+	}
+
 	FOnWaterSplineMetadataChangedParams WaterSplineMetadataChangedParams(PropertyChangedEvent);
 	WaterSplineMetadataChangedParams.WaterSplineMetadata = this;
 	WaterSplineMetadataChangedParams.bUserTriggered = true;
-	
+
 	OnChangeMetadata.Broadcast(WaterSplineMetadataChangedParams);
 }
 #endif // WITH_EDITOR

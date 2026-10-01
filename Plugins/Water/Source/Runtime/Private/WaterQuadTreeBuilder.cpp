@@ -77,7 +77,7 @@ bool FWaterQuadTreeBuilder::BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, co
 
 		if (SortedPriorities.Num() > GPUQuadTreeMaxNumPriorities)
 		{
-			UE_LOG(LogWater, Warning, TEXT("WaterZone has more unique water body priorities (%i) than can be supported with GPU driven water quadtree rendering (%i)!"), SortedPriorities.Num(), GPUQuadTreeMaxNumPriorities);
+			UE_LOGF(LogWater, Warning, "WaterZone has more unique water body priorities (%i) than can be supported with GPU driven water quadtree rendering (%i)!", SortedPriorities.Num(), GPUQuadTreeMaxNumPriorities);
 		}
 	}
 
@@ -91,7 +91,7 @@ bool FWaterQuadTreeBuilder::BuildWaterQuadTree(FWaterQuadTree& WaterQuadTree, co
 		}
 
 		FWaterBodyRenderData RenderData;
-		RenderData.Material = WaterBody.Material ? WaterBody.Material->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		RenderData.Material = WaterBody.Material ? WaterBody.Material->GetRenderProxy() : nullptr;
 		RenderData.RiverToLakeMaterial = WaterBody.RiverToLakeMaterial ? WaterBody.RiverToLakeMaterial->GetRenderProxy() : nullptr;
 		RenderData.RiverToOceanMaterial = WaterBody.RiverToOceanMaterial ? WaterBody.RiverToOceanMaterial->GetRenderProxy() : nullptr;
 		RenderData.Priority = static_cast<int16>(FMath::Clamp(WaterBody.OverlapMaterialPriority, MinWaterBodyPriority, MaxWaterBodyPriority));

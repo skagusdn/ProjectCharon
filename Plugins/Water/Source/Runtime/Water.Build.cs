@@ -29,12 +29,14 @@ public class Water : ModuleRules
 			}
 		);
 
-		//////////////////
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Internal"),
-			}
-		);
+		 
+		////////////////// 플러그인 엔진 모듈로 취급하기
+		bTreatAsEngineModule = true; 
+		// PrivateIncludePaths.AddRange(
+		// 	new string[] {
+		// 		System.IO.Path.Combine(GetModuleDirectory("Renderer"), "Internal"),
+		// 	}
+		// );
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

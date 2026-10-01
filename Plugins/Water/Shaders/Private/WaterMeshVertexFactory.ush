@@ -443,6 +443,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 }
 
 #if HIT_PROXY_SHADER
+
+#define VF_IMPLEMENTED_GET_INSTANCE_HIT_PROXY_ID
+
 float4 VertexFactoryGetInstanceHitProxyId(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 #if WITH_WATER_SELECTION_SUPPORT_VF

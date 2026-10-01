@@ -2,6 +2,7 @@
 
 #include "FFTOceanPatchSubsystem.h"
 #include "ShallowWaterSettings.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/World.h"
 #include "Engine/AssetManager.h"
 #include "NiagaraComponent.h"
@@ -47,15 +48,36 @@ void UFFTOceanPatchSubsystem::PostInitialize()
 		return;
 	}
 
-	TArray< FSoftObjectPath> ObjectsToLoad;
+	TArray<FSoftObjectPath> ObjectsToLoad;
 	ObjectsToLoad.Add(Settings->DefaultOceanPatchNiagaraSystem.ToSoftObjectPath());
 
-	UAssetManager::GetStreamableManager().RequestAsyncLoad(ObjectsToLoad,
-	FStreamableDelegate::CreateWeakLambda(this, [this]()
+	// To avoid warnings in cooked builds do a check with the asset registry that we cooked the assets
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
+
+		for (auto It=ObjectsToLoad.CreateIterator(); It; ++It)
 		{
-			// continue with initialization		
-		})
-	);	
+			FAssetData AssetData;
+			if (AssetRegistry.TryGetAssetByObjectPath(*It, AssetData) != UE::AssetRegistry::EExists::Exists)
+			{
+				It.RemoveCurrentSwap();
+			}
+		}
+	}
+
+	if (ObjectsToLoad.Num() > 0)
+	{
+		UAssetManager::GetStreamableManager().RequestAsyncLoad(
+			ObjectsToLoad,
+			FStreamableDelegate::CreateWeakLambda(this,
+				[this]()
+				{
+					// continue with initialization		
+				}
+			)
+		);	
+	}
 
 	FFTOceanSystem = nullptr;
 	OceanNormalRT = nullptr;
@@ -75,7 +97,7 @@ TObjectPtr<UTextureRenderTarget2D> UFFTOceanPatchSubsystem::GetOceanNormalRT(UWo
 
 		if (NiagaraOceanSimulation == nullptr)
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UFFTOceanPatchSubsystem::GetOceanNormalRT - Ocean simulation system not loaded"));	
+			UE_LOGF(LogShallowWater, Warning, "UFFTOceanPatchSubsystem::GetOceanNormalRT - Ocean simulation system not loaded");	
 			return nullptr;
 		}
 
@@ -86,7 +108,7 @@ TObjectPtr<UTextureRenderTarget2D> UFFTOceanPatchSubsystem::GetOceanNormalRT(UWo
 		
 		if (FFTOceanSystem == nullptr)
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UFFTOceanPatchSubsystem::GetOceanNormalRT - Cannot spawn fft ocean system"));	
+			UE_LOGF(LogShallowWater, Warning, "UFFTOceanPatchSubsystem::GetOceanNormalRT - Cannot spawn fft ocean system");	
 			return nullptr;
 		}
 
@@ -99,7 +121,7 @@ TObjectPtr<UTextureRenderTarget2D> UFFTOceanPatchSubsystem::GetOceanNormalRT(UWo
 		}
 		else
 		{
-			UE_LOG(LogShallowWater, Warning, TEXT("UFFTOceanPatchSubsystem::GetOceanNormalRT - World not initialized"));	
+			UE_LOGF(LogShallowWater, Warning, "UFFTOceanPatchSubsystem::GetOceanNormalRT - World not initialized");	
 			return nullptr;
 		}
 

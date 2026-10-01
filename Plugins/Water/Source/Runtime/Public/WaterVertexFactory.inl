@@ -10,7 +10,7 @@
 #include "WaterInstanceDataBuffer.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "StereoRenderUtils.h"
-
+#include "ShaderCompilerCore.h"
 
 // ----------------------------------------------------------------------------------
 
@@ -176,8 +176,12 @@ bool TWaterVertexFactory<bWithWaterSelectionSupport, DrawMode>::ShouldCompilePer
 				return false;
 			}
 		}
-		// Only let the PC platform compile the permutations supporting selection : 
-		return (!bWithWaterSelectionSupport || IsPCPlatform(Parameters.Platform));
+
+		// Only let the editor platforms compile the permutations supporting selection
+		const bool bSupportEditor = EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+		const bool bSupportCookedEditor = IsPCPlatform(Parameters.Platform) && !IsMobilePlatform(Parameters.Platform);
+
+		return !bWithWaterSelectionSupport || bSupportEditor || bSupportCookedEditor;
 	}
 	return false;
 }
@@ -207,7 +211,7 @@ void TWaterVertexFactory<bWithWaterSelectionSupport, DrawMode>::ModifyCompilatio
 		OutEnvironment.CompilerFlags.Add(CFLAG_IndirectDraw);
 	}
 
-	OutEnvironment.SetDefine(TEXT("RAY_TRACING_DYNAMIC_MESH_IN_LOCAL_SPACE"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("RAY_TRACING_DYNAMIC_MESH_IN_WORLD_SPACE"), TEXT("1"));
 }
 
 template <bool bWithWaterSelectionSupport, EWaterVertexFactoryDrawMode DrawMode>

@@ -33,7 +33,7 @@ ACausticsGeneratorActor::ACausticsGeneratorActor(const FObjectInitializer& Objec
 void ACausticsGeneratorActor::Tick(float DeltaSeconds)
 {
 	this->EditorTick(DeltaSeconds);
-	//UE_LOG(LogTemp, Warning, TEXT("Actor Tick was called"));
+	//UE_LOGF(LogTemp, Warning, "Actor Tick was called");
 }
 
 void ACausticsGeneratorActor::EditorTick_Implementation(float DeltaSeconds)

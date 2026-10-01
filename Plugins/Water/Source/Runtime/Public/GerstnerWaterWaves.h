@@ -211,8 +211,4 @@ public:
 	/** Call RecomputeWaves whenever wave data changes, so that all cached data can be recomputed (do not call OnPostLoad... can call BP script internally) */
 	WATER_API void RecomputeWaves(bool bAllowBPScript);
 
-private:
-	FVector GetWaveOffsetAtPosition(const FGerstnerWave& InWaveParams, const FVector& InPosition, float InTime, FVector& OutNormal, float& OutOffset1D) const;
-	float GetSimpleWaveOffsetAtPosition(const FGerstnerWave& InWaveParams, const FVector& InPosition, float InTime) const;
-	void BlendWaveBetweenLWCTiles(const FGerstnerWave& InWaveParams, const FVector& InPosition, float InTime, float& WaveSin, float& WaveCos) const;
 };

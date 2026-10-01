@@ -75,7 +75,7 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 	Triangulation.Add(LakePoly);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate Lake mesh for %s.  Ensure that the Lake's spline does not form any loops (%s)"), *GetOwner()->GetActorNameOrLabel(), *GetFullNameSafe(GetOwner()));
+		UE_LOGF(LogWater, Warning, "Failed to triangulate Lake mesh for %ls.  Ensure that the Lake's spline does not form any loops (%ls)", *GetOwner()->GetActorNameOrLabel(), *GetFullNameSafe(GetOwner()));
 	}
 
 	if (Triangulation.Triangles.Num() == 0)
@@ -122,7 +122,7 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 		{
 			if (Poly.SignedArea() <= 0.)
 			{
-				UE_LOG(LogWater, Warning, TEXT("Failed to apply offset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+				UE_LOGF(LogWater, Warning, "Failed to apply offset for shape dilation (%ls", *GetOwner()->GetActorNameOrLabel());
 				continue;
 			}
 
@@ -131,7 +131,7 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 
 		if (!DilationTriangulation.Triangulate())
 		{
-			UE_LOG(LogWater, Warning, TEXT("Failed to triangulate dilated lake mesh (%s"), *GetOwner()->GetActorNameOrLabel());
+			UE_LOGF(LogWater, Warning, "Failed to triangulate dilated lake mesh (%ls", *GetOwner()->GetActorNameOrLabel());
 			return false;
 		}
 

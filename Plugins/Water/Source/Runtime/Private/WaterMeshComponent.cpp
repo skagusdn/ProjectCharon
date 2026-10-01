@@ -129,6 +129,12 @@ FPrimitiveSceneProxy* UWaterMeshComponent::CreateSceneProxy()
 	{
 		return nullptr;
 	}
+	
+	if (CheckPSOPrecachingAndBoostPriority(EPSOPrecachePriority::Highest) && GetPSOPrecacheProxyCreationStrategy() != EPSOPrecacheProxyCreationStrategy::AlwaysCreate)
+	{
+		UE_LOGF(LogWater, Verbose, "Skipping CreateSceneProxy for UWaterMeshComponent %ls (Its PSOs are still compiling)", *GetFullName());
+		return nullptr;
+	}
 
 	return new FWaterMeshSceneProxy(this);
 }
@@ -146,7 +152,7 @@ void UWaterMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 
 void UWaterMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Material)
 {
-	UE_LOG(LogWater, Warning, TEXT("SetMaterial is not compatible with UWaterMeshComponent since all materials on this component are auto-populated from the Water Bodies contained within it."));
+	UE_LOGF(LogWater, Warning, "SetMaterial is not compatible with UWaterMeshComponent since all materials on this component are auto-populated from the Water Bodies contained within it.");
 }
 
 #if WITH_EDITOR
@@ -295,9 +301,15 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 
 		UWaterBodyInfoMeshComponent* WaterBodyInfoMeshComponent = WaterBodyComponent->GetWaterInfoMeshComponent();
 		UStaticMesh* StaticMesh = WaterBodyInfoMeshComponent ? WaterBodyInfoMeshComponent->GetStaticMesh().Get() : nullptr;
-		bAnyWaterMeshesNotReady |= StaticMesh && StaticMesh->IsCompiling();
-		FStaticMeshRenderData* StaticMeshRenderData = StaticMesh ? StaticMesh->GetRenderData() : nullptr;
-		if (!ensure(WaterBodyInfoMeshComponent) || !ensure(StaticMesh) || !StaticMeshRenderData)
+
+		if (StaticMesh == nullptr)
+		{
+			return true;
+		}
+
+		bAnyWaterMeshesNotReady |= StaticMesh->IsCompiling();
+		FStaticMeshRenderData* StaticMeshRenderData = StaticMesh->GetRenderData();
+		if (!StaticMeshRenderData)
 		{
 			return true;
 		}
@@ -327,7 +339,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		const bool bIsRiver = WaterBodyComponent->GetWaterBodyType() == EWaterBodyType::River;
 
 		FWaterQuadTreeBuilder::FWaterBody WaterBody = {};
-		WaterBody.Material = GetMaterialInterface(WaterBodyComponent->GetWaterMaterialInstance(), true);
+		WaterBody.Material = GetMaterialInterface(WaterBodyComponent->GetWaterMaterialInstance(), false);
 		WaterBody.RiverToLakeMaterial = bIsRiver ? GetMaterialInterface(WaterBodyComponent->GetRiverToLakeTransitionMaterialInstance(), false) : nullptr;
 		WaterBody.RiverToOceanMaterial = bIsRiver ? GetMaterialInterface(WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(), false) : nullptr;
 		WaterBody.StaticMeshRenderData = StaticMeshRenderData;
@@ -590,7 +602,7 @@ void UWaterMeshComponent::Update()
 
 		if (Bias != 0)
 		{
-			UE_LOG(LogWater, Warning, TEXT("Width of water quad tree tiles (%d) for Water Mesh Component (%s) has exceeded the cap for this platform (%d). Tile sizes have been biased by a factor of %.2f to prevent exceeding the cap. If a high tile count is intended by the user, the scalability cvar `r.Water.WaterMesh.MaxWidthInTiles` should be adjusted accordingly."), ExtentInTiles.GetMax(), *GetPathName(), MaxDimensionInTiles, LODCountBiasFactor);
+			UE_LOGF(LogWater, Warning, "Width of water quad tree tiles (%d) for Water Mesh Component (%ls) has exceeded the cap for this platform (%d). Tile sizes have been biased by a factor of %.2f to prevent exceeding the cap. If a high tile count is intended by the user, the scalability cvar `r.Water.WaterMesh.MaxWidthInTiles` should be adjusted accordingly.", ExtentInTiles.GetMax(), *GetPathName(), MaxDimensionInTiles, LODCountBiasFactor);
 		}
 
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));

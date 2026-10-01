@@ -171,14 +171,18 @@ bool UCharonGameplayAbility::DoesAbilitySatisfyTagRequirements(const UAbilitySys
 // 	K2_OnAvatarSet();
 // }
 
+UCharonGameplayAbility::UCharonGameplayAbility(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+}
+
 void UCharonGameplayAbility::TryActivateAbilityOnSpawn(const FGameplayAbilityActorInfo* ActorInfo,
                                                        const FGameplayAbilitySpec& Spec) const
 {
 	
-	const bool bIsPredicting = (Spec.Ability->GetCurrentActivationInfo().ActivationMode == EGameplayAbilityActivationMode::Predicting);
-
 	// Try to activate if activation policy is on spawn.
-	if (ActorInfo && !Spec.IsActive() && !bIsPredicting && (ActivationPolicy == ECharonAbilityActivationPolicy::OnSpawn))
+	if (ActorInfo && !Spec.IsActive() && (ActivationPolicy == ECharonAbilityActivationPolicy::OnSpawn))
 	{
 		UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
 		const AActor* AvatarActor = ActorInfo->AvatarActor.Get();

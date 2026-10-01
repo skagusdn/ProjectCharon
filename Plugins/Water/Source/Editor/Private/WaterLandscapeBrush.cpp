@@ -129,6 +129,8 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 		return;
 	}
 
+	check(!IsUnreachable());
+
 	const bool bMarkPackageDirty = false;
 	Modify(bMarkPackageDirty);
 
@@ -163,6 +165,12 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 
 void AWaterLandscapeBrush::OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams)
 {
+	// Make sure we don't process this callback when being torn down
+	if (IsUnreachable())
+	{
+		return;
+	}
+
 	AActor* Actor = CastChecked<AActor>(InParams.WaterBrushActor);
 	const bool bAffectsLandscape = InParams.WaterBrushActor->AffectsLandscape();
 	const bool bAffectsWaterMesh = InParams.WaterBrushActor->AffectsWaterMesh();
@@ -236,6 +244,7 @@ void AWaterLandscapeBrush::RegisterDelegates()
 			if ((World == GetWorld())
 				&& (World->IsEditorWorld()
 				&& (Level != nullptr)
+				&& !IsUnreachable() // It seems like we can receive this callback while being torn down
 				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); })))
 			{
 				UpdateActors(!UE::GetIsEditorLoadingPackage());
@@ -247,6 +256,7 @@ void AWaterLandscapeBrush::RegisterDelegates()
 			if ((World == GetWorld())
 				&& (World->IsEditorWorld()
 				&& (Level != nullptr)
+				&& !IsUnreachable() // It seems like we can receive this callback while being torn down
 				&& Algo::AnyOf(Level->Actors, [this](AActor* Actor) { return IsActorAffectingLandscape(Actor); })))
 			{
 				UpdateActors(!UE::GetIsEditorLoadingPackage());
@@ -283,7 +293,8 @@ void AWaterLandscapeBrush::PostLoad()
 
 void AWaterLandscapeBrush::OnLevelActorAdded(AActor* InActor)
 {
-	if (InActor->GetWorld() == GetWorld())
+	if ((InActor->GetWorld() == GetWorld())
+		&& !IsUnreachable()) // It seems like we can receive this callback while being torn down
 	{
 		AddActorInternal(InActor, GetWorld(), /*InCache = */nullptr, /*bTriggerEvent = */true, /*bModify = */true);
 	}
@@ -291,7 +302,8 @@ void AWaterLandscapeBrush::OnLevelActorAdded(AActor* InActor)
 
 void AWaterLandscapeBrush::OnLevelActorRemoved(AActor* InActor)
 {
-	if (InActor->GetWorld() == GetWorld())
+	if ((InActor->GetWorld() == GetWorld())
+		&& !IsUnreachable()) // It seems like we can receive this callback while being torn down
 	{
 		if (IsActorAffectingLandscape(InActor))
 		{

@@ -444,7 +444,7 @@ public:
 	void SetUseBakedSimulationForQueriesAndPhysics(bool bUseBakedSimulation) { bUseBakedSimForQueriesAndPhysics = bUseBakedSimulation;  }
 	
 	/** Query for if the baked simulations is valid for use */
-	bool UseBakedSimulationForQueriesAndPhysics() const { return bUseBakedSimForQueriesAndPhysics && BakedShallowWaterSim.IsValid() && BakedShallowWaterSim->SimulationData.IsValid(); }
+	bool UseBakedSimulationForQueriesAndPhysics() const { return bUseBakedSimForQueriesAndPhysics && BakedShallowWaterSim.IsValid() && BakedShallowWaterSim->BakedSimulationData != nullptr && BakedShallowWaterSim->BakedSimulationData->HasValidData(); }
 
 	/** 
 	 * Marks the owning water zone for rebuild. 
@@ -687,7 +687,7 @@ protected:
 	FPostProcessSettings CurrentPostProcessSettings;
 
 	// The navigation area class that will be generated on nav mesh
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanAffectNavigation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanEverAffectNavigation"))
 	TSubclassOf<UNavAreaBase> WaterNavAreaClass;
 
 	/** If the Water Material assigned to this component has Fixed Depth enabled, this is the depth that is passed. */
@@ -703,10 +703,12 @@ protected:
 	bool bUseBakedSimForQueriesAndPhysics = true;
 
 #if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands_DEPRECATED;
 	UPROPERTY()
 	TArray<TLazyObjectPtr<AWaterBodyExclusionVolume>> ExclusionVolumes_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> WaterLODMaterial_DEPRECATED;

@@ -334,7 +334,10 @@ void AWaterBrushManager::OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::
 
 void AWaterBrushManager::BlueprintOnRenderTargetTexturesUpdated_Native(UTexture2D* VelocityTexture)
 {
+	VelocityTexture->PreEditChange(nullptr);
 	VelocityTexture->LODBias = 0;
+	VelocityTexture->PostEditChange();
+
 	UseDynamicPreviewRT = false;
 }
 
@@ -357,7 +360,7 @@ void AWaterBrushManager::SingleJumpStep()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
+		UE_LOGF(LogWaterEditor, Error, "DebugDistanceFieldMaterial must be set to use this debug function");
 		return;
 	}
 
@@ -369,7 +372,7 @@ void AWaterBrushManager::SingleBlurStep()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
+		UE_LOGF(LogWaterEditor, Error, "DebugDistanceFieldMaterial must be set to use this debug function");
 		return;
 	}
 
@@ -381,7 +384,7 @@ void AWaterBrushManager::FindEdges()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
+		UE_LOGF(LogWaterEditor, Error, "DebugDistanceFieldMaterial must be set to use this debug function");
 		return;
 	}
 
@@ -406,7 +409,7 @@ void AWaterBrushManager::BlueprintWaterBodyChanged_Native(AActor* Actor)
 
 void AWaterBrushManager::Initialize_Native(FTransform const& InLandscapeTransform, FIntPoint const& InLandscapeSize, FIntPoint const& InLandscapeRenderTargetSize)
 {
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Updated Landscape Transform"));
+	UE_LOGF(LogWaterEditor, Verbose, "Updated Landscape Transform");
 
 	bool bNeedsFullUpdate = false;
 	if (LandscapeQuads != InLandscapeSize)
@@ -533,7 +536,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 	if (SplineMeshComponents.Num() != NumSplineMids)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline mesh component count."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid River spline mesh component count.");
 		return false;
 	}
 
@@ -577,7 +580,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 			}
 			else
 			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline material for Water Brush."));
+				UE_LOGF(LogWaterEditor, Error, "Invalid River spline material for Water Brush.");
 				return false;
 			}
 		}
@@ -591,7 +594,7 @@ void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderCon
 	TArray<UMaterialInterface*> MIDsToRestore;
 	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bRestoreMIDs  = */false, MIDsToRestore))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Error in setup River spline render material for Water Brush. Aborting CaptureRiverDepthAndVelocity."));
+		UE_LOGF(LogWaterEditor, Error, "Error in setup River spline render material for Water Brush. Aborting CaptureRiverDepthAndVelocity.");
 		return;
 	}
 
@@ -622,13 +625,13 @@ void AWaterBrushManager::DrawCanvasShape(const FBrushActorRenderContext& BrushAc
 {
 	TArray<FCanvasUVTri> CanvasUVTris;
 
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Actor used for Spline Canvas Render: %s"), *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.WaterBrushActor.GetObject()));
+	UE_LOGF(LogWaterEditor, Verbose, "Actor used for Spline Canvas Render: %ls", *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.WaterBrushActor.GetObject()));
 
 	UWaterSplineComponent* SplineComponent = CastChecked<UWaterSplineComponent>(BrushActorRenderContext.GetActor()->GetComponentByClass(UWaterSplineComponent::StaticClass()));
 	ensure(SplineComponent);
 
 	int32 TruncSegments = FMath::TruncToInt(SplineComponent->GetSplineLength() / CanvasSegmentSize);
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Spline Segment Canvas Segments: %d"), TruncSegments);
+	UE_LOGF(LogWaterEditor, Verbose, "Spline Segment Canvas Segments: %d", TruncSegments);
 
 	for (int32 ii = 0; ii < TruncSegments; ++ii)
 	{
@@ -675,8 +678,8 @@ void AWaterBrushManager::DrawBrushMaterial(const FBrushRenderContext& BrushRende
 		UKismetRenderingLibrary::ClearRenderTarget2D(this, HeightPingPongWrite(BrushRenderContext), FLinearColor::Black);
 		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, HeightPingPongWrite(BrushRenderContext), BrushActorRenderContext.MID);
 
-		UE_LOG(LogWaterEditor, Verbose, TEXT("Render Target Write Target: %s"), *UKismetSystemLibrary::GetDisplayName(HeightPingPongWrite(BrushRenderContext)));
-		UE_LOG(LogWaterEditor, Verbose, TEXT("Brush MID Parent: %s"), *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.MID));
+		UE_LOGF(LogWaterEditor, Verbose, "Render Target Write Target: %ls", *UKismetSystemLibrary::GetDisplayName(HeightPingPongWrite(BrushRenderContext)));
+		UE_LOGF(LogWaterEditor, Verbose, "Brush MID Parent: %ls", *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.MID));
 	}
 	else
 	{
@@ -722,7 +725,7 @@ void AWaterBrushManager::UpdateCurves()
 			if (!CurveCache.CacheIsValid && CurveCache.CacheRenderTarget)
 			{
 				check(CurCurveFloat);
-				UE_LOG(LogWaterEditor, Verbose, TEXT("Water Body Curve Cache Invalid : Refreshing Curve RT"));
+				UE_LOGF(LogWaterEditor, Verbose, "Water Body Curve Cache Invalid : Refreshing Curve RT");
 				UKismetRenderingLibrary::ClearRenderTarget2D(this, CurveCache.CacheRenderTarget, FLinearColor::Black);
 
 				check(CurveCache.CacheRenderTarget);
@@ -753,7 +756,7 @@ bool AWaterBrushManager::BrushRenderSetup()
 {
 	if (!AllocateRTs())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Render Target for Water Brush. Aborting BrushRenderSetup."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Render Target for Water Brush. Aborting BrushRenderSetup.");
 		return false;
 	}
 
@@ -767,7 +770,7 @@ bool AWaterBrushManager::BrushRenderSetup()
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(AActor::AddComponent(FName(TEXT("NODE_AddStaticMeshComponent-0")), false, FTransform(FRotator::ZeroRotator, FVector::ZeroVector, WorldSize), this), ECastCheckedType::NullAllowed);
 		if (DebugDistanceFieldMaterial->IsA<UMaterialInstanceDynamic>())
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Invalid DebugDistanceFieldMaterial Material : must be either a Material Instance Constant or a Material"));
+			UE_LOGF(LogWaterEditor, Error, "Invalid DebugDistanceFieldMaterial Material : must be either a Material Instance Constant or a Material");
 		}
 		else
 		{
@@ -790,7 +793,7 @@ bool AWaterBrushManager::BrushRenderSetup()
 
 	if (!CreateMIDs())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid material setup for Water Brush. Aborting BrushRenderSetup."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid material setup for Water Brush. Aborting BrushRenderSetup.");
 		return false;
 	}
 
@@ -1015,7 +1018,7 @@ bool AWaterBrushManager::AllocateRTs()
 	HeightmapRTB = FWaterUtils::GetOrCreateTransientRenderTarget2D(HeightmapRTB, TEXT("HeightmapRTB"), LandscapeRTRes, RTF_RGBA8);
 	if ((HeightmapRTA == nullptr) || (HeightmapRTB == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Heightmap Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Heightmap Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
@@ -1033,7 +1036,7 @@ bool AWaterBrushManager::AllocateRTs()
 	}
 	else
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid JumpFlood Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid JumpFlood Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
@@ -1044,14 +1047,14 @@ bool AWaterBrushManager::AllocateRTs()
 	}
 	else
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid DepthAndShape Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid DepthAndShape Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
 	WaterDepthAndVelocityRT = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterDepthAndVelocityRT, TEXT("WaterDepthAndVelocityRT"), LandscapeRTRes, RTF_RGBA32f);
 	if (WaterDepthAndVelocityRT == nullptr)
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid WaterDepthAndVelocity Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid WaterDepthAndVelocity Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
@@ -1059,7 +1062,7 @@ bool AWaterBrushManager::AllocateRTs()
 	WeightmapRTB = FWaterUtils::GetOrCreateTransientRenderTarget2D(WeightmapRTB, TEXT("WeightmapRTB"), LandscapeRTRes, RTF_R8);
 	if ((WeightmapRTA == nullptr) || (WeightmapRTB == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid Weightmap Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid Weightmap Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
@@ -1067,7 +1070,7 @@ bool AWaterBrushManager::AllocateRTs()
 	CombinedVelocityAndHeightRTB = FWaterUtils::GetOrCreateTransientRenderTarget2D(CombinedVelocityAndHeightRTB, TEXT("CombinedVelocityAndHeightRTB"), LandscapeRTRes, RTF_RGBA16f);
 	if ((CombinedVelocityAndHeightRTA == nullptr) || (CombinedVelocityAndHeightRTB == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid CombinedVelocityAndHeight Render Target for Water Brush. Aborting AllocateRTs."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid CombinedVelocityAndHeight Render Target for Water Brush. Aborting AllocateRTs.");
 		bSuccess = false;
 	}
 
@@ -1141,7 +1144,7 @@ void AWaterBrushManager::SetMPCParams()
 
 		if (GEditor == nullptr)
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("GEditor is null for AWaterBrushManager::SetMPCParams(): %s"), *GetFullName());
+			UE_LOGF(LogWaterEditor, Error, "GEditor is null for AWaterBrushManager::SetMPCParams(): %ls", *GetFullName());
 			return;
 		}
 
@@ -1150,7 +1153,7 @@ void AWaterBrushManager::SetMPCParams()
 		UMaterialParameterCollection* LandscapeCollection =  WaterEditorSubsystem->GetLandscapeMaterialParameterCollection();
 		if (LandscapeCollection == nullptr)
         {
-            UE_LOG(LogWaterEditor, Error, TEXT("No Landscape MaterialParameterCollection Assigned"));
+            UE_LOGF(LogWaterEditor, Error, "No Landscape MaterialParameterCollection Assigned");
 			return;
         }
         
@@ -1159,56 +1162,56 @@ void AWaterBrushManager::SetMPCParams()
 
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResX")), (float)LandscapeRTRes.X))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResX\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"RTResX\" on Landscape MaterialParameterCollection");
 		}
 
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResY")), (float)LandscapeRTRes.Y))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResY\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"RTResY\" on Landscape MaterialParameterCollection");
 		}
 
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsX")), (float)LandscapeQuads.X))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsX\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"LSQuadsX\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsY")), (float)LandscapeQuads.Y))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsY\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"LSQuadsY\" on Landscape MaterialParameterCollection");
 		}
 
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeX")), WorldSize.X))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeX\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"WorldSizeX\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeY")), WorldSize.Y))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeY\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"WorldSizeY\" on Landscape MaterialParameterCollection");
 		}
 
 		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(LandscapeTransform.GetLocation())))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeLocation\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"LandscapeLocation\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZLocation")), LandscapeTransform.GetLocation().Z))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZLocation\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"LandscapeZLocation\" on Landscape MaterialParameterCollection");
 		}
 		// TODO [jonathan.bard] : find out what this 128.0f corresponds to and put in a constant : ZSCALE in LandscapeLayersPS.usf maybe ??
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZScale")), LandscapeTransform.GetScale3D().Z / 128.0f))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZScale\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"LandscapeZScale\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldSize")), FLinearColor(RTWorldSizeVector)))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldSize\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"RTWorldSize\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldLocation")), FLinearColor(RTWorldLocation)))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldLocation\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"RTWorldLocation\" on Landscape MaterialParameterCollection");
 		}
 		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WaterClearHeight")), WaterClearHeight))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WaterClearHeight\" on Landscape MaterialParameterCollection"));
+			UE_LOGF(LogWaterEditor, Error, "Failed to set \"WaterClearHeight\" on Landscape MaterialParameterCollection");
 		}
 		
 	}
@@ -1228,7 +1231,7 @@ void AWaterBrushManager::ApplyToCompositeWaterBodyTexture(FBrushRenderContext& B
 		CompositeWaterBodyTextureMID->SetScalarParameterValue(FName(TEXT("ZOffset")), HeightmapSettings.FalloffSettings.ZOffset);
 		CompositeWaterBodyTextureMID->SetScalarParameterValue(FName(TEXT("Shape Dilation")), WaterBody->GetWaterBodyComponent()->ShapeDilation);
 
-		UE_LOG(LogWaterEditor, Verbose, TEXT("Rendering Water Body Velocity/Height to Combined Texture: %s"), *UKismetSystemLibrary::GetDisplayName(VelocityPingPongWrite(BrushRenderContext)));
+		UE_LOGF(LogWaterEditor, Verbose, "Rendering Water Body Velocity/Height to Combined Texture: %ls", *UKismetSystemLibrary::GetDisplayName(VelocityPingPongWrite(BrushRenderContext)));
 
 		UKismetRenderingLibrary::ClearRenderTarget2D(this, VelocityPingPongWrite(BrushRenderContext), FLinearColor::Black);
 		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, VelocityPingPongWrite(BrushRenderContext), CompositeWaterBodyTextureMID);
@@ -1243,7 +1246,7 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 	{
 		if (!(BrushActorRenderContext.WaterBrushActor->GetLayerWeightmapSettings().Find(BrushRenderContext.WeightmapLayerName)))
 		{
-			UE_LOG(LogWaterEditor, Verbose, TEXT("Actor does NOT affect this layer, Skipping"));
+			UE_LOGF(LogWaterEditor, Verbose, "Actor does NOT affect this layer, Skipping");
 			return;
 		}
 	}
@@ -1255,16 +1258,16 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 
 	SetBrushMIDParams(BrushRenderContext, BrushActorRenderContext);
 
-	UE_LOG(LogWaterEditor, Verbose, TEXT("===================================="));
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Current Actor: %s"), *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.WaterBrushActor.GetObject()));
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Type: %s"), *BrushActorRenderContext.WaterBrushActor.GetObject()->GetClass()->GetName());
-	UE_LOG(LogWaterEditor, Verbose, TEXT("Cache is Valid: %s"), (BrushActorRenderContext.CacheContainer->Cache.CacheIsValid ? TEXT("true") : TEXT("false")));
+	UE_LOGF(LogWaterEditor, Verbose, "====================================");
+	UE_LOGF(LogWaterEditor, Verbose, "Current Actor: %ls", *UKismetSystemLibrary::GetDisplayName(BrushActorRenderContext.WaterBrushActor.GetObject()));
+	UE_LOGF(LogWaterEditor, Verbose, "Type: %ls", *BrushActorRenderContext.WaterBrushActor.GetObject()->GetClass()->GetName());
+	UE_LOGF(LogWaterEditor, Verbose, "Cache is Valid: %ls", (BrushActorRenderContext.CacheContainer->Cache.CacheIsValid ? TEXT("true") : TEXT("false")));
 
 	if (BrushActorRenderContext.CacheContainer->Cache.CacheIsValid)
 	{
 		if (bKillCache)
 		{
-			UE_LOG(LogWaterEditor, Verbose, TEXT("Kill Cache Detected, running full render pass for Brush"));
+			UE_LOGF(LogWaterEditor, Verbose, "Kill Cache Detected, running full render pass for Brush");
 		}
 	}
 	else
@@ -1280,20 +1283,20 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 		FLinearColor CurlColor(CurlNoise.Curl1Tiling, CurlNoise.Curl1Amount, CurlNoise.Curl2Tiling, CurlNoise.Curl2Amount);
 		if ((WaterBody != nullptr) && (WaterBody->GetWaterBodyType() == EWaterBodyType::River))
 		{
-			UE_LOG(LogWaterEditor, Verbose, TEXT("River depth and verlocity render"));
+			UE_LOGF(LogWaterEditor, Verbose, "River depth and verlocity render");
 			CaptureRiverDepthAndVelocity(BrushActorRenderContext);
-			UE_LOG(LogWaterEditor, Verbose, TEXT("Jump flood"));
+			UE_LOGF(LogWaterEditor, Verbose, "Jump flood");
 			JumpFloodComponent2D->JumpFlood(DepthAndShapeRT, 50000.0f, CurlColor, true, 0.0f);
 		}
 		else
 		{
-			UE_LOG(LogWaterEditor, Verbose, TEXT("Canvas shape render"));
+			UE_LOGF(LogWaterEditor, Verbose, "Canvas shape render");
 			DrawCanvasShape(BrushActorRenderContext);
-			UE_LOG(LogWaterEditor, Verbose, TEXT("Jump flood"));
+			UE_LOGF(LogWaterEditor, Verbose, "Jump flood");
 			JumpFloodComponent2D->JumpFlood(DepthAndShapeRT, 50000.0f, CurlColor, false, BrushActorRenderContext.GetActor()->GetActorLocation().Z);
 		}
 
-		UE_LOG(LogWaterEditor, Verbose, TEXT("Distance Field generation"));
+		UE_LOGF(LogWaterEditor, Verbose, "Distance Field generation");
 		CacheBrushDistanceField(BrushActorRenderContext);
 	}
 
@@ -1327,7 +1330,7 @@ bool AWaterBrushManager::CreateMIDs()
 		|| (CompositeWaterBodyTextureMID == nullptr)
 		|| (DrawCanvasMID == nullptr))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid water brush materials."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid water brush materials.");
 		return false;
 	}
 
@@ -1390,7 +1393,7 @@ UTextureRenderTarget2D* AWaterBrushManager::RenderLayer_Native(const FLandscapeB
 
 	if (!BrushRenderSetup())
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("Invalid setup for water brush. Aborting Render."));
+		UE_LOGF(LogWaterEditor, Error, "Invalid setup for water brush. Aborting Render.");
 		return nullptr;
 	}
 
@@ -1401,15 +1404,15 @@ UTextureRenderTarget2D* AWaterBrushManager::RenderLayer_Native(const FLandscapeB
 		UKismetRenderingLibrary::ClearRenderTarget2D(this, CombinedVelocityAndHeightRTB, ClearColor);
 	}
 
-	UE_LOG(LogWaterEditor, Verbose, TEXT("===================================="));
+	UE_LOGF(LogWaterEditor, Verbose, "====================================");
 
 	if (BrushRenderContext.bHeightmapRender)
 	{
-		UE_LOG(LogWaterEditor, Verbose, TEXT("BrushManager: Heightmap Render Pass"));
+		UE_LOGF(LogWaterEditor, Verbose, "BrushManager: Heightmap Render Pass");
 	}
 	else
 	{
-		UE_LOG(LogWaterEditor, Verbose, TEXT("Brush Manager Render: Weightmap Render Pass: %s"), *BrushRenderContext.WeightmapLayerName.ToString());
+		UE_LOGF(LogWaterEditor, Verbose, "Brush Manager Render: Weightmap Render Pass: %ls", *BrushRenderContext.WeightmapLayerName.ToString());
 	}
 
 	TArray<AWaterBody*> WaterBodies;

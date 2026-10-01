@@ -17,6 +17,7 @@
 #include "Engine/GameViewportClient.h"
 #include "WaterBodyInfoMeshComponent.h"
 #include "WaterTerrainComponent.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterZoneActor)
 
@@ -39,6 +40,26 @@ TAutoConsoleVariable<float> CVarWaterFallbackDepth(
 	3000.0f,
 	TEXT("Depth to use for all water when there are no ground actors defined."),
 	ECVF_Default);
+
+void OnWaterInfoRenderTargetResolutionMaxChanged_Callback(IConsoleVariable*);
+
+TAutoConsoleVariable<int32> CVarWaterInfoRenderTargetResolutionMax(
+	TEXT("r.Water.WaterInfo.RenderTargetResolutionMax"),
+	0,
+	TEXT("The maximum resolution of the water zone actor's water info render target. If zero, resolution is uncapped"),
+	FConsoleVariableDelegate::CreateStatic(OnWaterInfoRenderTargetResolutionMaxChanged_Callback),
+	ECVF_Default);
+
+void OnWaterInfoRenderTargetResolutionMaxChanged_Callback(IConsoleVariable*)
+{
+	for (AWaterZone* WaterZoneActor : TObjectRange<AWaterZone>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+	{
+		if (WaterZoneActor)
+		{
+			WaterZoneActor->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+		}
+	}
+}
 
 void OnSkipWaterInfoTextureRenderWhenWorldRenderingDisabled_Callback(IConsoleVariable*);
 
@@ -158,7 +179,7 @@ void AWaterZone::GetAllDynamicWaterInfoBounds(TArray<FBox>& OutBounds) const
 		}
 		else
 		{
-			UE_LOG(LogWater, Verbose, TEXT("AWaterZone (%s) GetAllDynamicWaterInfoBounds did not find any WaterZoneInfo associated to this WaterZone in FWaterViewExtension"), *GetNameSafe(this));
+			UE_LOGF(LogWater, Verbose, "AWaterZone (%ls) GetAllDynamicWaterInfoBounds did not find any WaterZoneInfo associated to this WaterZone in FWaterViewExtension", *GetNameSafe(this));
 		}
 	}
 }
@@ -185,7 +206,7 @@ void AWaterZone::GetAllDynamicWaterInfoCenters(TArray<FVector>& OutCenters) cons
 		}
 		else
 		{
-			UE_LOG(LogWater, Verbose, TEXT("AWaterZone (%s) GetAllDynamicWaterInfoCenters did not find any WaterZoneInfo associated to this WaterZone in FWaterViewExtension"), *GetNameSafe(this));
+			UE_LOGF(LogWater, Verbose, "AWaterZone (%ls) GetAllDynamicWaterInfoCenters did not find any WaterZoneInfo associated to this WaterZone in FWaterViewExtension", *GetNameSafe(this));
 		}
 	}
 }
@@ -199,6 +220,18 @@ FBox AWaterZone::GetZoneBounds() const
 	const double WaterZoneHalfZExtent = CharonZoneExtentZ / 2.0; //// 수정함
 	
 	return FBox(FVector3d(ZoneBounds2D.Min, WaterZoneZ - WaterZoneHalfZExtent), FVector3d(ZoneBounds2D.Max, WaterZoneHalfZExtent + WaterZoneZ));
+}
+
+FIntPoint AWaterZone::GetRenderTargetResolution() const
+{
+	// Clamp the render resolution if the CVar is set
+	const int32 RenderTargetResolutionMax = CVarWaterInfoRenderTargetResolutionMax.GetValueOnGameThread();
+	if (RenderTargetResolutionMax > 0)
+	{
+		return FIntPoint(FMath::Clamp(RenderTargetResolution.X, 0, RenderTargetResolutionMax), FMath::Clamp(RenderTargetResolution.Y, 0, RenderTargetResolutionMax));
+	}
+
+	return RenderTargetResolution;
 }
 
 void AWaterZone::SetRenderTargetResolution(FIntPoint NewResolution)
@@ -327,12 +360,12 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags, const FBox2D& Upda
 	{
 		if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterMesh))
 		{
-			UE_LOG(LogWater, Verbose, TEXT("AWaterZone (%s) UpdateWaterMesh in region {%s} (triggered by %s)"), *GetNameSafe(this), *UpdateRegion.ToString(), *GetNameSafe(DebugRequestingObject));
+			UE_LOGF(LogWater, Verbose, "AWaterZone (%ls) UpdateWaterMesh in region {%ls} (triggered by %ls)", *GetNameSafe(this), *UpdateRegion.ToString(), *GetNameSafe(DebugRequestingObject));
 			WaterMesh->MarkWaterMeshGridDirty();
 		}
 		if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterInfoTexture))
 		{
-			UE_LOG(LogWater, Verbose, TEXT("AWaterZone (%s) UpdateWaterInfoTexture in region {%s} (triggered by %s)"), *GetNameSafe(this), *UpdateRegion.ToString(), *GetNameSafe(DebugRequestingObject));
+			UE_LOGF(LogWater, Verbose, "AWaterZone (%ls) UpdateWaterInfoTexture in region {%ls} (triggered by %ls)", *GetNameSafe(this), *UpdateRegion.ToString(), *GetNameSafe(DebugRequestingObject));
 			bNeedsWaterInfoRebuild = true;
 		}
 	}
@@ -440,9 +473,6 @@ void AWaterZone::PostEditMove(bool bFinished)
 
 	UpdateOverlappingWaterBodies();
 
-	//// 지울것
-	UE_LOG(LogTemp, Warning, TEXT("WaterZone (%s) (%d) Moved"), *GetNameSafe(this), WaterZoneIndex);
-	
 	MarkForRebuild(RebuildFlags, /* DebugRequestingObject = */ this);
 }
 
@@ -486,6 +516,13 @@ void AWaterZone::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWaterZone, RenderTargetResolution))
 	{
+		// Clamp the render resolution if the CVar is set
+		const int32 RenderTargetResolutionMax = CVarWaterInfoRenderTargetResolutionMax.GetValueOnGameThread();
+		if (RenderTargetResolutionMax > 0)
+		{
+			RenderTargetResolution.X = FMath::Clamp(RenderTargetResolution.X, 0, RenderTargetResolutionMax);
+			RenderTargetResolution.Y = FMath::Clamp(RenderTargetResolution.Y, 0, RenderTargetResolutionMax);
+		}
 		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture, /* DebugRequestingObject = */ this);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWaterZone, bHalfPrecisionTexture))
@@ -545,7 +582,7 @@ void AWaterZone::OnLandscapeHeightmapStreamed(const FOnHeightmapStreamedContext&
 {
 	if (bAutoIncludeLandscapesAsTerrain)
 	{
-		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::OnLandscapeHeightmapStreamed() -- Rebuilding Water Info Texture..."));
+		UE_LOGF(LogWater, Verbose, "AWaterZone::OnLandscapeHeightmapStreamed() -- Rebuilding Water Info Texture...");
 		// Invalidate the region corresponding the heightmap being streamed in so that the water info is always up-to-date with the current landscape (i.e. ground) height :
 		const FBox2D& UpdateRegion = InContext.GetUpdateRegion();
 		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture, FBox2D(FVector2D(UpdateRegion.Min), FVector2D(UpdateRegion.Max)), reinterpret_cast<const UObject*>(InContext.GetLandscape()));
@@ -558,7 +595,7 @@ void AWaterZone::OnLandscapeComponentDataChanged(ALandscapeProxy* InLandscape, c
 	//  because so far, the water info only needs to be notified about heightmap changes
 	if (bAutoIncludeLandscapesAsTerrain)
 	{
-		UE_LOG(LogWater, Verbose, TEXT("AWaterZone::OnLandscapeComponentDataChanged() -- Rebuilding Water Info Texture..."));
+		UE_LOGF(LogWater, Verbose, "AWaterZone::OnLandscapeComponentDataChanged() -- Rebuilding Water Info Texture...");
 		// Invalidate the region corresponding to each of the changed components. Use a combined region, because 99% of times, the component are contiguous and laid out in a square :
 		FBox CombinedBounds;
 		InChangeParams.ForEachComponent([&CombinedBounds](const ULandscapeComponent* InLandscapeComponent)
@@ -662,8 +699,8 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		// Ensure that all the PSOs for the water info materials have been pre-cached before attempting to render the water info
 		// This is necessary if we have enabled the option to delay proxy creation until precache PSOs are ready, in which case
 		// we'd try to render the mesh components and end up skipping the creation of the proxy (or creating a temporary proxy
-		// with the default material fallback).
-		if (IsComponentPSOPrecachingEnabled() && ProxyCreationWhenPSOReady())
+		// with the fallback material fallback).
+		if (IsComponentPSOPrecachingEnabled() && GetPSOPrecacheProxyCreationStrategy() != EPSOPrecacheProxyCreationStrategy::AlwaysCreate)
 		{
 			bool bHaveAllPSOsBeenCached = true;
 
@@ -720,7 +757,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 					});
 
 				// Only consider landscapes which this zone intersects with in XY and if the landscape volume is not zero sized
-				if (WaterZoneBounds.IntersectXY(LandscapeBox) && LandscapeBox.GetVolume() > 0.0)
+				if (LandscapeBox.IsValid && (LandscapeBox.GetVolume() > 0.0) && WaterZoneBounds.IntersectXY(LandscapeBox))
 				{
 					GroundZMin = FMath::Min(GroundZMin, LandscapeBox.Min.Z);
 					GroundZMax = FMath::Max(GroundZMax, LandscapeBox.Max.Z);
@@ -811,7 +848,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 
 		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
 		UTextureRenderTarget2DArray* OldTexture = WaterInfoTextureArray;
-		WaterInfoTextureArray = FWaterUtils::GetOrCreateTransientRenderTarget2DArray(OldTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, WaterInfoTextureArrayNumSlices, Format);
+		WaterInfoTextureArray = FWaterUtils::GetOrCreateTransientRenderTarget2DArray(OldTexture, TEXT("WaterInfoTexture"), GetRenderTargetResolution(), WaterInfoTextureArrayNumSlices, Format);
 
 		// The water info texture is different, we need to bind the newly created texture to all registered water bodies
 		if (WaterInfoTextureArray != OldTexture)
@@ -824,7 +861,6 @@ bool AWaterZone::UpdateWaterInfoTexture()
 				return true;
 			});
 		}
-		
 
 		UE::WaterInfo::FRenderingContext Context;
 		Context.ZoneToRender = this;
@@ -838,7 +874,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 			WaterViewExtension->MarkWaterInfoTextureForRebuild(Context);
 		}
 
-		UE_LOG(LogWater, Verbose, TEXT("Water Zone (%s) queued Water Info texture update"), *GetNameSafe(this));
+		UE_LOGF(LogWater, Verbose, "Water Zone (%ls) queued Water Info texture update", *GetNameSafe(this));
 	}
 
 	return true;
@@ -867,13 +903,33 @@ bool AWaterZone::GetDynamicWaterInfoCenter(int32 PlayerIndex, FVector& OutCenter
 	check(World != nullptr);
 
 	bool bHasValidZoneLocation = false;
+	OutCenter = GetActorLocation();
+
+	if (const FWaterViewExtension* WaterViewExtension = UWaterSubsystem::GetWaterViewExtension(World))
+	{
+		bHasValidZoneLocation = WaterViewExtension->GetZoneLocation(this, PlayerIndex, OutCenter);
+	}
+	
+	return bHasValidZoneLocation;
+}
+
+bool AWaterZone::GetDynamicWaterInfoBounds(int32 PlayerIndex, FBox& OutBounds) const
+{
+	const UWorld* World = GetWorld();
+
+	check(World != nullptr);
+
+	bool bHasValidZoneLocation = false;
 	FVector Center = GetActorLocation();
 
 	if (const FWaterViewExtension* WaterViewExtension = UWaterSubsystem::GetWaterViewExtension(World))
 	{
 		bHasValidZoneLocation = WaterViewExtension->GetZoneLocation(this, PlayerIndex, Center);
 	}
-	
+
+	const FVector WaterInfoHalfExtents = GetDynamicWaterInfoExtent() / 2.;
+	OutBounds = FBox(Center - WaterInfoHalfExtents, Center + WaterInfoHalfExtents);
+
 	return bHasValidZoneLocation;
 }
 

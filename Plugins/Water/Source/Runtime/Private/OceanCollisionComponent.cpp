@@ -24,7 +24,7 @@ UOceanCollisionComponent::UOceanCollisionComponent(const FObjectInitializer& Obj
 {
 	bHiddenInGame = true;
 	bCastDynamicShadow = false;
-	bIgnoreStreamingManagerUpdate = true;
+	SetIgnoreStreamingManagerUpdate(true);
 	bUseEditorCompositing = true;
 }
 
@@ -122,7 +122,7 @@ UBodySetup* UOceanCollisionComponent::GetBodySetup()
 	return CachedBodySetup;
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 
 FPrimitiveSceneProxy* UOceanCollisionComponent::CreateSceneProxy()
 {
@@ -196,7 +196,7 @@ FPrimitiveSceneProxy* UOceanCollisionComponent::CreateSceneProxy()
 	return new FOceanCollisionSceneProxy(this);
 }
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 bool UOceanCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {

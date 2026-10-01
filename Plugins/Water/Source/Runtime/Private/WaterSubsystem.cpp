@@ -26,6 +26,7 @@
 
 #if WITH_EDITOR
 #include "WaterZoneActorDesc.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDescInstance.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 extern UNREALED_API UEditorEngine* GEditor;
@@ -254,13 +255,11 @@ void UWaterSubsystem::Tick(float DeltaTime)
 	SetMPCTime(MPCTime, PrevWorldTimeSeconds);
 	PrevWorldTimeSeconds = MPCTime;
 
-	for (AWaterZone* WaterZoneActor : TActorRange<AWaterZone>(GetWorld()))
+	WaterBodyManager.ForEachWaterZone([](AWaterZone* WaterZoneActor)
 	{
-		if (WaterZoneActor)
-		{
-			WaterZoneActor->Update();
-		}
-	}
+		WaterZoneActor->Update();
+		return true;
+	});
 
 	if (!bUnderWaterForAudio && CachedDepthUnderwater > 0.0f)
 	{
@@ -316,8 +315,10 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif //WITH_EDITOR
 	ApplyRuntimeSettings(GetDefault<UWaterRuntimeSettings>(), EPropertyChangeType::ValueSet);
 
+	UnderwaterPostProcessVolume = NewObject<UUnderwaterPostProcessVolume>(this);
+
 	World->OnBeginPostProcessSettings.AddUObject(this, &UWaterSubsystem::ComputeUnderwaterPostProcess);
-	World->InsertPostProcessVolume(&UnderwaterPostProcessVolume);
+	World->AddPostProcessVolume(UnderwaterPostProcessVolume);
 	{
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -373,7 +374,7 @@ void UWaterSubsystem::Deinitialize()
 	CVarWaterMeshEnableRendering->SetOnChangedCallback(NullCallback);
 
 	World->OnBeginPostProcessSettings.RemoveAll(this);
-	World->RemovePostProcessVolume(&UnderwaterPostProcessVolume);
+	World->RemovePostProcessVolume(UnderwaterPostProcessVolume);
 
 	WaterBodyManager.Deinitialize();
 
@@ -532,11 +533,11 @@ void UWaterSubsystem::PrintToWaterLog(const FString& Message, bool bWarning)
 {
 	if (bWarning)
 	{
-		UE_LOG(LogWater, Warning, TEXT("%s"), *Message);
+		UE_LOGF(LogWater, Warning, "%ls", *Message);
 	}
 	else
 	{
-		UE_LOG(LogWater, Log, TEXT("%s"), *Message);
+		UE_LOGF(LogWater, Log, "%ls", *Message);
 	}
 }
 
@@ -642,7 +643,7 @@ TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const UWorld* World, c
 	// Within the editor, we also want to check unloaded actors to ensure that the water body has serialized the best possible water zone, rather than just looking through what might be loaded now.
 	if (GEditor && !World->IsGameWorld())
 	{
-		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
 		{
 			const FBox Bounds3D(FVector(Bounds.Min.X, Bounds.Min.Y, -HALF_WORLD_MAX), FVector(Bounds.Max.X, Bounds.Max.Y, HALF_WORLD_MAX));
 			FWorldPartitionHelpers::ForEachIntersectingActorDescInstance<AWaterZone>(WorldPartition, Bounds3D, [&Bounds, &ViableZones](const FWorldPartitionActorDescInstance* ActorDescInstance)
@@ -915,8 +916,8 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 	CachedDepthUnderwater = -1;
 
 	// Set all that needs to be set before an eventual early-out
-	UnderwaterPostProcessVolume.PostProcessProperties.bIsEnabled = false;
-	UnderwaterPostProcessVolume.PostProcessProperties.Settings = nullptr;
+	UnderwaterPostProcessVolume->PostProcessProperties.bIsEnabled = false;
+	UnderwaterPostProcessVolume->PostProcessProperties.Settings = nullptr;
 	SceneView->UnderwaterDepth = CachedDepthUnderwater;
 	SceneView->WaterIntersection = EViewWaterIntersection::OutsideWater;
 
@@ -934,7 +935,7 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 	}
 
 	// Compute distance from view origin to the corner of the near plane. This distance needs to be taken into account when computing whether the view intersects the water surface.
-	const FVector4f NearPlaneCornerViewSpace = FVector4f(SceneView->ViewMatrices.GetInvProjectionMatrix().TransformFVector4(FVector4(1.0f, 1.0f, (bool)ERHIZBuffer::IsInverted ? 1.0f : 0.0f, 1.0f)));
+	const FVector4f NearPlaneCornerViewSpace = FVector4f(SceneView->ViewMatrices.GetClipToView().TransformFVector4(FVector4(1.0f, 1.0f, 1.0f, 1.0f)));
 	const float ViewToNearPlaneCornerDistance = FVector2f(NearPlaneCornerViewSpace / NearPlaneCornerViewSpace.W).Length();
 	bool bAnyDefinitelyUnderwater = false;
 	bool bAnyPossiblyUnderwater = false;
@@ -1089,7 +1090,7 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 			if (bUnderwaterForPostProcess)
 			{
 				CachedDepthUnderwater = FMath::Max(LocalDepthUnderwater, CachedDepthUnderwater);
-				UnderwaterPostProcessVolume.PostProcessProperties = Query.WaterBodyComponent.GetPostProcessProperties();
+				UnderwaterPostProcessVolume->PostProcessProperties = Query.WaterBodyComponent.GetPostProcessProperties();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				UnderwaterPostProcessDebugInfo.ActiveWaterBodyComponent = &Query.WaterBodyComponent;

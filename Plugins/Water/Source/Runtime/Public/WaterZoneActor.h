@@ -67,7 +67,7 @@ public:
 	UE_API void GetAllDynamicWaterInfoCenters(TArray<FVector>& OutCenters) const;
 
 	UE_API void SetRenderTargetResolution(FIntPoint NewResolution);
-	FIntPoint GetRenderTargetResolution() const { return RenderTargetResolution; }
+	FIntPoint GetRenderTargetResolution() const;
 
 	uint32 GetVelocityBlurRadius() const { return VelocityBlurRadius; }
 
@@ -177,6 +177,7 @@ protected:
 	UPROPERTY(Transient, Category = Water, VisibleAnywhere)
 	TArray<TWeakObjectPtr<UWaterBodyComponent>> OwnedWaterBodies;
 
+	/** Use Getter to access value since CVar r.Water.WaterInfo.RenderTargetResolutionMax may clamp the resolution */ 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Water, meta = (AllowPrivateAccess = "true"))
 	FIntPoint RenderTargetResolution;
 

@@ -23,10 +23,10 @@ public:
 	UE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 	UE_API virtual UBodySetup* GetBodySetup() override;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	// The scene proxy is only for debug purposes :
 	UE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // UE_ENABLE_DEBUG_DRAWING
 
 	/** Collects custom navigable geometry of component.
 	*   Substract the MaxWaveHeight to the Ocean collision so nav mesh geometry is exported a ground level

@@ -50,7 +50,7 @@ bool bBuoyancyCallbackDataParticleValidation = true;
 FAutoConsoleVariableRef CVarBuoyancyCallbackDataParticleValidation(TEXT("p.Buoyancy.CallbackData.ParticleValidation"), bBuoyancyCallbackDataParticleValidation, TEXT(""));
 
 bool bBuoyancyDebugDraw = false;
-#if ENABLE_DRAW_DEBUG
+#if CHAOS_DEBUG_DRAW
 FAutoConsoleVariableRef CVarBuoyancyDebugDraw(TEXT("p.Buoyancy.DebugDraw"), bBuoyancyDebugDraw, TEXT(""));
 #endif
 
@@ -63,18 +63,34 @@ static FAutoConsoleVariableRef CVarUseShallowWaterSimulation(
 	ECVF_Scalability
 );
 
+bool bBuoyancyUseWaves = true;
+static FAutoConsoleVariableRef CVarBuoyancyUseWaves(
+	TEXT("p.Buoyancy.bUseWaves"),
+	bBuoyancyUseWaves,
+	TEXT("When true, buoyancy applies Gerstner wave displacement for water bodies that have waves"),
+	ECVF_Scalability
+);
+
+bool bBuoyancyUseSimpleWaves = false;
+static FAutoConsoleVariableRef CVarBuoyancyUseSimpleWaves(
+	TEXT("p.Buoyancy.bUseSimpleWaves"),
+	bBuoyancyUseSimpleWaves,
+	TEXT("When true, use the faster simple wave height evaluation (height only, no normal) instead of the full two-sample steepness evaluation"),
+	ECVF_Scalability
+);
+
+bool bBuoyancyUseImplicitDrag = true;
+static FAutoConsoleVariableRef CVarBuoyancyUseImplicitDrag(
+	TEXT("p.Buoyancy.UseImplicitDrag"),
+	bBuoyancyUseImplicitDrag,
+	TEXT("When true, use semi-implicit integration for drag forces to prevent overshoot at high drag values. When false, use explicit Euler for all forces."),
+	ECVF_Scalability
+);
+
 int32 bUseAccurateIntegrationForSplines = 0;
 static FAutoConsoleVariableRef CVarUseAccurateIntegrationForSplines(
 	TEXT("p.Buoyancy.bUseAccurateIntegrationForSplines"),
 	bUseAccurateIntegrationForSplines,
-	TEXT("Accurate buoyancy method for splines"),
-	ECVF_Scalability
-);
-
-float AccurateIntegrationDragMultiplier = 0.0075;
-static FAutoConsoleVariableRef CVarAccurateIntegrationDragMultiplier(
-	TEXT("p.Buoyancy.AccurateIntegrationDragMultiplier"),
-	AccurateIntegrationDragMultiplier,
 	TEXT("Accurate buoyancy method for splines"),
 	ECVF_Scalability
 );
@@ -99,7 +115,7 @@ static FAutoConsoleCommandWithWorld BuoyancyLogMemory(
 		if (UBuoyancySubsystem* BuoyancySubsystem = World != nullptr ? World->GetSubsystem<UBuoyancySubsystem>() : nullptr)
 		{
 			const int32 AllocatedSize = BuoyancySubsystem->GetAllocatedSize();
-			UE_LOG(LogBuoyancySubsystem, Warning, TEXT("Buoyancy Subsystem Allocated Bytes: %d"), AllocatedSize);
+			UE_LOGF(LogBuoyancySubsystem, Warning, "Buoyancy Subsystem Allocated Bytes: %d", AllocatedSize);
 		}
 	}));
 #endif // WITH_BUOYANCY_MEMORY_TRACKING
@@ -217,6 +233,9 @@ void UBuoyancySubsystem::PostInitialize()
 {
 	Super::PostInitialize();
 
+	// Cache pointer to ocean fallback depth CVar (defined in Water module)
+	OceanFallbackDepthCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.OceanFallbackDepth"));
+
 	// Apply initial runtime settings
 	ApplyRuntimeSettings(GetDefault<UBuoyancyRuntimeSettings>(), EPropertyChangeType::ValueSet);
 
@@ -250,6 +269,7 @@ void UBuoyancySubsystem::ApplyRuntimeSettings(const UBuoyancyRuntimeSettings* In
 	// so introduce a factor of 10^-3 here.
 	BuoyancySettings.WaterDensity = Chaos::GCm3ToKgCm3(InSettings->WaterDensity);
 	BuoyancySettings.WaterDrag = InSettings->WaterDrag;
+	BuoyancySettings.WaterLift = InSettings->WaterLift;
 	BuoyancySettings.WaterCollisionChannel = InSettings->CollisionChannelForWaterObjects;
 	BuoyancySettings.bKeepAwake = InSettings->bKeepFloatingObjectsAwake;
 	BuoyancySettings.MaxNumBoundsSubdivisions = InSettings->MaxNumBoundsSubdivisions;
@@ -312,6 +332,9 @@ void UBuoyancySubsystem::Tick(float DeltaTime)
 		UpdateBuoyancySettings();
 	}
 
+	// Send wave reference time to physics thread every frame
+	UpdateWaveReferenceTime();
+
 	if (NetMode != World->GetNetMode())
 	{
 		NetMode = World->GetNetMode();
@@ -330,6 +353,7 @@ void UBuoyancySubsystem::UpdateAllAsyncInputs()
 	UpdateNetMode();
 	UpdateSplineData();
 	UpdateBuoyancySettings();
+	UpdateWaveReferenceTime();
 }
 
 void UBuoyancySubsystem::UpdateNetMode()
@@ -344,8 +368,6 @@ void UBuoyancySubsystem::UpdateNetMode()
 	}
 }
 
-// #todo(dmp): the current use of this method is on whatever thread Cloth is evaluated with, which is not the physics thread,
-//  but we are using the FBuoyancyWaterSplineData, which is stored on the PT after it is created from the Buoyancy plugin
 bool UBuoyancySubsystem::QueryWaterBody(const FVector& InputPosition, const TSharedPtr<FBuoyancyWaterSplineData> WaterData,
 	FVector& WaterVel, FVector& WaterPlaneN, FVector& WaterPlanePos)
 {		
@@ -398,9 +420,16 @@ bool UBuoyancySubsystem::QueryWaterBody(const FVector& InputPosition, const TSha
 	return false;
 }
 
-bool UBuoyancySubsystem::FindOverlappingWaterBodies(const FBox BoundingBox, TArray<const TSharedPtr<FBuoyancyWaterSplineData>>& WaterBodyPhysicsProxies)
+bool UBuoyancySubsystem::FindOverlappingWaterBodies(const FBox BoundingBox, 
+	bool ComputePlane, 
+	FVector &ClosestWaterPlaneLocation,
+	FVector &ClosestWaterPlaneNormal,
+	FVector &ClosestWaterPlaneVelocity,
+	TArray<const TSharedPtr<FBuoyancyWaterSplineData>>& CollisionWaterBodySplineData)
 {
-	if (!SplineData)
+	check(IsInGameThread());
+
+	if (!SplineData && !ComputePlane)
 	{
 		return false;
 	}
@@ -412,11 +441,11 @@ bool UBuoyancySubsystem::FindOverlappingWaterBodies(const FBox BoundingBox, TArr
 	QueryParams.bReturnPhysicalMaterial = false;			
 
 	FCollisionObjectQueryParams ObjectQueryParams;
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+	ObjectQueryParams.AddObjectTypesToQuery(BuoyancySettings.WaterCollisionChannel);
 
 	TArray<FOverlapResult> Overlaps;
 			
-	// perform overlap test
+	// perform overlap test to find collisions with the input bounding box
 	bool bHit = GetWorld()->OverlapMultiByObjectType(
 		Overlaps,
 		BoundingBox.GetCenter(),
@@ -426,40 +455,78 @@ bool UBuoyancySubsystem::FindOverlappingWaterBodies(const FBox BoundingBox, TArr
 		QueryParams
 	);
 
-	WaterBodyPhysicsProxies.Empty();
+	CollisionWaterBodySplineData.Empty();
 				
 	bool bFoundWaterBody = false;
 
 	// if we have a hit, find the water bodies we are colliding with
 	if (bHit)
 	{
+		float MinDistance = TNumericLimits <float>::Max();
+
 		for (const FOverlapResult& Result : Overlaps)
 		{
 			UWaterBodyComponent* WaterBodyComponent = Cast<UWaterBodyComponent>(Result.Component->GetAttachParent());
 			if (WaterBodyComponent)
-			{						
-				for (UPrimitiveComponent* WaterPrimitiveComponent : WaterBodyComponent->GetCollisionComponents(true))
+			{	
+				if (ComputePlane)
 				{
-					// Add each object (probably just one) to the objects list
-					if (WaterPrimitiveComponent)
+					const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = 
+						WaterBodyComponent->TryQueryWaterInfoClosestToWorldLocation(BoundingBox.GetCenter(),
+							EWaterBodyQueryFlags::ComputeLocation
+							| EWaterBodyQueryFlags::ComputeNormal
+							| EWaterBodyQueryFlags::ComputeVelocity
+							| EWaterBodyQueryFlags::ComputeDepth);
+
+					if (!QueryResult.HasValue())
 					{
-						FBodyInstance& BodyInstance = WaterPrimitiveComponent->BodyInstance;
-						if (BodyInstance.IsValidBodyInstance())
+						continue;
+					}
+
+					const FWaterBodyQueryResult &WaterCollisionResult = QueryResult.GetValue();
+
+					const FVector WaterPlaneLocation = WaterCollisionResult.GetWaterPlaneLocation();
+					const FVector WaterPlaneNormal = WaterCollisionResult.GetWaterPlaneNormal();
+					const FVector WaterPlaneVelocity = WaterCollisionResult.GetVelocity();
+
+					const float DistanceToInput = FVector::Distance(WaterPlaneLocation, BoundingBox.GetCenter());
+
+					if (DistanceToInput < MinDistance && WaterCollisionResult.GetWaterPlaneDepth() > SMALL_NUMBER)
+					{
+						bFoundWaterBody = true;
+
+						MinDistance = DistanceToInput;
+
+						ClosestWaterPlaneLocation = WaterPlaneLocation;
+						ClosestWaterPlaneNormal = WaterPlaneNormal;
+						ClosestWaterPlaneVelocity = WaterPlaneVelocity;
+					}
+				}
+				else
+				{
+					for (UPrimitiveComponent* WaterPrimitiveComponent : WaterBodyComponent->GetCollisionComponents(true))
+					{
+						// Add each object (probably just one) to the objects list
+						if (WaterPrimitiveComponent)
 						{
-							Chaos::FSingleParticlePhysicsProxy* WaterProxy = BodyInstance.GetPhysicsActor();
-							
-							// if we found a valid physics actor, get the PT spline data associated with the particle
-							// #todo(dmp): resolve issues with threading since this method is called from the GT but we are
-							// querying PT data here that is created from the Buoyancy plugin.
-							if (WaterProxy)
+							FBodyInstance& BodyInstance = WaterPrimitiveComponent->BodyInstance;
+							if (BodyInstance.IsValidBodyInstance())
 							{
-								bFoundWaterBody = true;
-								Chaos::FRigidBodyHandle_External& Body_External = WaterProxy->GetGameThreadAPI();								
+								Chaos::FSingleParticlePhysicsProxy* WaterProxy = BodyInstance.GetPhysicsActor();
+							
+								// if we found a valid physics actor, get the PT spline data associated with the particle
+								// #todo(dmp): resolve issues with threading since this method is called from the GT but we are
+								// querying PT data here that is created from the Buoyancy plugin.
+								if (WaterProxy)
+								{									
+									Chaos::FRigidBodyHandle_External& Body_External = WaterProxy->GetGameThreadAPI();								
 								
-								const TSharedPtr<FBuoyancyWaterSplineData> *TmpData = SplineData->GetData_PT(WaterProxy->GetGameThreadAPI());								
-								if (TmpData)
-								{
-									WaterBodyPhysicsProxies.Add(*TmpData);
+									const TSharedPtr<FBuoyancyWaterSplineData> *TmpData = SplineData->GetData_PT(WaterProxy->GetGameThreadAPI());								
+									if (TmpData)
+									{
+										bFoundWaterBody = true;
+										CollisionWaterBodySplineData.Add(*TmpData);
+									}
 								}
 							}
 						}
@@ -510,15 +577,39 @@ void UBuoyancySubsystem::UpdateSplineData()
 				// Copy out water spline data into a shared ptr, to be associated with all
 				// child particles and marshaled to PT.
 				const Chaos::FRigidTransform3 WaterTransform = WaterBodyComponent->GetComponentTransform();
-				const TOptional<FInterpCurveFloat> EmptyOptionalFloat;
-				const TOptional<FShallowWaterSimulationGrid> EmptyOptionalSimGrid;
+				const TOptional<FInterpCurveFloat> EmptyOptionalFloat;				
+
+				// Build wave data if this water body has Gerstner waves
+				TSharedPtr<FBuoyancyWaveData> WaveData;
+				if (bBuoyancyUseWaves && WaterBodyComponent->HasWaves())
+				{
+					if (UWaterWavesBase* WavesBase = WaterBodyComponent->GetWaterWaves())
+					{
+						if (const UGerstnerWaterWaves* GerstnerWaves = Cast<UGerstnerWaterWaves>(WavesBase->GetWaterWaves()))
+						{
+							WaveData = MakeShared<FBuoyancyGerstnerWaveData>(
+								GerstnerWaves->GetGerstnerWaves(),
+								GerstnerWaves->GetMaxWaveHeight(),
+								WaterBodyComponent->TargetWaveMaskDepth);
+						}
+					}
+				}
+
+				const float OceanFallbackDepth = OceanFallbackDepthCVar ? OceanFallbackDepthCVar->GetFloat() : 0.f;
+
 				TSharedPtr<FBuoyancyWaterSplineData> WaterSplineData = MakeShared<FBuoyancyWaterSplineData>(
 					WaterTransform,
 					SplineComponent->GetSplinePointsPosition(),
 					WaterBodyComponent->GetWaterBodyType(),
 					SplineMetadata ? SplineMetadata->RiverWidth : EmptyOptionalFloat,
 					SplineMetadata ? SplineMetadata->WaterVelocityScalar : EmptyOptionalFloat,
-					bUseShallowWaterSimulation && WaterBodyComponent->UseBakedSimulationForQueriesAndPhysics() ? BakedSim->SimulationData : EmptyOptionalSimGrid
+					bUseShallowWaterSimulation && WaterBodyComponent->UseBakedSimulationForQueriesAndPhysics() ? BakedSim->BakedSimulationData : nullptr,
+					WaveData,
+					SplineMetadata ? SplineMetadata->Depth : EmptyOptionalFloat,
+					WaterBodyComponent->GetChannelDepth(),
+					WaterBodyComponent->CurveSettings.CurveRampWidth,
+					WaterBodyComponent->CurveSettings.ChannelEdgeOffset,
+					OceanFallbackDepth
 				);
 
 				// Go over each physics object in each primitive component which was generated
@@ -554,6 +645,22 @@ void UBuoyancySubsystem::UpdateBuoyancySettings()
 		{
 			bBuoyancySettingsChanged = false;
 			AsyncInput->BuoyancySettings = MakeUnique<FBuoyancySettings>(BuoyancySettings);
+		}
+	}
+}
+
+void UBuoyancySubsystem::UpdateWaveReferenceTime()
+{
+	if (SimCallback)
+	{
+		if (FBuoyancySubsystemSimCallbackInput* AsyncInput = SimCallback->GetProducerInputData_External())
+		{
+			float Time = 0.f;
+			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+			{
+				Time = WaterSubsystem->GetWaterTimeSeconds();
+			}
+			AsyncInput->WaveReferenceTime = Time;
 		}
 	}
 }
@@ -693,6 +800,7 @@ void FBuoyancySubsystemSimCallbackInput::Reset()
 	SplineData.Reset();
 	BuoyancySettings.Reset();
 	NetMode.Reset();
+	WaveReferenceTime.Reset();
 }
 
 void FBuoyancySubsystemSimCallbackOutput::Reset()
@@ -758,6 +866,11 @@ void FBuoyancySubsystemSimCallback::OnPreSimulate_Internal()
 				SplineKeyCache.SetCacheLimit(BuoyancySettings->SplineKeyCacheLimit);
 			}
 		}
+
+		if (Input->WaveReferenceTime.IsSet())
+		{
+			WaveReferenceTime = *Input->WaveReferenceTime;
+		}
 	}
 
 	// If we don't have a valid buoyancy settings object, don't continue
@@ -767,7 +880,7 @@ void FBuoyancySubsystemSimCallback::OnPreSimulate_Internal()
 	}
 
 	// If we have debug draw enabled
-#if ENABLE_DRAW_DEBUG
+#if CHAOS_DEBUG_DRAW
 	if (bBuoyancyDebugDraw)
 	{
 		// If we're using spline key cache grid, debug draw all cached points
@@ -868,7 +981,7 @@ void FBuoyancySubsystemSimCallback::TrackInteractions(
 	// The spline userdatapt manager contains a PT array of all water splines indexed on
 	// water particle unique index. Therefore, we can use it to loop over all water body
 	// particles and check their midphases.
-	SplineData->VisitAllData_PT([this, &PBDSolver, &Evolution, &MidPhaseAccessor](Chaos::FUniqueIdx ParticleIdx, const TSharedPtr<FBuoyancyWaterSplineData>& WaterData)
+	SplineData->VisitData_PT([this, &PBDSolver, &Evolution, &MidPhaseAccessor](Chaos::FUniqueIdx ParticleIdx, const TSharedPtr<FBuoyancyWaterSplineData>& WaterData)
 	{
 		// If the WaterData shared ptr is invalid, skip this one
 		if (WaterData.IsValid() == false)
@@ -1007,9 +1120,21 @@ bool FBuoyancySubsystemSimCallback::QuerySpline(
 				if (DiffProj < SMALL_NUMBER) { return false; }
 				break;
 			}
+
+			case EWaterBodyType::Ocean:
+			{
+				// Determine if we're inside the ocean by projecting the horizontal spline
+				// diff onto the cross product of the spline direction and the up-vector
+				// (ie, the right-vector).  Note this is reversed from lakes since the splines
+				// define the carved out area that is land.
+				const FVector RightVector = FVector::CrossProduct(ClosestPointDerivative, FVector::UpVector);
+				const float DiffProj = FVector::DotProduct(RightVector, LateralDiff);
+				if (DiffProj > SMALL_NUMBER) { return false; }
+				break;
+			}
 		}
 			
-#if ENABLE_DRAW_DEBUG
+#if CHAOS_DEBUG_DRAW
 		if (bBuoyancyDebugDraw && !bUseAccurateIntegrationForSplines)
 		{
 			// Spline Color
@@ -1082,9 +1207,8 @@ void FBuoyancySubsystemSimCallback::TrackInteraction(
 
 		FVector ClosestWaterPointToParticle = ParticlePos;
 		ClosestWaterPointToParticle.Z = WaterHeight;
-
-		FShallowWaterSimulationGrid DefaultShallowWaterSimulationGrid;
-		const FShallowWaterSimulationGrid& ShallowWaterSimData = WaterSpline.ShallowWaterSimData.Get(DefaultShallowWaterSimulationGrid);
+		
+		const TWeakObjectPtr<UShallowWaterSimulationDataBase> ShallowWaterSimData = WaterSpline.ShallowWaterSimData;
 
 		WaterSampler = TSharedPtr<FBuoyancyWaterSampler>(new FBuoyancyShallowWaterSampler(ShallowWaterSimData, ClosestWaterPointToParticle, WaterVelocity));
 	}
@@ -1105,7 +1229,31 @@ void FBuoyancySubsystemSimCallback::TrackInteraction(
 			return;
 		}		
 		
+		if (bBuoyancyUseWaves && WaterSpline.HasWaves())
+		{
+			WaterSampler = TSharedPtr<FBuoyancyWaterSampler>(new FBuoyancyConstantSplineWithWavesSampler(
+				WaterSpline, ParticlePos, ClosestPoint, ClosestPointDerivative, ClosestSplineKey, WaterN, WaveReferenceTime, bBuoyancyUseSimpleWaves));
+
+#if CHAOS_DEBUG_DRAW
+			if (bBuoyancyDebugDraw)
+			{
+				auto DerivedSampler = StaticCastSharedPtr<FBuoyancyConstantSplineWithWavesSampler>(WaterSampler);
+
+				Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(ParticlePos, ClosestPoint, 20, FColor::Purple, false, -1.f, -1, 2.f);
+				
+				FVector BottomPoint = ParticlePos;
+				FVector Vel;
+				float H, D;
+				DerivedSampler->SampleWaterAtPosition(ParticlePos, Vel, H, D);
+				BottomPoint.Z = ClosestPoint.Z - D;
+				Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(ParticlePos, BottomPoint, 20, FColor::Purple, false, -1.f, -1, 2.f);
+			}
+#endif
+		}
+		else
+		{
 		WaterSampler = TSharedPtr<FBuoyancyWaterSampler>(new FBuoyancyConstantSplineSampler(WaterSpline, ClosestPoint, ClosestPointDerivative, ClosestSplineKey, WaterN));				
+	}
 	}
 
 	{
@@ -1138,10 +1286,12 @@ void FBuoyancySubsystemSimCallback::ProcessInteractions(Chaos::FPBDRigidsEvoluti
 		{
 			if (!Interaction.WaterSampler.IsValid())
 			{
-				UE_LOG(LogBuoyancySubsystem, Warning, TEXT("Skipped invalid buoyancy interaction"));
+				UE_LOGF(LogBuoyancySubsystem, Warning, "Skipped invalid buoyancy interaction");
 				return;
 			}
-			else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ShallowWater || bUseAccurateIntegrationForSplines)
+			else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ShallowWater
+				|| Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ConstantSplineWithWaves
+				|| bUseAccurateIntegrationForSplines)
 			{
 				ProcessAccurateInteraction(Evolution, Interaction, Interaction.WaterSampler);
 			}
@@ -1159,15 +1309,15 @@ void FBuoyancySubsystemSimCallback::ProcessAccurateInteraction(Chaos::FPBDRigids
 
 	float SubmergedVol = 0;
 	Chaos::FVec3 SubmergedCoM = Chaos::FVec3::ZeroVector;
-	Chaos::FVec3 WorldForce = Chaos::FVec3::ZeroVector;
-	Chaos::FVec3 WorldTorque = Chaos::FVec3::ZeroVector;
+	Chaos::FVec3 DragForce = Chaos::FVec3::ZeroVector;
+	Chaos::FVec3 DragTorque = Chaos::FVec3::ZeroVector;
+	Chaos::FVec3 BuoyancyForce = Chaos::FVec3::ZeroVector;
+	Chaos::FVec3 BuoyancyTorque = Chaos::FVec3::ZeroVector;
 	float TotalParticleVol = 0;
-	
-	const float AccurateIntegrationDrag = AccurateIntegrationDragMultiplier * BuoyancySettings->WaterDrag;
 
 	if (!Interaction.WaterSampler.IsValid())
 	{
-		UE_LOG(LogBuoyancySubsystem, Warning, TEXT("Skipped invalid buoyancy interaction "));
+		UE_LOGF(LogBuoyancySubsystem, Warning, "Skipped invalid buoyancy interaction ");
 		return;
 	}
 	else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ConstantSpline)
@@ -1175,16 +1325,24 @@ void FBuoyancySubsystemSimCallback::ProcessAccurateInteraction(Chaos::FPBDRigids
 		BuoyancyAlgorithms::ComputeSubmergedVolumeAndForcesForParticle(BuoyancyParticleData,
 			Interaction.RigidParticle, Interaction.WaterParticle,
 			StaticCastSharedPtr<FBuoyancyConstantSplineSampler>(Interaction.WaterSampler),
-			Evolution, DeltaSeconds, BuoyancySettings->WaterDensity, AccurateIntegrationDrag,
-			TotalParticleVol, SubmergedVol, SubmergedCoM, WorldForce, WorldTorque);		
+			Evolution, DeltaSeconds, BuoyancySettings->WaterDensity, BuoyancySettings->WaterDrag, BuoyancySettings->WaterLift,
+			TotalParticleVol, SubmergedVol, SubmergedCoM, DragForce, DragTorque, BuoyancyForce, BuoyancyTorque);
+	}
+	else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ConstantSplineWithWaves)
+	{
+		BuoyancyAlgorithms::ComputeSubmergedVolumeAndForcesForParticle(BuoyancyParticleData,
+			Interaction.RigidParticle, Interaction.WaterParticle,
+			StaticCastSharedPtr<FBuoyancyConstantSplineWithWavesSampler>(Interaction.WaterSampler),
+			Evolution, DeltaSeconds, BuoyancySettings->WaterDensity, BuoyancySettings->WaterDrag, BuoyancySettings->WaterLift,
+			TotalParticleVol, SubmergedVol, SubmergedCoM, DragForce, DragTorque, BuoyancyForce, BuoyancyTorque);
 	}
 	else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ShallowWater)
 	{
 		BuoyancyAlgorithms::ComputeSubmergedVolumeAndForcesForParticle(BuoyancyParticleData,
 			Interaction.RigidParticle, Interaction.WaterParticle,
 			StaticCastSharedPtr<FBuoyancyShallowWaterSampler>(Interaction.WaterSampler),
-			Evolution, DeltaSeconds, BuoyancySettings->WaterDensity, AccurateIntegrationDrag,
-			TotalParticleVol, SubmergedVol, SubmergedCoM, WorldForce, WorldTorque);
+			Evolution, DeltaSeconds, BuoyancySettings->WaterDensity, BuoyancySettings->WaterDrag, BuoyancySettings->WaterLift,
+			TotalParticleVol, SubmergedVol, SubmergedCoM, DragForce, DragTorque, BuoyancyForce, BuoyancyTorque);
 	}
 
 	// Apply forces to the particle
@@ -1193,28 +1351,83 @@ void FBuoyancySubsystemSimCallback::ProcessAccurateInteraction(Chaos::FPBDRigids
 
 		Chaos::FConstGenericParticleHandle RigidGeneric(Interaction.RigidParticle);
 
-#if ENABLE_DRAW_DEBUG
+#if CHAOS_DEBUG_DRAW
 		if (bBuoyancyDebugDraw)
 		{
 			Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(SubmergedCoM, 20, 10, FColor::Green, false, -1.f, -1, 2.0f);
 			Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(RigidGeneric->PCom(), 20, 10, FColor::Blue, false, -1.f, -1, 2.0f);
 
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(RigidGeneric->PCom(), RigidGeneric->PCom() + WorldForce, 20, FColor::Blue, false, -1.f, -1, 2.f);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(RigidGeneric->PCom(), RigidGeneric->PCom() + DragForce + BuoyancyForce, 20, FColor::Blue, false, -1.f, -1, 2.f);
 		}
 #endif
 
 		// #todo(dmp): if we do this integration to accelerations per shape, then each shape can have different densities per shape.
 		// This will change to integrate the accumulated accelerations instead of forces
 
-		// Use inertia to convert forces to accelerations
-		const Chaos::FVec3 LinearAccel = RigidGeneric->InvM() * WorldForce;
-
+		const Chaos::FReal InvM = RigidGeneric->InvM();
 		const Chaos::FMatrix33 WorldInvI = Chaos::Utilities::ComputeWorldSpaceInertia(RigidGeneric->RCom(), RigidGeneric->ConditionedInvI());
-		const Chaos::FVec3 AngularAccel = WorldInvI * WorldTorque;
 
-		// Integrate to get delta velocities
-		Chaos::FVec3 DeltaV = LinearAccel * DeltaSeconds;
-		Chaos::FVec3 DeltaW = AngularAccel * DeltaSeconds;
+		// Buoyancy - explicit integration (position-dependent, not velocity-dependent)
+		const Chaos::FVec3 WorldForce = DragForce + BuoyancyForce;
+		const Chaos::FVec3 WorldTorque = DragTorque + BuoyancyTorque;
+
+		Chaos::FVec3 DeltaV = InvM * BuoyancyForce * DeltaSeconds;
+		Chaos::FVec3 DeltaW = (WorldInvI * BuoyancyTorque) * DeltaSeconds;
+
+		if (bBuoyancyUseImplicitDrag)
+		{
+			// Drag - semi-implicit integration to prevent overshoot.
+			// Quadratic drag (F ~ v^2) with explicit Euler can overshoot the relative
+			// velocity and reverse motion direction. Semi-implicit divides by
+			// (1 + beta*dt) where beta is the effective drag coefficient,
+			// which is unconditionally stable.
+			// Linear and angular are treated independently since drag torque
+			// depends on both v and omega (per-triangle v_local = v_cm + omega x r).
+			Chaos::FVec3 DeltaVDrag = InvM * DragForce * DeltaSeconds;
+			Chaos::FVec3 DeltaWDrag = (WorldInvI * DragTorque) * DeltaSeconds;
+
+			// Linear: project drag delta-V onto relative velocity direction
+			const Chaos::FVec3 RelativeV = WaterSampler->GetAverageWaterVelocity() - Interaction.RigidParticle->GetV();
+			const float RelVMag = RelativeV.Size();
+			if (RelVMag > UE_SMALL_NUMBER)
+			{
+				const Chaos::FVec3 RelVDir = RelativeV / RelVMag;
+				const float DragAlongRelV = Chaos::FVec3::DotProduct(DeltaVDrag, RelVDir);
+
+				if (DragAlongRelV > UE_SMALL_NUMBER)
+				{
+					const float ImplicitScale = 1.f / (1.f + DragAlongRelV / RelVMag);
+					DeltaVDrag *= ImplicitScale;
+				}
+			}
+
+			// Angular: project drag delta-W onto angular velocity direction
+			// (water has no angular velocity, so omega itself is the "relative" angular velocity)
+			const Chaos::FVec3 W = Interaction.RigidParticle->GetW();
+			const float WMag = W.Size();
+			if (WMag > UE_SMALL_NUMBER)
+			{
+				const Chaos::FVec3 WDir = W / WMag;
+				// Negate because drag torque opposes angular velocity (DeltaWDrag points opposite to W),
+				// unlike the linear case where DeltaVDrag aligns with RelativeV.
+				const float DragAlongW = -Chaos::FVec3::DotProduct(DeltaWDrag, WDir);
+
+				if (DragAlongW > UE_SMALL_NUMBER)
+				{
+					const float ImplicitScaleW = 1.f / (1.f + DragAlongW / WMag);
+					DeltaWDrag *= ImplicitScaleW;
+				}
+			}
+
+			DeltaV += DeltaVDrag;
+			DeltaW += DeltaWDrag;
+		}
+		else
+		{
+			// Explicit Euler for all forces (original behavior)
+			DeltaV = InvM * WorldForce * DeltaSeconds;
+			DeltaW = (WorldInvI * WorldTorque) * DeltaSeconds;
+		}
 		
 		if (SubmergedVol > SMALL_NUMBER)
 		{
@@ -1264,7 +1477,7 @@ void FBuoyancySubsystemSimCallback::ProcessInteraction(Chaos::FPBDRigidsEvolutio
 	TSharedPtr<FBuoyancyConstantSplineSampler> ConstantSplineSampler;
 	if (!Interaction.WaterSampler.IsValid())
 	{
-		UE_LOG(LogBuoyancySubsystem, Warning, TEXT("Skipped invalid buoyancy interaction "));
+		UE_LOGF(LogBuoyancySubsystem, Warning, "Skipped invalid buoyancy interaction ");
 		return;
 	}
 	else if (Interaction.WaterSampler->GetSamplerType() == EWaterSamplerType::ConstantSpline)
@@ -1273,7 +1486,7 @@ void FBuoyancySubsystemSimCallback::ProcessInteraction(Chaos::FPBDRigidsEvolutio
 	}
 	else
 	{
-		UE_LOG(LogBuoyancySubsystem, Warning, TEXT("Skipped buoyancy interaction that isn't based on water splines"));
+		UE_LOGF(LogBuoyancySubsystem, Warning, "Skipped buoyancy interaction that isn't based on water splines");
 		return;
 	}
 	

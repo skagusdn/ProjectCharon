@@ -47,27 +47,27 @@ bool UWaterBodyMeshComponent::CanCreateSceneProxy() const
 {
 	if (GetStaticMesh() == nullptr)
 	{
-		UE_LOG(LogWater, Verbose, TEXT("Skipping CreateSceneProxy for WaterBodyMeshComponent %s (StaticMesh is null)"), *GetFullName());
+		UE_LOGF(LogWater, Verbose, "Skipping CreateSceneProxy for WaterBodyMeshComponent %ls (StaticMesh is null)", *GetFullName());
 		return false;
 	}
 
 	// Prevent accessing the RenderData during async compilation. The RenderState will be recreated when compilation finishes.
 	if (GetStaticMesh()->IsCompiling())
 	{
-		UE_LOG(LogWater, Verbose, TEXT("Skipping CreateSceneProxy for WaterBodyMeshComponent %s (StaticMesh is not ready)"), *GetFullName());
+		UE_LOGF(LogWater, Verbose, "Skipping CreateSceneProxy for WaterBodyMeshComponent %ls (StaticMesh is not ready)", *GetFullName());
 		return false;
 	}
 
 	if (GetStaticMesh()->GetRenderData() == nullptr)
 	{
-		UE_LOG(LogWater, Verbose, TEXT("Skipping CreateSceneProxy for WaterBodyMeshComponent %s (RenderData is null)"), *GetFullName());
+		UE_LOGF(LogWater, Verbose, "Skipping CreateSceneProxy for WaterBodyMeshComponent %ls (RenderData is null)", *GetFullName());
 		return false;
 	}
 
 	// By now the compilation should be finished so having null render data is not valid.
 	if (!GetStaticMesh()->GetRenderData()->IsInitialized())
 	{
-		UE_LOG(LogWater, Warning, TEXT("Skipping CreateSceneProxy for WaterBodyMeshComponent %s (RenderData is not initialized)"), *GetFullName());
+		UE_LOGF(LogWater, Warning, "Skipping CreateSceneProxy for WaterBodyMeshComponent %ls (RenderData is not initialized)", *GetFullName());
 		return false;
 	}
 
@@ -76,7 +76,7 @@ bool UWaterBodyMeshComponent::CanCreateSceneProxy() const
 	const int32 EffectiveMinLOD = bOverrideMinLOD ? MinLOD : SMCurrentMinLOD;
 	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(EffectiveMinLOD, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
-		UE_LOG(LogWater, Warning, TEXT("Skipping CreateSceneProxy for WaterBodyMeshComponent %s (LOD problems)"), *GetFullName());
+		UE_LOGF(LogWater, Warning, "Skipping CreateSceneProxy for WaterBodyMeshComponent %ls (LOD problems)", *GetFullName());
 		return false;
 	}
 

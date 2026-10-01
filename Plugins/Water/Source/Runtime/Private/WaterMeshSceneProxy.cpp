@@ -363,7 +363,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			{
 				LocalViewMask |= 1 << ViewIndex;
 				const FSceneView* View = Views[ViewIndex];
-				if (!bEncounteredISRView && View->IsInstancedStereoPass())
+				if (!bEncounteredISRView && View->IsInstancedStereo() && IStereoRendering::IsAPrimaryView(*View))
 				{
 					bEncounteredISRView = true;
 					InstanceFactor = View->GetStereoPassInstanceFactor();
@@ -1078,25 +1078,27 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingInstanceColl
 
 				FRayTracingWaterData& WaterInstanceRayTracingData = RayTracingWaterData[DensityIndex][DensityInstanceIndex++];
 
+				TArray<FMeshBatch>& CollectorMeshBatches = Collector.AllocateMeshBatchArray();
+				CollectorMeshBatches.Add(BaseMesh);
+
+				{
+					FRayTracingDynamicGeometryUpdateParams UpdateParams;
+					UpdateParams.MeshBatchesView = CollectorMeshBatches;
+					UpdateParams.bUsingIndirectDraw = false;
+					UpdateParams.NumVertices = uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount());
+					UpdateParams.VertexBufferSize = uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount() * sizeof(FVector3f));
+					UpdateParams.NumTriangles = uint32(WaterVertexFactories[DensityIndex]->IndexBuffer->GetIndexCount() / 3);
+					UpdateParams.Geometry = &WaterInstanceRayTracingData.Geometry;
+					UpdateParams.Buffer = nullptr;
+					UpdateParams.bApplyWorldPositionOffset = true;
+
+					Collector.AddRayTracingGeometryUpdate(FirstActiveViewIndex, MoveTemp(UpdateParams));
+				}
+
 				FRayTracingInstance RayTracingInstance;
 				RayTracingInstance.Geometry = &WaterInstanceRayTracingData.Geometry;
-				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
-				RayTracingInstance.Materials.Add(BaseMesh);
-
-				Collector.AddRayTracingGeometryUpdate(
-					FirstActiveViewIndex,
-					FRayTracingDynamicGeometryUpdateParams
-					{
-						RayTracingInstance.Materials,
-						false,
-						uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount()),
-						uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount() * sizeof(FVector3f)),
-						uint32(WaterVertexFactories[DensityIndex]->IndexBuffer->GetIndexCount() / 3),
-						&WaterInstanceRayTracingData.Geometry,
-						nullptr,
-						true
-					}
-				);
+				RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+				RayTracingInstance.MaterialsView = CollectorMeshBatches;
 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
@@ -1239,7 +1241,7 @@ FViewWaterQuadTree::FUserDataAndIndirectArgs FViewWaterQuadTree::PrepareGPUQuadT
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FSceneView* View = Views[ViewIndex];
-		if (!bEncounteredISRView && View->IsInstancedStereoPass())
+		if (!bEncounteredISRView && View->IsInstancedStereo() && IStereoRendering::IsAPrimaryView(*View))
 		{
 			bEncounteredISRView = true;
 		}
@@ -1359,8 +1361,6 @@ void FViewWaterQuadTree::BuildGPUQuadTree(FRDGBuilder& GraphBuilder)
 {
 	auto BuildOrthoMatrix = [](float InOrthoWidth, float InOrthoHeight, float DepthRange)
 	{
-		check((int32)ERHIZBuffer::IsInverted);
-
 		const FMatrix::FReal OrthoWidth = InOrthoWidth / 2.0f;
 		const FMatrix::FReal OrthoHeight = InOrthoHeight / 2.0f;
 

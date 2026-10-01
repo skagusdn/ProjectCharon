@@ -134,7 +134,7 @@ namespace NDIWaterPrivate
 				const TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> QueryResult = Component->TryQueryWaterInfoClosestToWorldLocation(InstData->LWCConverter.ConvertSimulationPositionToWorld(QueryPosition), QueryFlags);
 				if (QueryResult.HasError())
 				{
-					UE_LOG(LogWater, Error, TEXT("WaterInfoQuery returned error :%s"), *UEnum::GetValueAsString(QueryResult.GetError()));
+					UE_LOGF(LogWater, Error, "WaterInfoQuery returned error :%ls", *UEnum::GetValueAsString(QueryResult.GetError()));
 				}
 
 				if (!QueryResult.HasValue())
@@ -398,7 +398,7 @@ bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagara
 			}
 			else if (QueryResult.HasError())
 			{
-				UE_LOG(LogWater, Error, TEXT("NiagaraWaterDataInterface: attempting to compute the water body depth returned error: %s"), *UEnum::GetValueAsString(QueryResult.GetError()));
+				UE_LOGF(LogWater, Error, "NiagaraWaterDataInterface: attempting to compute the water body depth returned error: %ls", *UEnum::GetValueAsString(QueryResult.GetError()));
 			}
 
 		}
@@ -483,7 +483,7 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 			TValueOrError<FWaterBodyQueryResult, EWaterBodyQueryError> Query = Component->TryQueryWaterInfoClosestToWorldLocation(QueryPos, QueryFlags);
 			if (Query.HasError())
 			{
-				UE_LOG(LogWater, Error, TEXT("WaterInfoQuery returned error :%s"), *UEnum::GetValueAsString(Query.GetError()));
+				UE_LOGF(LogWater, Error, "WaterInfoQuery returned error :%ls", *UEnum::GetValueAsString(Query.GetError()));
 			}
 
 			if (!Query.HasValue())

@@ -30,7 +30,10 @@ struct FWaterCustomVersion
 		MoveWaterMPCParamsToWaterMesh,
 		// Moved where the default water info material is assigned to prevent blocking async load thread
 		DefaultWaterInfoMaterialAssignmentMoved,
-
+		// Rebuild water render data to ensure no meshes from the broken tset change were serialized
+		RebuildWaterMeshDataTSetChange,
+		// Moved baked simulation data over to UObject for better memory usage and asset management
+		MigrateShallowWaterSimulationToUObject,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

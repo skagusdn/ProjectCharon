@@ -18,7 +18,7 @@ class UWaterSplineMetadataDetailsFactory : public USplineMetadataDetailsFactoryB
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual ~UWaterSplineMetadataDetailsFactory() {}
+	virtual ~UWaterSplineMetadataDetailsFactory() = default;
 	virtual TSharedPtr<ISplineMetadataDetails> Create() override;
 	virtual UClass* GetMetadataClass() const override;
 };
@@ -26,7 +26,7 @@ public:
 class FWaterSplineMetadataDetails : public ISplineMetadataDetails, public TSharedFromThis<FWaterSplineMetadataDetails>
 {
 public:
-	virtual ~FWaterSplineMetadataDetails() {}
+	virtual ~FWaterSplineMetadataDetails() = default;
 	virtual FName GetName() const override { return FName(TEXT("WaterSplineMetadataDetails")); }
 	virtual FText GetDisplayName() const override;
 	virtual void Update(USplineComponent* InSplineComponent, const TSet<int32>& InSelectedKeys) override;

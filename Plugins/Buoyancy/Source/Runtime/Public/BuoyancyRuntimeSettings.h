@@ -40,6 +40,12 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = WaterProperties, Meta = (ClampMin = 0))
 	float WaterDrag = 1.f;
 
+	/** Lift coefficient for submerged surfaces. Controls how much angled surfaces
+	    deflect objects perpendicular to the flow (rudder steering, planing).
+	    0 = no lift (current behavior), 1 = standard lift. */
+	UPROPERTY(EditAnywhere, Config, Category = WaterProperties, Meta = (ClampMin = 0))
+	float WaterLift = 0.f;
+
 	/** Collision channel to use for water ObjectTypes */
 	UPROPERTY(EditAnywhere, Config, Category = WaterProperties)
 	TEnumAsByte<ECollisionChannel> CollisionChannelForWaterObjects;

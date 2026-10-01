@@ -286,8 +286,6 @@ static void FinalizeWaterInfo(
 
 static FMatrix BuildOrthoMatrix(float InOrthoWidth, float InOrthoHeight)
 {
-	check((int32)ERHIZBuffer::IsInverted);
-
 	const FMatrix::FReal OrthoWidth = InOrthoWidth / 2.0f;
 	const FMatrix::FReal OrthoHeight = InOrthoHeight / 2.0f;
 
@@ -575,6 +573,7 @@ void UpdateWaterInfoRendering_CustomRenderPass(
 	PassInput.ViewRotationMatrix.RemoveScaling();
 	PassInput.ProjectionMatrix = BuildOrthoMatrix(ZoneExtent.X, ZoneExtent.Y);
 	PassInput.ViewActor = Context.ZoneToRender;
+	PassInput.EngineShowFlags.Decals = 0;
 
 	TSet<FPrimitiveComponentId> ComponentsToRenderInDepthPass;
 	if (Context.GroundPrimitiveComponents.Num() > 0)

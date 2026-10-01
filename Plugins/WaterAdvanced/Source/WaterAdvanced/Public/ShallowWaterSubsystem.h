@@ -240,6 +240,8 @@ protected:
 	TWeakObjectPtr<const UTextureRenderTarget2DArray> WaterInfoTexture;
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Shallow Water")
 	TObjectPtr<UTextureRenderTarget2D> NormalRT;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Shallow Water")
+	TObjectPtr<UTextureRenderTarget2D> VelocityRT;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Shallow Water")
 	TObjectPtr<UShallowWaterSettings> Settings;

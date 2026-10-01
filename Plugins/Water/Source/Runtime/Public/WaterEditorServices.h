@@ -13,7 +13,7 @@ class UTexture2D;
 class IWaterEditorServices
 {
 public:
-	virtual ~IWaterEditorServices() {}
+	virtual ~IWaterEditorServices() = default;
 
 	virtual void RegisterWaterActorSprite(UClass* InClass, UTexture2D* Texture) = 0;
 	virtual UTexture2D* GetWaterActorSprite(UClass* InClass) const = 0;

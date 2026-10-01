@@ -134,7 +134,7 @@ void UShallowWaterSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	}
 	else if (LocalPlayers.Num() > 1)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("Shallow Water Simulation is disabled during splitscreen"));
+		UE_LOGF(LogShallowWater, Warning, "Shallow Water Simulation is disabled during splitscreen");
 	}
 }
 
@@ -261,14 +261,14 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 {
 	if (!ensure(WeakPlayerController.IsValid()))
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("PlayerController is invalid during initialization"));
+		UE_LOGF(LogShallowWater, Warning, "PlayerController is invalid during initialization");
 		return;
 	}
 
 	// another check to make sure we don't simulate when we have split screen active
 	if (WeakPlayerController->GetSplitscreenPlayerCount() > 1)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("Shallow Water Simulation is disabled during splitscreen"));
+		UE_LOGF(LogShallowWater, Warning, "Shallow Water Simulation is disabled during splitscreen");
 		return;
 	}
 
@@ -304,7 +304,7 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 	MPC = Settings->WaterMPC.Get();
 	if (MPC == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterSubsystem::InitializeShallowWater() - MPC cannot be loaded. Make sure it's set in ShallowWater Settings."));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterSubsystem::InitializeShallowWater() - MPC cannot be loaded. Make sure it's set in ShallowWater Settings.");
 		return;
 	}
 
@@ -315,7 +315,7 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 	const APawn* CursorPawn = GetTheMostRelevantPlayerPawn();
 	if (CursorPawn == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("Could not find CursorPawn during initialization"));
+		UE_LOGF(LogShallowWater, Warning, "Could not find CursorPawn during initialization");
 		return;
 	}
 
@@ -323,7 +323,7 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 	UNiagaraSystem* ShallowWaterTemplate = Settings->DefaultShallowWaterNiagaraSimulation.Get();
 	if (ShallowWaterTemplate == nullptr)
 	{		
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterSubsystem::InitializeShallowWater() - Couldn't find ShallowWater template in settings"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterSubsystem::InitializeShallowWater() - Couldn't find ShallowWater template in settings");
 		return;
 	}
 
@@ -331,7 +331,7 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 	UNiagaraDataChannelAsset* ShallowWaterCollisionNDC = Settings->DefaultShallowWaterCollisionNDC.Get();
 	if (ShallowWaterCollisionNDC == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterSubsystem::InitializeShallowWater() - Couldn't find ShallowWater collision NDC in settings"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterSubsystem::InitializeShallowWater() - Couldn't find ShallowWater collision NDC in settings");
 		return;
 	}
 
@@ -343,7 +343,7 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 
 	if (ShallowWaterNiagaraSimulation == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("UShallowWaterSubsystem::InitializeShallowWater() - ShallowWaterNiagaraSystem spawn failed"));
+		UE_LOGF(LogShallowWater, Warning, "UShallowWaterSubsystem::InitializeShallowWater() - ShallowWaterNiagaraSystem spawn failed");
 		return;
 	}
 	/*
@@ -379,10 +379,10 @@ void UShallowWaterSubsystem::InitializeShallowWater()
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Log, TEXT("UShallowWaterSubsystem::InitializeShallowWater() - UShallowWaterSettings::PhyicsAssetProxiesDataAsset is not valid"));	
+		UE_LOGF(LogShallowWater, Log, "UShallowWaterSubsystem::InitializeShallowWater() - UShallowWaterSettings::PhyicsAssetProxiesDataAsset is not valid");	
 	}
 
-	UE_LOG(LogShallowWater, Log, TEXT("UShallowWaterSubsystem::InitializeShallowWater() finished successfully"));
+	UE_LOGF(LogShallowWater, Log, "UShallowWaterSubsystem::InitializeShallowWater() finished successfully");
 }
 
 bool UShallowWaterSubsystem::IsShallowWaterAllowedToInitialize() const
@@ -466,37 +466,67 @@ APawn* UShallowWaterSubsystem::GetTheMostRelevantPlayerPawn() const
 
 void UShallowWaterSubsystem::CreateRTs()
 {
+	if (Settings == nullptr)
+	{
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: Null settings.")
+		return;
+	}
+
 	int32 Resolution = Settings->ShallowWaterSimParameters.ResolutionMaxAxis;
 
 	if (Resolution <= 0)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("ShallowWaterComponent: Invalid Resolution Max Axis.  Defauling to 1x1 simulation."))
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: Invalid Resolution Max Axis.  Defauling to 1x1 simulation.")
 		Resolution = 1;
 	}
 
 	NormalRT = NewObject<UTextureRenderTarget2D>(this);
 	check(NormalRT);
-	NormalRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGB10A2;
+	NormalRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
 	NormalRT->ClearColor = FLinearColor(0.f,0.f,0.f,0.f);
 	NormalRT->bAutoGenerateMips = false;
 	NormalRT->bCanCreateUAV = true;    // Niagara RT DI requires UAV. Do we need to create it here?
 	NormalRT->InitAutoFormat(Resolution, Resolution);	
 	NormalRT->UpdateResourceImmediate(true);	
+
+	if (Settings->OutputVelocity)
+	{
+		VelocityRT = NewObject<UTextureRenderTarget2D>(this);
+		check(VelocityRT);
+		VelocityRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
+		VelocityRT->ClearColor = FLinearColor(0.f,0.f,0.f,0.f);
+		VelocityRT->bAutoGenerateMips = false;
+		VelocityRT->bCanCreateUAV = true;    // Niagara RT DI requires UAV. Do we need to create it here?
+		VelocityRT->InitAutoFormat(Resolution, Resolution);	
+		VelocityRT->UpdateResourceImmediate(true);
+	}
+	else
+	{
+		VelocityRT = nullptr;
+	}
 }
 
 void UShallowWaterSubsystem::InitializeParameters()
 {
+	if (Settings == nullptr)
+	{
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: Null settings.")
+		return;
+	}
+
 	if (ShallowWaterNiagaraSimulation)
 	{
 		ShallowWaterNiagaraSimulation->SetVariableVec2(FName("WorldGridSize"), FVector2D(GetGridSize()));
 		ShallowWaterNiagaraSimulation->SetVariableInt(FName("ResolutionMaxAxis"), GetGridResolution());
-		ShallowWaterNiagaraSimulation->SetVariableTextureRenderTarget(FName("NormalRT"), NormalRT);		
+		ShallowWaterNiagaraSimulation->SetVariableTextureRenderTarget(Settings->NormalRTNiagaraName, NormalRT);
+
+		ShallowWaterNiagaraSimulation->SetVariableTextureRenderTarget(Settings->VelocityRTNiagaraName, VelocityRT);
 
 		ShallowWaterNiagaraSimulation->SetVariableBool(FName("UseBakedSim"), false);
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Error, TEXT("ShallowWaterComponent: No simulation found on component."))
+		UE_LOGF(LogShallowWater, Error, "ShallowWaterComponent: No simulation found on component.")
 	}
 	
 	if (MPC)
@@ -510,7 +540,7 @@ void UShallowWaterSubsystem::InitializeParameters()
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("ShallowWaterComponent: No valid MPC found in Project Settings - Water Advanced. The simulation will work but would show preview from the Niagara renderer only."))
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: No valid MPC found in Project Settings - Water Advanced. The simulation will work but would show preview from the Niagara renderer only.")
 	}
 }
 
@@ -591,14 +621,14 @@ void UShallowWaterSubsystem::UpdateGridMovement()
 			if (WaterBodyComp->UseBakedSimulationForQueriesAndPhysics())
 			{
 				UBakedShallowWaterSimulationComponent* BakedSim = WaterBodyComp->GetBakedShallowWaterSimulation();				
-				UTexture* BakedSimTex = Cast<UTexture>(BakedSim->SimulationData.BakedTexture.Get());
+				UTexture* BakedSimTex = Cast<UTexture>(BakedSim->BakedSimulationData->BakedTexture.Get());
 
 				if (BakedSimTex != nullptr)
 				{
-					ShallowWaterNiagaraSimulation->SetVariableVec3(FName("BakedWaterSimLocation"), BakedSim->SimulationData.Position);
-					ShallowWaterNiagaraSimulation->SetVariableVec2(FName("BakedWaterSimSize"), BakedSim->SimulationData.Size);
+					ShallowWaterNiagaraSimulation->SetVariableVec3(FName("BakedWaterSimLocation"), BakedSim->BakedSimulationData->Position);
+					ShallowWaterNiagaraSimulation->SetVariableVec2(FName("BakedWaterSimSize"), BakedSim->BakedSimulationData->Size);
 					ShallowWaterNiagaraSimulation->SetVariableVec2(FName("BakedWaterSimRes"), 
-						FVector2D(BakedSim->SimulationData.NumCells.X, BakedSim->SimulationData.NumCells.Y));
+						FVector2D(BakedSim->BakedSimulationData->NumCells.X, BakedSim->BakedSimulationData->NumCells.Y));
 					ShallowWaterNiagaraSimulation->SetVariableTexture(FName("BakedWaterSimTexture"), BakedSimTex);
 
 					UseBakedSim = true;				
@@ -683,6 +713,11 @@ void UShallowWaterSubsystem::WriteImpactToNDC(FVector ImpactPosition, FVector Im
 {
 	FNiagaraDataChannelSearchParameters SearchParams(ImpactPosition);
 	const UNiagaraDataChannelAsset* NDC = Settings->DefaultShallowWaterCollisionNDC.Get();
+	if (NDC == nullptr)
+	{
+		return;
+	}
+	
 	if (UNiagaraDataChannelWriter* DCWriter = UNiagaraDataChannelLibrary::WriteToNiagaraDataChannel(ShallowWaterNiagaraSimulation, NDC, SearchParams, 1, false, true, true, TEXT("ShallowWaterWriteImpact")))
 	{
 		int32 Index = 0;
@@ -712,7 +747,7 @@ void UShallowWaterSubsystem::TryUpdateWaterBodyMIDParameters(UWaterBodyComponent
 {
 	if (WaterBodyComponent == nullptr || WaterBodyComponentsWithProperMIDParameters.Contains(WaterBodyComponent))
 	{
-		// UE_LOG(LogShallowWater, Warning, TEXT("TryUpdateWaterBodyMIDParameters failed"));
+		// UE_LOGF(LogShallowWater, Warning, "TryUpdateWaterBodyMIDParameters failed");
 		return;
 	}
 	WaterBodyComponentsWithProperMIDParameters.Add(WaterBodyComponent);
@@ -720,16 +755,19 @@ void UShallowWaterSubsystem::TryUpdateWaterBodyMIDParameters(UWaterBodyComponent
 	if (UMaterialInstanceDynamic* WaterMID = WaterBodyComponent->GetWaterMaterialInstance(); WaterMID)
 	{
 		WaterMID->SetTextureParameterValue(Settings->NormalRTMaterialName, NormalRT);
+		WaterMID->SetTextureParameterValue(Settings->VelocityRTMaterialName, VelocityRT);
 		WaterMID->SetScalarParameterValue(FName(TEXT("DEV_UseNewShallowWaterSubsystem")), 1.f);   // Temp before replacing OG system
 	}
 	if (UMaterialInstanceDynamic* WaterMID = WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(); WaterMID)
 	{
 		WaterMID->SetTextureParameterValue(Settings->NormalRTMaterialName, NormalRT);
+		WaterMID->SetTextureParameterValue(Settings->VelocityRTMaterialName, VelocityRT);
 		WaterMID->SetScalarParameterValue(FName(TEXT("DEV_UseNewShallowWaterSubsystem")), 1.f);   // Temp before replacing OG system
 	}
 	if (UMaterialInstanceDynamic* WaterMID = WaterBodyComponent->GetRiverToLakeTransitionMaterialInstance(); WaterMID)
 	{
 		WaterMID->SetTextureParameterValue(Settings->NormalRTMaterialName, NormalRT);
+		WaterMID->SetTextureParameterValue(Settings->VelocityRTMaterialName, VelocityRT);
 		WaterMID->SetScalarParameterValue(FName(TEXT("DEV_UseNewShallowWaterSubsystem")), 1.f);   // Temp before replacing OG system
 	}
 }
@@ -738,12 +776,12 @@ void UShallowWaterSubsystem::RegisterPhysicsAssetProxiesDataAsset(const UShallow
 {
 	if (Proxies == nullptr)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("ShallowWaterComponent: UShallowWaterPhysicsAssetOverridesDataAsset is NULL.  No vehicle interaction will be possible."))
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: UShallowWaterPhysicsAssetOverridesDataAsset is NULL.  No vehicle interaction will be possible.")
 		return;
 	}
 	else if (Proxies->Overrides.Num() <= 0)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("ShallowWaterComponent: Input UShallowWaterPhysicsAssetOverridesDataAsset: %s has 0 entries.  No additional vehicles will be supported."), *Proxies->GetName())
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: Input UShallowWaterPhysicsAssetOverridesDataAsset: %ls has 0 entries.  No additional vehicles will be supported.", *Proxies->GetName())
 		return;
 	}
 
@@ -751,7 +789,7 @@ void UShallowWaterSubsystem::RegisterPhysicsAssetProxiesDataAsset(const UShallow
 	{
 		if (RegisteredPhysicsAssetProxies.Contains(Override.Key))
 		{
-			UE_LOG(LogShallowWater, Log, TEXT("Physics Asset Override in %s is overwriting an existing Override. GameplayTag = %s. This could be intended."),
+			UE_LOGF(LogShallowWater, Log, "Physics Asset Override in %ls is overwriting an existing Override. GameplayTag = %ls. This could be intended.",
 				*Proxies->GetName(), *Override.Key.ToString())
 		}
 	}
@@ -759,7 +797,7 @@ void UShallowWaterSubsystem::RegisterPhysicsAssetProxiesDataAsset(const UShallow
 
 	if (RegisteredPhysicsAssetProxies.Num() <= 0)
 	{
-		UE_LOG(LogShallowWater, Warning, TEXT("ShallowWaterComponent: RegisteredPhysicsAssetProxies has 0 entries.  No vehicle interaction will be possible."))
+		UE_LOGF(LogShallowWater, Warning, "ShallowWaterComponent: RegisteredPhysicsAssetProxies has 0 entries.  No vehicle interaction will be possible.")
 		return;
 	}
 }
@@ -1044,7 +1082,7 @@ void UShallowWaterSubsystem::EnableCollisionForContext(const FShallowWaterCollis
 	USkeletalMeshComponent* Component = Context.WeakComponent.Get();
 	if (Component == nullptr)
 	{		
-		UE_LOG(LogShallowWater, Warning, TEXT("EnableCollisionForContext() - Context Component is nullptr"));
+		UE_LOGF(LogShallowWater, Warning, "EnableCollisionForContext() - Context Component is nullptr");
 		return;
 	}
 	switch (Context.Type)
@@ -1119,7 +1157,7 @@ void UShallowWaterSubsystem::EnableCollisionForContext(const FShallowWaterCollis
 			}
 			else
 			{
-			 	UE_LOG(LogShallowWater, Warning, TEXT("EnableCollisionForContext() - Vehicle will not have collisions because no physics asset override was found"));
+			 	UE_LOGF(LogShallowWater, Warning, "EnableCollisionForContext() - Vehicle will not have collisions because no physics asset override was found");
 			}
 		}
 		break;
@@ -1371,11 +1409,11 @@ void UShallowWaterSubsystem::OnLocalPlayerControllerBecomesValid(APlayerControll
 {
 	if (InPlayerController == nullptr)
 	{
-		UE_LOG(LogShallowWater, Log, TEXT("OnLocalPlayerControllerBecomesValid() returned nullptr"))
+		UE_LOGF(LogShallowWater, Log, "OnLocalPlayerControllerBecomesValid() returned nullptr")
 		return;
 	}
 	
-	UE_LOG(LogShallowWater, Log, TEXT("OnLocalPlayerControllerBecomesValid() returned PC: %s"), *InPlayerController->GetFullName())
+	UE_LOGF(LogShallowWater, Log, "OnLocalPlayerControllerBecomesValid() returned PC: %ls", *InPlayerController->GetFullName())
 	WeakPlayerController = InPlayerController;
 	if (APawn* const Pawn = InPlayerController->GetPawn())
 	{
@@ -1389,11 +1427,11 @@ void UShallowWaterSubsystem::OnLocalPlayerPawnBecomesValid(APawn* OldPawn, APawn
 {
 	if (NewPawn == nullptr)
 	{
-		UE_LOG(LogShallowWater, Log, TEXT("OnLocalPlayerPawnBecomesValid() returned nullptr"))
+		UE_LOGF(LogShallowWater, Log, "OnLocalPlayerPawnBecomesValid() returned nullptr")
 		return;
 	}
 	
-	UE_LOG(LogShallowWater, Log, TEXT("OnLocalPlayerPawnBecomesValid() returned Pawn: %s"), *NewPawn->GetFullName())
+	UE_LOGF(LogShallowWater, Log, "OnLocalPlayerPawnBecomesValid() returned Pawn: %ls", *NewPawn->GetFullName())
 	// #todo Should re-initialize if pawn changed, or uninitialize if pawn lost 
 	if (!IsShallowWaterInitialized())
 	{
@@ -1401,7 +1439,7 @@ void UShallowWaterSubsystem::OnLocalPlayerPawnBecomesValid(APawn* OldPawn, APawn
 	}
 	else
 	{
-		UE_LOG(LogShallowWater, Log, TEXT("OnLocalPlayerPawnBecomesValid called but subsystem is already initialized."));
+		UE_LOGF(LogShallowWater, Log, "OnLocalPlayerPawnBecomesValid called but subsystem is already initialized.");
 	}
 }
 

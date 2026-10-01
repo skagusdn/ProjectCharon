@@ -174,6 +174,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (DisplayName = "Baked Sim Material"))
 	TObjectPtr <class UMaterialInstance> BakedSimMaterial;
 
+	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (DisplayName = "Baked UnderWater Sim Material"))
+	TObjectPtr <class UMaterialInstance> BakedSimUnderWaterMaterial;
+
 	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (DisplayName = "Baked Sim River To Lake Transition Material"))
 	TObjectPtr <class UMaterialInstance> BakedSimRiverToLakeTransitionMaterial;
 
@@ -188,6 +191,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (DisplayName = "Spline River To Ocean Transition Material"))
 	TObjectPtr <class UMaterialInstance> SplineRiverToOceanTransitionMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "Rendering", meta = (DisplayName = "Spline River UnderWater Material"))
+	TObjectPtr <class UMaterialInstance> SplineRiverUnderWaterMaterial;
 
 	////////////나중에 지워
 	UPROPERTY(EditAnywhere, Category = "Rendering")
@@ -240,6 +246,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	float BottomContourCaptureOffset = 15000.f;
 
+	UPROPERTY(EditAnywhere, Category = "Collisions", meta = (DisplayName = "Scene Capture LOD Distance Factor"))
+	float SceneCaptureLODDistanceFactor = 1.0f;
+
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	TArray<TSoftObjectPtr<AActor>> DilatedBottomContourActors;
 
@@ -266,10 +275,10 @@ public:
 	UE_API void AddActorsToRawArray(const TArray<TSoftObjectPtr<AActor>>& ActorsArray, TArray<AActor*>& BottomContourActorsRawPtr);
 
 	UE_API void AddTaggedActorsToArray(TArray<FName>& TagsToUse, TArray<AActor*>& BottomContourActorsRawPtr);
-	
-	void Bake();
 
-	UE_API void InitializeVirtualTexture(TObjectPtr<UTexture2D> InTexture);
+	UE_API void Bake();
+
+	UE_API void InitializeVirtualTexture(TObjectPtr<UTexture2D> InTexture);	
 
 	UE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -322,6 +331,9 @@ private:
 	
 	UPROPERTY()
 	TObjectPtr<UTextureRenderTarget2D> NormalDetailRT;
+
+	UPROPERTY()
+	TObjectPtr<class UNiagaraSystem> OceanPatchSystem;
 
 	FDelegateHandle ShouldDisableCPUThrottlingDelegateHandle;
 

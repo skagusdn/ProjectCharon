@@ -18,6 +18,7 @@ namespace Chaos
 class FBuoyancyWaterSampler;
 class FBuoyancyConstantSplineSampler;
 class FBuoyancyShallowWaterSampler;
+class FBuoyancyConstantSplineWithWavesSampler;
 
 struct FBuoyancyParticleData;
 
@@ -40,10 +41,10 @@ namespace BuoyancyAlgorithms
 	struct FBuoyancyShapeTopologyLimits
 	{
 	public:
-		static const int32 MaxVerticesPerShape = 100;		
-		static const int32 MaxEdgesPerShape = 100;
+		static const int32 MaxVerticesPerShape = 50;		
+		static const int32 MaxEdgesPerShape = 144;
 		static const int32 MaxIntersectionPointsPerShape = MaxEdgesPerShape;
-		static const int32 MaxVerticesPerFace = 20;
+		static const int32 MaxVerticesPerFace = 10;
 		static const int32 MaxSubmergedFaceVertices = MaxVerticesPerFace + 1;
 	};
 	
@@ -53,7 +54,7 @@ namespace BuoyancyAlgorithms
 	public:
 		FBuoyancyShape() {};
 
-		virtual ~FBuoyancyShape() {}
+		virtual ~FBuoyancyShape() = default;
 
 		virtual void Initialize() = 0;	
 
@@ -146,6 +147,9 @@ namespace BuoyancyAlgorithms
 	// maximum possible output value of the non-scaled ComputeSubmergedVolume.
 	Chaos::FRealSingle ComputeShapeVolume(const Chaos::FGeometryParticleHandle* Particle, const bool UseBoundingBoxVolume = true);
 
+	// Compute both bounding box and geometric shape volumes in a single traversal.
+	void ComputeShapeVolumes(const Chaos::FGeometryParticleHandle* Particle, Chaos::FRealSingle& OutBBoxVol, Chaos::FRealSingle& OutGeomVol);
+
 	//
 	void ScaleSubmergedVolume(const Chaos::FPBDRigidsEvolutionGBF& Evolution, const Chaos::FGeometryParticleHandle* Particle, const bool UseBoundingBoxVolume, Chaos::FRealSingle& SubmergedVol, Chaos::FRealSingle& TotalVol);
 
@@ -177,52 +181,132 @@ namespace BuoyancyAlgorithms
 		const Chaos::FVec3& WaterVel, const Chaos::FVec3& WaterN, Chaos::FVec3& OutDeltaV, Chaos::FVec3& OutDeltaW);
 
 	// given a particle, loop over the contained shapes and accumulate force/torque/submerged CoM values
+	// Drag/lift and buoyancy forces are output separately to allow semi-implicit drag integration.
 	template <typename SamplerType>
 	void ComputeSubmergedVolumeAndForcesForParticle(FBuoyancyParticleData& ParticleData,
 		const Chaos::FGeometryParticleHandle* SubmergedParticle, const Chaos::FGeometryParticleHandle* WaterParticle,
 		TSharedPtr<SamplerType> WaterSampler,
-		const Chaos::FPBDRigidsEvolution& Evolution, const float DeltaSeconds, const float WaterDensity, const float WaterDrag,
-		float& OutTotalParticleVol, float& OutTotalSubmergedVol, Chaos::FVec3& OutTotalSubmergedCoM, Chaos::FVec3& OutTotalForce, Chaos::FVec3& OutTotalTorque);
+		const Chaos::FPBDRigidsEvolution& Evolution, const float DeltaSeconds, const float WaterDensity, const float WaterDrag, const float WaterLift,
+		float& OutTotalParticleVol, float& OutTotalSubmergedVol, Chaos::FVec3& OutTotalSubmergedCoM,
+		Chaos::FVec3& OutTotalDragForce, Chaos::FVec3& OutTotalDragTorque,
+		Chaos::FVec3& OutTotalBuoyancyForce, Chaos::FVec3& OutTotalBuoyancyTorque);
 
 	// given a shape, compute the submerged volume and accumulate forces
 	// this is done in a single function call because of the iterative nature of the algorithm
 	template <typename ShapeType, typename SamplerType>
 	void ComputeSubmergedVolumeAndForcesForShape(
 		const Chaos::FGeometryParticleHandle* SubmergedParticle, const ShapeType& BoxShape,
-		const Chaos::FPBDRigidsEvolution& Evolution, float DeltaSeconds, const float WaterDensity, const float WaterDrag,
+		const Chaos::FPBDRigidsEvolution& Evolution, float DeltaSeconds, const float WaterDensity, const float WaterDrag, const float WaterLift,
+		const float ParticleVol, const float ShapeVol,
 		const Chaos::FRigidTransform3 &ShapeWorldTransform, TSharedPtr<SamplerType> WaterSampler,
 		float& OutSubmergedVol, Chaos::FVec3& OutSubmergedCoM,
 		Chaos::FVec3& OutForce, Chaos::FVec3& OutTorque,
-		Chaos::FVec3& OutBouyancyForce, Chaos::FVec3& OutBuoyancyTorque);
+		Chaos::FVec3& OutBuoyancyForce, Chaos::FVec3& OutBuoyancyTorque);
 
 	// find intersection points between a plane and aabbox
 	template <typename ShapeType>
 	void FindAllIntersectionPoints(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const ShapeType& BoxShape,
 		const TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxVerticesPerShape>> &WorldVertexPosition,
-		TMap<int32, FVector>& EdgeToIntersectionPoint, int32& NumIntersections,
+		const TArray<bool, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxVerticesPerShape>> &VertexIsUnderwater,
+		TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxEdgesPerShape>>& EdgeIntersectionPoints,
+		int32& NumIntersections,
 		TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxIntersectionPointsPerShape>>& OutOrderedIntersectionPoints, FVector& OutIntersectionCenter);
 
 	// sort intersection points by angle
-	template <typename ShapeType>
-	void SortIntersectionPointsByAngle(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& IntersectionCenter, const ShapeType& BoxShape,
-		const TMap<int, FVector>& EdgeToIntersectionPoint,
+	void SortIntersectionPointsByAngle(const Chaos::FVec3& WaterN, const Chaos::FVec3& IntersectionCenter,
+		const TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxEdgesPerShape>>& EdgeIntersectionPoints,
+		int32 NumIntersections,
 		TArray<FVector, TInlineAllocator<FBuoyancyShapeTopologyLimits::MaxIntersectionPointsPerShape>>& OutOrderedIntersectionPoints);
 
 	bool EdgePlaneIntersection(const Chaos::FVec3& WaterP, const Chaos::FVec3& WaterN, const Chaos::FVec3& V0, const Chaos::FVec3& V1, Chaos::FVec3& IntersectionPoint);
 
 	// compute area and volume of a tet from a triangle and center point on mesh
-	void ComputeTriangleAreaAndVolume(const FVector &V0, const FVector &V1, const FVector &V2,
-		const FVector &MeshCenterPoint, FVector& OutTriangleBaryCenter, FVector& OutNormal, float& OutArea, float& OutVolume, bool DebugDraw = false);
+	FORCEINLINE void ComputeTriangleAreaAndVolume(const FVector &V0, const FVector &V1, const FVector &V2,
+		const FVector &MeshCenterPoint, FVector& OutTriangleBaryCenter, FVector& OutNormal, float& OutArea, float& OutVolume)
+	{
+		// compute center of triangle
+		OutTriangleBaryCenter = (V0 + V1 + V2) / 3.;
+
+		// add up the volume of the tet created by this triangle and the center of the box
+		const FVector A = V0 - MeshCenterPoint;
+		const FVector B = V1 - MeshCenterPoint;
+		const FVector C = V2 - MeshCenterPoint;
+		const FVector N = A.Cross(B);
+
+		OutVolume = FMath::Abs((N.Dot(C)) / 6.f);
+
+		OutNormal = (V1 - V0).Cross(V2 - V0);
+		float NormalLength = OutNormal.Length();
+
+		// #todo(dmp): careful w/ divide by zero here?
+		OutNormal /= NormalLength;
+
+		// area of the triangle
+		OutArea = .5 * NormalLength;
+	}
 
 	// compute the force the fluid exerts on a triangle
-	void ComputeFluidForceForTriangle(const float WaterDrag,
-		const float DeltaSeconds, const float WaterDensity,
-		const Chaos::FPBDRigidParticleHandle* RigidParticle, const FVector WorldCoM,
+	FORCEINLINE void ComputeFluidForceForTriangle(const float WaterDrag, const float WaterLift,
+		const float WaterDensity, const float DeltaSeconds,
+		const Chaos::FVec3& ParticleV, const Chaos::FVec3& ParticleW, const FVector WorldCoM,
 		const FVector &TriBaryCenter, const FVector &TriNormal, const float TriArea, const float TetVolume,
 		const FVector &WaterVelocity, const FVector &WaterP, const FVector &WaterN,
-		FVector& OutTotalWorldForce, FVector& OutTotalWorldTorque);
+		FVector& OutTotalWorldForce, FVector& OutTotalWorldTorque)
+	{
+		OutTotalWorldForce = FVector(0, 0, 0);
+		OutTotalWorldTorque = FVector(0, 0, 0);
+
+		const Chaos::FVec3 WorldForcePosition = TriBaryCenter;
+		const Chaos::FVec3 WorldCOMToForcePos = WorldForcePosition - WorldCoM;
+
+		// project velocity sample onto water plane to support waterfalls and flowing rivers more accurately
+		const Chaos::FVec3 WaterVelocityOnPlane = WaterVelocity - WaterVelocity.Dot(WaterN) * WaterN;
+
+		// Get world space particle linear velocity at current point
+		// note we are including the linear velocity from torque so objects spin properly in flow
+		const Chaos::FVec3 SubmergedParticleVelocity = ParticleV + Chaos::FVec3::CrossProduct(ParticleW, WorldCOMToForcePos);
+
+		// compute force and torque to set linear velocity to fluid velocity
+		const Chaos::FVec3 RelativeVelocity = WaterVelocityOnPlane - SubmergedParticleVelocity;
+		const float RelativeVelocityMag = RelativeVelocity.Length();
+
+		// test if this triangle is influenced by the water based on the normal since we have closed shapes only.  This drag algorithm
+		// is derived for two sided planes
+		const float FacingTest = RelativeVelocity.Dot(TriNormal);
+
+		if (RelativeVelocityMag < SMALL_NUMBER || FacingTest < 0.f)
+		{
+			return;
+		}
+
+		// go with the flow combined drag and lift
+		// https://www.yousufsoliman.com/projects/download/going-with-the-flow.pdf
+		// const FVec3 ForceFromWaterVelocity = .5 * WaterDensity * RelativeVelocityMag * RelativeVelocity.Dot(TriNormal) * TriNormal * WaterDrag * TriArea;
+
+		// https://www.cemyuksel.com/research/waveparticles/cem_yuksel_dissertation.pdf
+		const float FluidA = TriArea * RelativeVelocity.Dot(TriNormal) / RelativeVelocityMag;
+		const Chaos::FVec3 DragForce = .5 * WaterDensity * RelativeVelocityMag * RelativeVelocity * FluidA * WaterDrag;
+
+		const Chaos::FVec3 LiftCrossProd = TriNormal.Cross(RelativeVelocity);
+		const float LiftCrossProdLength = LiftCrossProd.Length();
+
+		Chaos::FVec3 LiftForce = {0.0, 0.0, 0.0};
+		if (LiftCrossProdLength > SMALL_NUMBER)
+		{
+			LiftForce = .5 * WaterDensity * RelativeVelocityMag * RelativeVelocity.Cross(LiftCrossProd / LiftCrossProdLength) * FluidA * WaterLift;
+		}
+
+		const Chaos::FVec3 ForceFromWaterVelocity = DragForce + LiftForce;
+
+		// compute torque based on the linear force we apply
+		const Chaos::FVec3 TorqueFromWaterVelocity = Chaos::FVec3::CrossProduct(WorldCOMToForcePos, ForceFromWaterVelocity);
+
+		OutTotalWorldForce += ForceFromWaterVelocity;
+		OutTotalWorldTorque += TorqueFromWaterVelocity;
+	}
 
 	// compute the force the buoyancy exerts on a shape
 	void ComputeBuoyantForceForShape(const Chaos::FPBDRigidsEvolution& Evolution, const Chaos::FPBDRigidParticleHandle* RigidParticle, const float DeltaSeconds, const float WaterDensity,
+		const float ParticleVol, const float ShapeVol,
 		const Chaos::FVec3& SubmergedCoM, const float SubmergedVol, const Chaos::FVec3& WaterN, Chaos::FVec3& OutWorldBuoyantForce, Chaos::FVec3& OutWorldBuoyantTorque);
 }
