@@ -33,6 +33,71 @@ namespace CharonWaterNavCollision
 	{
 		return FMath::IsFinite(Vector.X) && FMath::IsFinite(Vector.Y) && FMath::IsFinite(Vector.Z);
 	}
+
+	// 볼록한 점 집합의 겉면 삼각형을 찾는다.
+	// 점 3개로 평면을 만들고, 나머지 점이 전부 한쪽에 있으면 겉면이다.
+	// 같은 평면 위의 사각형 면은 삼각형이 겹쳐서 나올 수 있지만, 내비메시 생성에는 문제없다.
+	static void AppendConvexHullTriangles(const TArray<FVector>& Points,
+		TArray<FVector>& OutVertices, TArray<int32>& OutIndices)
+	{
+		const int32 BaseIndex = OutVertices.Num();
+		OutVertices.Append(Points);
+
+		const int32 NumPoints = Points.Num();
+		constexpr double PlaneTolerance = 0.1; // cm
+
+		for (int32 i = 0; i < NumPoints; ++i)
+		{
+			for (int32 j = i + 1; j < NumPoints; ++j)
+			{
+				for (int32 k = j + 1; k < NumPoints; ++k)
+				{
+					const FVector Normal = FVector::CrossProduct(Points[j] - Points[i], Points[k] - Points[i]);
+					const double Length = Normal.Size();
+					if (Length < UE_KINDA_SMALL_NUMBER)
+					{
+						continue; // 세 점이 일직선
+					}
+					const FVector UnitNormal = Normal / Length;
+
+					bool bHasFront = false;
+					bool bHasBack = false;
+					for (int32 m = 0; m < NumPoints && !(bHasFront && bHasBack); ++m)
+					{
+						if (m == i || m == j || m == k)
+						{
+							continue;
+						}
+
+						const double Distance = FVector::DotProduct(UnitNormal, Points[m] - Points[i]);
+						if (Distance > PlaneTolerance)
+						{
+							bHasFront = true;
+						}
+						else if (Distance < -PlaneTolerance)
+						{
+							bHasBack = true;
+						}
+					}
+
+					if (bHasFront && bHasBack)
+					{
+						continue; // 덩어리 내부를 가로지르는 평면
+					}
+
+					// 나머지 점이 전부 뒤쪽에 있으면 Normal(= CrossProduct(B-A, C-A))이 바깥을 향한다.
+					// 그런데 Recast는 언리얼 좌표를 자기 좌표로 바꿀 때 축이 뒤바뀌어 앞뒤 판정이 반대가 된다.
+					// 따라서 Normal이 바깥을 향하는 경우 순서를 뒤집어야 Recast에서 윗면이 '바닥'으로 인식된다.
+					// (테스트로 확인 : 이 반전이 없으면 윗면이 천장으로 처리되어 내비메시가 생기지 않았다)
+					const bool bKeepOrder = bHasFront;
+
+					OutIndices.Add(BaseIndex + i);
+					OutIndices.Add(BaseIndex + (bKeepOrder ? j : k));
+					OutIndices.Add(BaseIndex + (bKeepOrder ? k : j));
+				}
+			}
+		}
+	}
 }
 
 UCharonWaterNavCollisionComponent::UCharonWaterNavCollisionComponent(const FObjectInitializer& ObjectInitializer)
@@ -61,6 +126,9 @@ void UCharonWaterNavCollisionComponent::SetNavConvexes(const TArray<TArray<FVect
 	}
 
 	NavBodySetup->AggGeom.EmptyElements();
+
+	NavMeshVertices.Reset();
+	NavMeshIndices.Reset();
 
 	const FTransform WorldToLocal = GetComponentTransform().Inverse();
 
@@ -99,6 +167,9 @@ void UCharonWaterNavCollisionComponent::SetNavConvexes(const TArray<TArray<FVect
 
 		Convex.UpdateElemBox();
 
+		// 내비메시 모양용 삼각형. 로컬 공간 정점 그대로 사용한다.
+		CharonWaterNavCollision::AppendConvexHullTriangles(Convex.VertexData, NavMeshVertices, NavMeshIndices);
+
 		// 내비 지오메트리 export 경로가 Chaos 컨벡스를 요구할 수 있어 미리 만들어 둔다.
 		// (WaterBodyRiverComponent::UpdateSplineMesh가 쓰는 방식과 동일)
 		TArray<Chaos::FConvex::FVec3Type> ChaosVerts;
@@ -117,9 +188,10 @@ void UCharonWaterNavCollisionComponent::SetNavConvexes(const TArray<TArray<FVect
 	// 바운드가 이상하면(무한대/NaN) 내비 옥트리 삽입에서 스택 오버플로가 난다. 로그로 확인할 것.
 	const FBoxSphereBounds CurrentBounds = Bounds;
 	UE_LOGF(LogCharon, Log,
-		"UCharonWaterNavCollisionComponent::SetNavConvexes : Convex=%d(건너뜀 %d), Origin=%ls, Extent=%ls, Radius=%f",
+		"UCharonWaterNavCollisionComponent::SetNavConvexes : Convex=%d(건너뜀 %d), Triangles=%d, Origin=%ls, Extent=%ls, Radius=%f",
 		GetNavConvexCount(),
 		SkippedConvexCount,
+		NavMeshIndices.Num() / 3,
 		*CurrentBounds.Origin.ToString(),
 		*CurrentBounds.BoxExtent.ToString(),
 		CurrentBounds.SphereRadius);
@@ -162,12 +234,14 @@ FBoxSphereBounds UCharonWaterNavCollisionComponent::CalcBounds(const FTransform&
 
 bool UCharonWaterNavCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
-	if (NavBodySetup == nullptr || CVarWaterNavExportGeometry.GetValueOnAnyThread() == 0)
+	if (NavMeshIndices.Num() == 0 || CVarWaterNavExportGeometry.GetValueOnAnyThread() == 0)
 	{
 		return false;
 	}
 
-	GeomExport.ExportRigidBodySetup(*NavBodySetup, GetComponentTransform());
+	// 엔진의 컨벡스 → 삼각형 변환을 거치지 않고, 직접 계산한 삼각형을 그대로 넘긴다.
+	GeomExport.ExportCustomMesh(NavMeshVertices.GetData(), NavMeshVertices.Num(),
+		NavMeshIndices.GetData(), NavMeshIndices.Num(), GetComponentTransform());
 
 	// false : 기본 지오메트리는 추가로 내보내지 않는다.
 	return false;

@@ -48,7 +48,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Charon|Water|Navigation")
 	TSubclassOf<UNavAreaBase> NavAreaClass;
 
-	// 내비 전용 형상. 물리 바디는 만들지 않는다.
+	// 내비 전용 형상. 물리 바디는 만들지 않는다. (NavArea 영역 계산용)
 	UPROPERTY(VisibleAnywhere, Category = "Charon|Water|Navigation")
 	TObjectPtr<UBodySetup> NavBodySetup;
+
+	// 내비메시 형상용 삼각형 (컴포넌트 로컬 공간). Recast에 그대로 넘긴다.
+	// Chaos 컨벡스와 달리 저장되므로 레벨을 다시 열어도 유지된다.
+	UPROPERTY()
+	TArray<FVector> NavMeshVertices;
+
+	UPROPERTY()
+	TArray<int32> NavMeshIndices;
 };
