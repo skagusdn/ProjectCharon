@@ -64,6 +64,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	ECharonLifeState GetLifeState() const {return LifeState;};
 
+	// 사망이 시작됐거나 끝났는지.
+	UFUNCTION(BlueprintPure, Category = "Charon|LifeState")
+	bool IsDeadOrDying() const { return LifeState != ECharonLifeState::NotDead; }
+
+	// 액터에서 LifeStateComponent를 찾는다. 없으면 nullptr.
+	UFUNCTION(BlueprintPure, Category = "Charon|LifeState")
+	static ULifeStateComponent* FindLifeStateComponent(const AActor* Actor);
+
 public :
 
 	// Delegate fired when the health value has changed. This is called on the client but the instigator may not be valid

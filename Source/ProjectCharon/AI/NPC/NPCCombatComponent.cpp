@@ -14,6 +14,19 @@ UNPCCombatComponent::UNPCCombatComponent(const FObjectInitializer& ObjectInitial
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UNPCCombatComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 배치 또는 스폰된 위치를 귀환 지점으로 쓴다.
+	HomeLocation = GetOwner()->GetActorLocation();
+}
+
+bool UNPCCombatComponent::IsWithinLeash(const FVector& Location) const
+{
+	return FVector::DistSquared2D(HomeLocation, Location) <= FMath::Square(LeashRadius);
+}
+
 void UNPCCombatComponent::InitializeWithAbilitySystem(UCharonAbilitySystemComponent* InASC)
 {
 	check(InASC);
@@ -132,9 +145,13 @@ FGameplayAbilitySpecHandle UNPCCombatComponent::FindUsableNPCAbility(AActor* Tar
 			continue;
 		}
 
-		// CDO로 검사. 사거리/조건 판정은 인스턴스 상태에 의존하지 않도록 작성할 것.
-		const UNPCAbility* NPCAbilityCDO = CastChecked<UNPCAbility>(Spec->Ability);
-		if (NPCAbilityCDO->CanActivateAgainstTarget(Target, Handle, ActorInfo))
+		const UNPCAbility* NPCAbility = Cast<UNPCAbility>(Spec->GetPrimaryInstance());
+		if (NPCAbility == nullptr)
+		{
+			NPCAbility = CastChecked<UNPCAbility>(Spec->Ability);
+		}
+
+		if (NPCAbility->CanActivateAgainstTarget(Target, Handle, ActorInfo))
 		{
 			return Handle;
 		}

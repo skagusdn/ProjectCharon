@@ -50,5 +50,14 @@ bool UNPCAbility::IsExtraConditionMet_Implementation(AActor* Target) const
 
 bool UNPCAbility::IsTargetInRange_Implementation(AActor* Target) const
 {
-	return true;
+	//일단 적당히 가까우면 true. 
+	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
+	{
+		if (AvatarActor->GetDistanceTo(Target) <= 500.f)
+		{
+			return true;	
+		}
+	}
+	
+	return false;
 }

@@ -22,6 +22,11 @@ ULifeStateComponent::ULifeStateComponent(const FObjectInitializer& ObjectInitial
 	// //
 }
 
+ULifeStateComponent* ULifeStateComponent::FindLifeStateComponent(const AActor* Actor)
+{
+	return Actor ? Actor->FindComponentByClass<ULifeStateComponent>() : nullptr;
+}
+
 
 
 void ULifeStateComponent::StartDeath()
