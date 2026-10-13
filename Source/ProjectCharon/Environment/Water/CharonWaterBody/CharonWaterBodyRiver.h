@@ -52,11 +52,4 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UCharonWaterNavCollisionComponent> NavCollisionComponent;
-
-	// ////////테스트용
-	UPROPERTY()
-	TArray<UStaticMeshComponent*> TestComponents;
-	
-public:
-
 };
