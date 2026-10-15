@@ -189,7 +189,7 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 
 	if(OldVehicle != RidingVehicle)
 	{
-		OnRidingVehicleChanged.Broadcast(RidingVehicle);	
+		OnRidingVehicleChanged.Broadcast(OwnerCharacter, RidingVehicle);	
 	}
 	
 }

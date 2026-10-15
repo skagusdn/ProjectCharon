@@ -13,6 +13,8 @@
 #include "Data/InputFunctionSet.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
 
 // Sets default values
 AVehicle::AVehicle()
@@ -29,6 +31,8 @@ AVehicle::AVehicle()
 	LifeStateComponent = CreateDefaultSubobject<ULifeStateComponent>(TEXT("LifeStateComponent"));
 	LifeStateComponent->OnDeathStarted.AddDynamic(this, &ThisClass::OnVehicleDeathStarted);
 	LifeStateComponent->OnDeathFinished.AddDynamic(this, &ThisClass::OnVehicleDeathFinished);
+
+	AIPerceptionStimuliSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("AIPerceptionStimuliSource"));
 	
 	
 }
@@ -38,6 +42,12 @@ AVehicle::AVehicle()
 void AVehicle::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Pawn이 아니라서 시야에 자동 등록되지 않으므로 직접 등록. 퍼셉션 시스템은 서버에만 있음.
+	if (HasAuthority())
+	{
+		AIPerceptionStimuliSource->RegisterForSense(UAISense_Sight::StaticClass());
+	}
 }
 
 void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -48,18 +58,14 @@ void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if(LifeState != ECharonLifeState::DeathFinished)
 	{
 		TArray<ACharacter*> RidersToExit;
-		// 강제적으로 탑승자 내리게하기. RideVehicle 어빌리티 쪽에서 처리하긴하는데 이렇게 중복으로 만들어둬도 되나?
-		// 바로 Riders 에서 루프 돌면서 ExitVehicle하면 루프 내에서 Riders를 삭제하는 꼴이라고 경고줌.
-		// for(TTuple<int32, ACharacter*> Tuple : Riders)
-		// {
-		// 	if(ACharacter* Rider = Tuple.Value)
-		// 	{
-		// 		RidersToExit.Add(Rider);	
-		// 	}
-		// }
+		
 		for(ACharacter* Rider : Riders)
 		{
-			RidersToExit.Add(Rider);	
+			// 빈 좌석은 nullptr
+			if(Rider)
+			{
+				RidersToExit.Add(Rider);
+			}
 		}
 
 		for(ACharacter* Rider : RidersToExit)

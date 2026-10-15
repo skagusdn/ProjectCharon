@@ -159,7 +159,8 @@ protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 	
-	UPROPERTY()
+	// AI 시야(Sight)의 자극원. 서버에서 BeginPlay 때 등록.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Charon|Vehicle|AI")
 	TObjectPtr<UAIPerceptionStimuliSourceComponent> AIPerceptionStimuliSource;
 	
 	UPROPERTY()

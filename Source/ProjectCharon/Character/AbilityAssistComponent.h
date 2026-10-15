@@ -111,6 +111,9 @@ protected:
 
 	FCharonAbilitySet_GrantedHandles GrantedAbilityHandles;
 
+	// UninitializeAbilitySystem 재진입 방지. (어빌리티 취소/회수 중 죽음 종료 콜백 등으로 다시 호출될 수 있음)
+	bool bUninitializingAbilitySystem = false;
+
 	// DEPRECATED?
 	// //Attribute 값 바뀌면 broadcast될 델리게이트 모음. (replicated)
 	// TMap<FGameplayAttribute, FCharonAttributeChanged> AttributeChangedDelegates;

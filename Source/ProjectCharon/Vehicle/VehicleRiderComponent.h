@@ -19,7 +19,7 @@ class AVehicle;
 
 //DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, UGameplayAbility*, CommittedAbility);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleChangedDelegate, AVehicle*, NewVeihlce);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FVehicleChangedDelegate, ACharacter*, Rider, AVehicle*, NewVeihlce);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVehicleAbilityCommittedDelegate, FAbilityCommitInfo, CommittedAbility);
 
 /* 캐릭터에서 Vehicle 탑승 처리하는 컴포넌트.

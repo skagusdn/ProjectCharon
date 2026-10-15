@@ -224,10 +224,12 @@ void UAbilityAssistComponent::InitializeAbilitySystem(UCharonAbilitySystemCompon
 
 void UAbilityAssistComponent::UninitializeAbilitySystem()
 {
-	if (!AbilitySystemComponent)
+	// 어빌리티 취소/회수 중 콜백(죽음 종료 등)으로 다시 들어오는 경우 무시
+	if (!AbilitySystemComponent || bUninitializingAbilitySystem)
 	{
 		return;
 	}
+	TGuardValue<bool> UninitGuard(bUninitializingAbilitySystem, true);
 
 	// 현재 이 컴포넌트의 오너가 아직도 ASC의 아바타 액터라면, (아니라면 새로 ASC의 아바타가 된 폰이 Uninit을 했을 것.)
 	if (AbilitySystemComponent->GetAvatarActor() == GetOwner())
@@ -298,6 +300,12 @@ void UAbilityAssistComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UAbilityAssistComponent::SwitchAbilitySet(TSet<UCharonAbilitySet*> Abilities)
 {
+	// 이미 Uninit된 경우(죽음 종료 후 하차 등)
+	if (!AbilitySystemComponent)
+	{
+		return;
+	}
+
 	ClearAbilitySet();
 	for(UCharonAbilitySet* AbilitySet : Abilities)
 	{
@@ -307,7 +315,7 @@ void UAbilityAssistComponent::SwitchAbilitySet(TSet<UCharonAbilitySet*> Abilitie
 
 void UAbilityAssistComponent::ClearAbilitySet()
 {
-	if(GrantedAbilityHandles)
+	if(GrantedAbilityHandles && AbilitySystemComponent)
 	{
 		GrantedAbilityHandles.TakeFromAbilitySystem(AbilitySystemComponent);
 		GrantedAbilityHandles = {};
