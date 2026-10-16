@@ -3,6 +3,7 @@
 
 #include "CharonAbility_Death.h"
 
+#include "AbilitySystemComponent.h"
 #include "CharonGameplayTags.h"
 #include "Character/CharonCharacter.h"
 #include "Character/LifeStateComponent.h"
@@ -31,7 +32,15 @@ void UCharonAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 {
 	// Lyra GA_Death 참고중
 	// 나중에 죽음 면역 같은거 넣을 꺼면 이부분에서 체크하기.
-	// TODO : 죽음 면역이 아닌 모든 어빌리티 캔슬
+
+	// 죽음 면역(Ability.Option.IgnoreDeath)이 아닌 어빌리티는 죽기 시작할 때 모두 취소한다.
+	// (UAbilityAssistComponent::UninitializeAbilitySystem에서도 한 번 더 취소하지만, 그건 죽음이 끝날 때라 늦다)
+	if (UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr)
+	{
+		FGameplayTagContainer AbilityTypesToIgnore;
+		AbilityTypesToIgnore.AddTag(CharonGameplayTags::Ability_Option_IgnoreDeath);
+		ASC->CancelAbilities(nullptr, &AbilityTypesToIgnore, this);
+	}
 
 	SetCanBeCanceled(false);
 	StartDeath();

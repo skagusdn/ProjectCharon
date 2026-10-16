@@ -90,8 +90,11 @@ protected:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// AbilitySet 해제.
+	// AbilitySet 해제. (교체용 세트만)
 	void ClearAbilitySet();
+
+	// DefaultAbilityConfig의 PersistentAbilities 부여
+	void GivePersistentAbilitySets();
 
 	void Server_HandleAbilityCommitted(UGameplayAbility* Ability);
 	void HandleAbilityCommitted(FAbilityCommitInfo AbilityCommitInfo);
@@ -109,7 +112,11 @@ protected:
 	UPROPERTY(Replicated)
 	TObjectPtr<UCharacterAbilityConfig> DefaultAbilityConfig;
 
+	// 교체용 세트 핸들. SwitchAbilitySet / ClearAbilitySet이 다룬다.
 	FCharonAbilitySet_GrantedHandles GrantedAbilityHandles;
+
+	// 영구 세트 핸들. 초기화 때 주고 UninitializeAbilitySystem에서만 회수한다.
+	FCharonAbilitySet_GrantedHandles PersistentAbilityHandles;
 
 	// UninitializeAbilitySystem 재진입 방지. (어빌리티 취소/회수 중 죽음 종료 콜백 등으로 다시 호출될 수 있음)
 	bool bUninitializingAbilitySystem = false;

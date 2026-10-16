@@ -19,15 +19,18 @@ void FCharonAbilitySet_GrantedHandles::TakeFromAbilitySystem(UCharonAbilitySyste
 		return;
 	}
 
-	for (const FGameplayAbilitySpecHandle& Handle : AbilitySpecHandles)
+	// ClearAbility는 실행 중인 어빌리티를 EndAbility시키고, 그 안에서 이 함수가 다시 불릴 수 있다.
+	// 핸들 배열을 먼저 비우고 사본으로 회수해서, 다시 불린 쪽은 빈 배열을 보고 끝나게 한다.
+	const TArray<FGameplayAbilitySpecHandle> HandlesToClear = MoveTemp(AbilitySpecHandles);
+	AbilitySpecHandles.Reset();
+
+	for (const FGameplayAbilitySpecHandle& Handle : HandlesToClear)
 	{
 		if (Handle.IsValid())
 		{
 			CharonASC->ClearAbility(Handle);
 		}
 	}
-	
-	AbilitySpecHandles.Reset();
 }
 
 UCharonAbilitySet::UCharonAbilitySet(const FObjectInitializer& ObjectInitializer)

@@ -156,6 +156,7 @@ void UAbilityAssistComponent::InitAbilityAssist(UCharonAbilitySystemComponent* I
 	if(GetOwner() && GetOwner()->HasAuthority())
 	{
 		InitializeAbilitySystem(InAsc, InOwnerActor);
+		GivePersistentAbilitySets();
 		//TODO : 등록 하는 로직이 아직 애매함. 일부만 Ability를 등록 해제 한다거나 그런거 없음. 여기 명확하게 하기. 
 		ClearAbilitySet();
 		SwitchAbilitySet(DefaultAbilityConfig->Abilities);	
@@ -258,6 +259,14 @@ void UAbilityAssistComponent::UninitializeAbilitySystem()
 		}
 
 		ClearAbilitySet();
+
+		// 영구 세트는 폰이 아바타에서 빠질 때만 회수한다.
+		// Death의 EndAbility 안에서 불려 Death 자신을 회수하게 되지만,
+		// 엔진이 중복 EndAbility를 막아 준다 (UGameplayAbility::IsEndAbilityValid).
+		if (PersistentAbilityHandles)
+		{
+			PersistentAbilityHandles.TakeFromAbilitySystem(AbilitySystemComponent);
+		}
 	}
 
 	//UninitializeAttributes();
@@ -310,6 +319,23 @@ void UAbilityAssistComponent::SwitchAbilitySet(TSet<UCharonAbilitySet*> Abilitie
 	for(UCharonAbilitySet* AbilitySet : Abilities)
 	{
 		AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, &GrantedAbilityHandles);
+	}
+}
+
+void UAbilityAssistComponent::GivePersistentAbilitySets()
+{
+	// 이미 받았으면 다시 주지 않는다 (초기화가 두 번 불리는 경우 대비)
+	if (!AbilitySystemComponent || !DefaultAbilityConfig || PersistentAbilityHandles)
+	{
+		return;
+	}
+
+	for (UCharonAbilitySet* AbilitySet : DefaultAbilityConfig->PersistentAbilities)
+	{
+		if (AbilitySet)
+		{
+			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, &PersistentAbilityHandles);
+		}
 	}
 }
 

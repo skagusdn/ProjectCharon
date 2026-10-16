@@ -234,7 +234,8 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 		return;
 	}
 		
-	if(ActiveInputConfig)
+	// 지금 들어가 있는 설정(임시 설정이 있으면 임시 설정)을 먼저 해제
+	if(ActiveInputConfig || TempActiveInputConfig)
 	{
 		UnregisterInputConfig(bIsTemporary);
 	}
@@ -283,6 +284,7 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 	
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	check(InputSubsystem);
+	RegisteredInputSubsystem = InputSubsystem;
 
 	UCharonInputComponent* CharonIC =  Cast<UCharonInputComponent>(OwnerPawn->InputComponent);
 
@@ -312,41 +314,39 @@ void UInputAssistComponent::SwitchInputConfig_Implementation(const UCharonInputC
 
 void UInputAssistComponent::UnregisterInputConfig(bool bIsTemporary)
 {
-	const AActor* OwnerActor = GetOwner();
-	const APawn* OwnerPawn = Cast<APawn>(OwnerActor);
+	// 지금 실제로 들어가 있는 설정. 임시 설정이 있으면 기본 설정의 IMC는 이미 빠져 있고 임시 설정의 IMC가 들어가 있다.
+	const UCharonInputConfig* RegisteredConfig = TempActiveInputConfig ? TempActiveInputConfig.Get() : ActiveInputConfig.Get();
 
-	check(OwnerPawn);
-
-	const APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
-	if(!PC)
+	// IMC는 로컬 플레이어의 입력 서브시스템에 들어가 있어 폰이 죽어도 남는다.
+	// 넣을 때 기억해 둔 서브시스템에서 빼므로, 폰이 이미 컨트롤러를 잃었어도 제거된다.
+	// (서버의 원격 폰처럼 IMC를 넣은 적이 없으면 서브시스템이 없다)
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = RegisteredInputSubsystem.Get();
+	if (InputSubsystem && RegisteredConfig)
 	{
-		return;
+		// TODO : 추후 임시 InputConfig를 `교체`하는게 아니라 `얹는` 형식으로 바꾼다면, 그리고 임시 InputConfig와 기존 InputConfig에서 겹치는 IMC가 있다면 이 파트가 문제가 될 수 있음. 
+		for (UInputMappingContext* MappingContext : RegisteredConfig->DefaultMappingContexts)
+		{
+			InputSubsystem->RemoveMappingContext(MappingContext);
+		}
 	}
 
-	const ULocalPlayer* LP = PC->GetLocalPlayer(); 
-	check(LP);
-	
-	UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-	check(InputSubsystem);
-
-	UCharonInputComponent* CharonIC =  Cast<UCharonInputComponent>(OwnerPawn->InputComponent);
-
-	if(ensureMsgf(CharonIC, TEXT("This Input Component Is Not SubClass of CharonInputComponent!")))
+	// 액션 바인딩은 폰의 InputComponent에 있다. 폰과 함께 사라지므로 남아 있을 때만 해제한다.
+	if (const APawn* OwnerPawn = GetPawn<APawn>())
 	{
-		// TODO : 이거 이렇게 하면 여러 InputConfig에서 겹치는 InputMappingContext가 있으면 문제가 되겠는데???
-		CharonIC->RemoveInputMappings( ActiveInputConfig, InputSubsystem);
-			
-		CharonIC->RemoveBinds(AbilityBindHandles);
-		CharonIC->RemoveBinds(NativeBindHandles);
+		if (UCharonInputComponent* CharonIC = Cast<UCharonInputComponent>(OwnerPawn->InputComponent))
+		{
+			CharonIC->RemoveBinds(AbilityBindHandles);
+			CharonIC->RemoveBinds(NativeBindHandles);
+		}
 	}
+	AbilityBindHandles.Reset();
+	NativeBindHandles.Reset();
 
-	//임시 교체일 경우 PresentInputConfig는 유지. 
+	//임시 교체일 경우 ActiveInputConfig는 유지.
 	if(!bIsTemporary)
 	{
-		ActiveInputConfig = nullptr;	
+		ActiveInputConfig = nullptr;
 	}
-	
-	
 }
 
 void UInputAssistComponent::K2_SwitchTemporaryInputConfig(const UCharonInputConfig* InputConfig,
@@ -355,30 +355,34 @@ void UInputAssistComponent::K2_SwitchTemporaryInputConfig(const UCharonInputConf
 	SwitchInputConfig(InputConfig, InputFunctions, true);
 }
 
-void UInputAssistComponent::K2_UnregisterTemporaryInputConfig(const UCharonInputConfig* InputConfig, AInputFunctionSet* InputFunctions)
+void UInputAssistComponent::K2_UnregisterTemporaryInputConfig()
 {
-	if(APawn* PawnOwner = Cast<APawn>(GetOwner()))
+	// 인자는 사용하지 않는다 (블루프린트 호출부 호환을 위해 남겨 둠).
+	// 임시 설정을 해제하고 기본 설정으로 돌아간다.
+	if(TempActiveInputConfig == nullptr)
 	{
-		if(PawnOwner->IsLocallyControlled())
-		{
-			
-		}
+		return;
 	}
-	
-	
-	SwitchInputConfig(ActiveInputConfig, ActiveInputFunctions, false);
+
+	if(ActiveInputConfig)
+	{
+		SwitchInputConfig(ActiveInputConfig, ActiveInputFunctions, false);
+	}
+	else
+	{
+		// 돌아갈 기본 설정이 없으면 임시 설정만 해제
+		UnregisterInputConfig(true);
+		TempActiveInputConfig = nullptr;
+		TempActiveInputFunctions = nullptr;
+	}
 }
 
 void UInputAssistComponent::ResetToDefaultInputConfig_Implementation()
 {
-	if(ActiveInputConfig)
+	// 이미 기본 설정이고 임시 설정도 없으면 할 일이 없다. (해제는 SwitchInputConfig가 한다)
+	if(ActiveInputConfig == DefaultInputConfig && TempActiveInputConfig == nullptr)
 	{
-		if(ActiveInputConfig == DefaultInputConfig)
-		{
-			return;
-		}
-
-		UnregisterInputConfig(false);
+		return;
 	}
 
 	SwitchInputConfig(DefaultInputConfig, DefaultInputFunctions);

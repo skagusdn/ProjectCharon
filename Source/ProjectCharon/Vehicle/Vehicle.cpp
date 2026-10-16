@@ -52,10 +52,10 @@ void AVehicle::BeginPlay()
 
 void AVehicle::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// 이 아래 부분 의미가 없다. 어차피 베히클 파괴되면 Ride? EnterVehicle? Ability가 알아서 각 Rider를 내리게함.
+	// 실제로 파괴될 때만 강제 하차. PIE 종료, 레벨 전환 같은 월드 정리 중에는 게임 로직을 돌리지 않는다.
 	// DeathFinished 상태가 아니라면 정상적으로 베히클이 파괴된게 아니라는 뜻.
-	ECharonLifeState LifeState =  LifeStateComponent->GetLifeState();
-	if(LifeState != ECharonLifeState::DeathFinished)
+	if(EndPlayReason == EEndPlayReason::Destroyed
+		&& LifeStateComponent->GetLifeState() != ECharonLifeState::DeathFinished)
 	{
 		TArray<ACharacter*> RidersToExit;
 		

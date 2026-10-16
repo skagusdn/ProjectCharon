@@ -148,12 +148,15 @@ void ACharonCharacter::SwitchAbilityConfig(const UCharacterAbilityConfig* Abilit
 
 void ACharonCharacter::ResetAbilityConfig()
 {
-	if(HasAuthority())
+	// 월드 정리 중(PIE 종료, 레벨 전환)에는 어빌리티 세트를 다시 줄 필요가 없다.
+	const UWorld* World = GetWorld();
+	if(!HasAuthority() || (World && World->bIsTearingDown))
 	{
-		AbilityAssistComponent->ResetToDefaultAbilitySet();
-		InputAssistComponent->ResetToDefaultInputConfig();
+		return;
 	}
-	
+
+	AbilityAssistComponent->ResetToDefaultAbilitySet();
+	InputAssistComponent->ResetToDefaultInputConfig();
 }
 
 // void ACharonCharacter::RequestExecuteInputFunction(FInputActionValue InputActionValue, AInputFunctionSet* InputFunctionSet,

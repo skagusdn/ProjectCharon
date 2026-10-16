@@ -13,6 +13,7 @@
 
 class AVehicle;
 class AInputFunctionSet;
+class UEnhancedInputLocalPlayerSubsystem;
 struct FGameplayAbilitySpecHandle;
 
 
@@ -84,6 +85,10 @@ protected:
 	//PresentAbilityConfig의 인풋 바인드 핸들
 	TArray<uint32> AbilityBindHandles;
 	TArray<uint32> NativeBindHandles;
+
+	// IMC를 추가한 로컬 플레이어의 입력 서브시스템.
+	// IMC는 폰이 죽어도 로컬 플레이어에 남으므로, 해제할 때 컨트롤러를 다시 찾지 않고 여기서 제거한다.
+	TWeakObjectPtr<UEnhancedInputLocalPlayerSubsystem> RegisteredInputSubsystem;
 	
 	//TArray<const FInputLayer> InputLayers;
 	
@@ -107,7 +112,7 @@ public:
 	//UFUNCTION(Client, Reliable)
 	//void SwitchTemporaryInputConfig(const UCharonInputConfig* InputConfig, AInputFunctionSet* InputFunctions);
 	UFUNCTION(BlueprintCallable, Category="Charon|Input", DisplayName="UnregisterTemporaryInputConfig")
-	void K2_UnregisterTemporaryInputConfig(const UCharonInputConfig* InputConfig, AInputFunctionSet* InputFunctions);
+	void K2_UnregisterTemporaryInputConfig();
 	//void UnregisterTemporaryInputConfig();
 	
 	//디폴트 입력으로 되돌아가기.

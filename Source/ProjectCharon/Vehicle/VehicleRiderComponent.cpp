@@ -166,19 +166,22 @@ void UVehicleRiderComponent::OnRep_RidingVehicle(AVehicle* OldVehicle)
 	{
 		bIsRidingVehicle = false;
 
-		//베히클이 어빌리티 발동시켰을 때 호출되게 한 콜백함수 바인딩 해제
-		if(OldVehicle)
+		// 이미 내린 상태에서 다시 nullptr로 설정된 경우(중복 하차)는 처리하지 않는다.
+		if(OldVehicle == nullptr)
 		{
-			if(UAbilitySystemComponent* VehicleASC = OldVehicle->GetAbilitySystemComponent())
-			{
-				VehicleASC->AbilityCommittedCallbacks.RemoveAll(this);
-			}
+			return;
 		}
-		
+
+		//베히클이 어빌리티 발동시켰을 때 호출되게 한 콜백함수 바인딩 해제
+		if(UAbilitySystemComponent* VehicleASC = OldVehicle->GetAbilitySystemComponent())
+		{
+			VehicleASC->AbilityCommittedCallbacks.RemoveAll(this);
+		}
+
 		// 애니메이션 원상 복구
-		OwnerCharacter->GetMesh()->SetAnimInstanceClass(OriginalRiderAnimClass);
 		if(OwnerCharacter && OwnerCharacter->GetMesh())
 		{
+			OwnerCharacter->GetMesh()->SetAnimInstanceClass(OriginalRiderAnimClass);
 			OwnerCharacter->GetMesh()->SetHiddenInGame(false);
 		}
 		if(ACharonCharacter* CharonRider = Cast<ACharonCharacter>(OwnerCharacter))
