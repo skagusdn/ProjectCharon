@@ -45,6 +45,9 @@ protected:
 
 	void UninitNPCCharacter();
 
+	// 폰이 컨트롤러에서 분리되기 전에 AI 로직을 정지한다(컨텍스트가 유효할 때 ExitState가 호출되도록).
+	void StopAILogic(const FString& Reason);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCharonAbilitySystemComponent> AbilitySystemComponent;
 

@@ -4,6 +4,8 @@
 #include "NPCCharacter.h"
 
 #include "NPCCombatComponent.h"
+#include "AIController.h"
+#include "BrainComponent.h"
 #include "AbilitySystem/CharonAbilitySystemComponent.h"
 #include "Character/LifeStateComponent.h"
 
@@ -39,6 +41,7 @@ void ANPCCharacter::PostInitializeComponents()
 void ANPCCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// 사망을 거치지 않고 제거되는 경우(레벨 언로드, 소환 해제 등)
+	StopAILogic(TEXT("EndPlay"));
 	OnAbilitySystemUninitialized();
 
 	Super::EndPlay(EndPlayReason);
@@ -98,12 +101,34 @@ void ANPCCharacter::UninitNPCCharacter()
 {
 	if (GetLocalRole() == ROLE_Authority)
 	{
+		StopAILogic(TEXT("DeathFinished"));
 		DetachFromControllerPendingDestroy();
 		SetLifeSpan(0.1f);
 	}
 
 	OnAbilitySystemUninitialized();
 	SetActorHiddenInGame(true);
+}
+
+void ANPCCharacter::StopAILogic(const FString& Reason)
+{
+	AAIController* AIController = GetController<AAIController>();
+	if (AIController == nullptr)
+	{
+		return;
+	}
+
+	UBrainComponent* BrainComponent = AIController->GetBrainComponent();
+	if (BrainComponent == nullptr)
+	{
+		// StateTree 컴포넌트가 BrainComponent로 등록되지 않은 경우 대비.
+		BrainComponent = AIController->FindComponentByClass<UBrainComponent>();
+	}
+
+	if (BrainComponent && BrainComponent->IsRunning())
+	{
+		BrainComponent->StopLogic(Reason);
+	}
 }
 
 

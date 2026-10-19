@@ -53,7 +53,7 @@ public:
 
 protected:
 
-	virtual void BeginPlay() override;
+	virtual void InitializeComponent() override;
 
 	// 귀환 지점을 중심으로 정찰할 반경(cm).
 	UPROPERTY(EditAnywhere, Category = "NPC|Combat|Home", meta = (ClampMin = "0.0"))
@@ -63,7 +63,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "NPC|Combat|Home", meta = (ClampMin = "0.0"))
 	float LeashRadius = 2000.f;
 
-	// BeginPlay 시점의 위치로 초기화된다.
+	// InitializeComponent 시점(AI 컨트롤러 빙의 전)의 위치로 초기화된다.
 	UPROPERTY(VisibleInstanceOnly, Transient, Category = "NPC|Combat|Home")
 	FVector HomeLocation = FVector::ZeroVector;
 

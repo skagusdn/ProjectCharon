@@ -12,11 +12,14 @@ UNPCCombatComponent::UNPCCombatComponent(const FObjectInitializer& ObjectInitial
 {
 	// 어빌리티 선택은 AI가 요청할 때만 하므로 Tick 불필요.
 	PrimaryComponentTick.bCanEverTick = false;
+
+	// AI 컨트롤러가 빙의하고 StateTree가 시작되기 전에 귀환 지점을 정하기 위해.
+	bWantsInitializeComponent = true;
 }
 
-void UNPCCombatComponent::BeginPlay()
+void UNPCCombatComponent::InitializeComponent()
 {
-	Super::BeginPlay();
+	Super::InitializeComponent();
 
 	// 배치 또는 스폰된 위치를 귀환 지점으로 쓴다.
 	HomeLocation = GetOwner()->GetActorLocation();
